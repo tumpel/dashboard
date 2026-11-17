@@ -9,6 +9,32 @@ The web dashboard for tumpel, and `@tumpel/pages`, the design tokens and page sh
 
 The types, schemas and API client come from the `tumpel/protocol` release tarballs, pinned by URL in `packages/dashboard/package.json`.
 
+## The API origin
+
+One build serves every stage. The dashboard reads the control plane origin at runtime from a meta tag in the page head:
+
+```html
+<meta name="tumpel-api-origin" content="https://api.example.com">
+```
+
+The built `index.html` carries no such tag. The server that hosts the dashboard must insert it into the `<head>` of every HTML response, including the single-page fallback for deep links. The content must be a bare `http` or `https` origin: scheme, host and optional port, with no path and no trailing slash. A Cloudflare Worker does it with `HTMLRewriter`:
+
+```ts
+new HTMLRewriter()
+  .on("head", {
+    element: (head) => head.append(`<meta name="tumpel-api-origin" content="${env.API_ORIGIN}">`, { html: true }),
+  })
+  .transform(response);
+```
+
+When the tag is missing or holds anything other than a bare origin, the dashboard shows what is wrong and the tag to insert instead of the app.
+
+For `npm run dev -w @tumpel/dashboard`, set `TUMPEL_API_ORIGIN` and the dev server inserts the tag.
+
+## `@tumpel/pages`
+
+`npm run build -w @tumpel/pages` compiles `@tumpel/pages` to `.js` and `.d.ts` in `packages/pages/dist`. The package also exports `@tumpel/pages/tokens.css` and `@tumpel/pages/shell.css`. Inside this repo the dashboard reads the TypeScript source through the `tumpel-source` export condition.
+
 ## Development
 
 ```sh

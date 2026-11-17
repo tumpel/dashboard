@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "storybook": "storybook dev --host 0.0.0.0 --port 6006 --no-open",
     "build-storybook": "storybook build --output-dir dist-storybook",
-    "test": "node --test --test-timeout=30000 test/*.test.ts"
+    "test": "node --conditions=tumpel-source --test --test-timeout=30000 test/*.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
