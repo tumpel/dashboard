@@ -19,6 +19,18 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Detect a docs-only pull request
+        id: changes
+        run: |
+          code=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            changed=$(git diff --name-only HEAD^1 HEAD)
+            grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed" || code=false
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v7
         with:
@@ -27,13 +39,21 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - run: npm run check
+      - if: steps.changes.outputs.code == 'false'
+        name: Run Biome and the comments, secrets and prose checks
+        run: npm run lint && npm run comments:check && npm run secrets:check && npm run prose:check
 
-      - run: npm test
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run check
 
-      - name: Build and pack the dashboard and pages tarballs, then install and import them
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test
+
+      - if: steps.changes.outputs.code == 'true'
+        name: Build and pack the dashboard and pages tarballs, then install and import them
         run: |
           npm run pack
           npm run pack:check
 
-      - run: npm run build-storybook
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run build-storybook
