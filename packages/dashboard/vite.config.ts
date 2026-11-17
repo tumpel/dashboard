@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { defaultClientConditions, defineConfig, type Plugin } from "vite";
 
 const require = createRequire(import.meta.url);
 
@@ -21,6 +21,22 @@ const stableFonts = (): Plugin => ({
   },
 });
 
+const devApiOrigin = (): Plugin => ({
+  name: "tumpel-dev-api-origin",
+  apply: "serve",
+  transformIndexHtml: () =>
+    process.env.TUMPEL_API_ORIGIN === undefined
+      ? []
+      : [
+          {
+            tag: "meta",
+            attrs: { name: "tumpel-api-origin", content: process.env.TUMPEL_API_ORIGIN },
+            injectTo: "head",
+          },
+        ],
+});
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), stableFonts()],
+  plugins: [react(), tailwindcss(), stableFonts(), devApiOrigin()],
+  resolve: { conditions: ["tumpel-source", ...defaultClientConditions] },
 });

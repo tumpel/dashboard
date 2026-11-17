@@ -1,15 +1,30 @@
 {
   "name": "@tumpel/pages",
   "version": "0.1.0",
-  "private": true,
+  "description": "The design tokens, page shell and server-rendered pages that the tumpel control plane and dashboard share",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tumpel/dashboard.git",
+    "directory": "packages/pages"
+  },
   "type": "module",
+  "files": [
+    "dist",
+    "src/tokens.css",
+    "src/shell.css"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "node --test --test-timeout=30000 test/*.test.ts"
   },
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "tumpel-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./tokens.css": "./src/tokens.css",
     "./shell.css": "./src/shell.css"
   },
