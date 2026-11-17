@@ -133,7 +133,7 @@ export const BuildRefused: Story = {
             409,
             "NoBuildProvider",
             "No build provider connected",
-            "The tenant has no GitHub Actions, CircleCI or Namespace connection.",
+            "The tenant has no Namespace connection.",
             "Connect a provider on Connections, then press Build now.",
           ),
         ),
