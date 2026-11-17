@@ -35,6 +35,24 @@ For `npm run dev -w @tumpel/dashboard`, set `TUMPEL_API_ORIGIN` and the dev serv
 
 `npm run build -w @tumpel/pages` compiles `@tumpel/pages` to `.js` and `.d.ts` in `packages/pages/dist`. The package also exports `@tumpel/pages/tokens.css` and `@tumpel/pages/shell.css`. Inside this repo the dashboard reads the TypeScript source through the `tumpel-source` export condition.
 
+## Releases
+
+A `vX.Y.Z` tag releases. The version must match `version` in both `packages/dashboard/package.json` and `packages/pages/package.json`. The GitHub release carries two npm tarballs, each with a `.sha256` file:
+
+- `dashboard-X.Y.Z.tgz`: `@tumpel/dashboard`, which holds only the built static assets in `dist/` and no dependencies.
+- `pages-X.Y.Z.tgz`: `@tumpel/pages`, compiled to `.js` and `.d.ts`, with `tokens.css` and `shell.css`.
+
+Pin each exactly by URL:
+
+```json
+"@tumpel/dashboard": "https://github.com/tumpel/dashboard/releases/download/v0.1.0/dashboard-0.1.0.tgz",
+"@tumpel/pages": "https://github.com/tumpel/dashboard/releases/download/v0.1.0/pages-0.1.0.tgz"
+```
+
+Serve `node_modules/@tumpel/dashboard/dist` as static assets with a single-page fallback to `index.html`, and insert the API origin tag described above.
+
+`npm run pack` builds both tarballs into `release/`, and `npm run pack:check` installs them in a scratch directory and imports them.
+
 ## Development
 
 ```sh

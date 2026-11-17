@@ -2,3 +2,4 @@
 dist/
 dist-storybook/
 node_modules/
+release/

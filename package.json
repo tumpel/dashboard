@@ -21,7 +21,9 @@
     "prose:check": "node npm-scripts/prose-check.mjs",
     "check": "npm run lint && npm run comments:check && npm run secrets:check && npm run prose:check && npm run typecheck",
     "test": "npm test --workspaces --if-present",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks",
+    "pack": "npm run build && node npm-scripts/pack.mjs",
+    "pack:check": "node npm-scripts/pack-check.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.0",
