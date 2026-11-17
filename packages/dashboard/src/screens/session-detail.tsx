@@ -376,13 +376,24 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
   );
 };
 
-const BootNote = ({ boot }: { boot: NonNullable<Session["lastTurnBoot"]> }) => (
-  <p className="mb-4 text-sm text-muted-foreground">
-    {boot.layer.layer === "Prebuild"
-      ? `The box boots from prebuild layer ${shortDigest(boot.layer.layerDigest)} on guest image ${shortDigest(boot.guestImageDigest)}.`
-      : `The box boots from guest image ${shortDigest(boot.guestImageDigest)} without a prebuild: ${boot.layer.detail}.`}
-  </p>
-);
+const layerText = (layer: NonNullable<Session["prebuildLayer"]>): string =>
+  layer.layer === "Prebuild"
+    ? `The session's files start from prebuild layer ${shortDigest(layer.layerDigest)}.`
+    : `The session's files start without a prebuild: ${layer.detail}.`;
+
+const imageText = (image: NonNullable<Session["lastTurnImage"]>): string =>
+  image.kind === "Full"
+    ? `The latest turn boots guest image ${shortDigest(image.guestImageDigest)}.`
+    : `The latest turn boots base image ${shortDigest(image.baseImageDigest)} with harness layer ${shortDigest(image.harnessLayerDigest)}.`;
+
+const BootNote = ({ session }: { session: Session }) => {
+  const lines = [
+    session.prebuildLayer && layerText(session.prebuildLayer),
+    session.lastTurnImage && imageText(session.lastTurnImage),
+  ].filter((line) => line !== undefined);
+  if (lines.length === 0) return null;
+  return <p className="mb-4 text-sm text-muted-foreground">{lines.join(" ")}</p>;
+};
 
 const ArchivedNote = () => (
   <div className="rounded-lg border bg-muted p-3">
@@ -669,7 +680,7 @@ export const SessionDetailScreen = () => {
           {data.model} / {hostNameOf(data.hostId)}
         </span>
       </div>
-      {data.lastTurnBoot && <BootNote boot={data.lastTurnBoot} />}
+      <BootNote session={data} />
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
       )}
