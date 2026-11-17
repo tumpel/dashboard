@@ -31,6 +31,9 @@ jobs:
 
       - run: npm test
 
-      - run: npm run build
+      - name: Build and pack the dashboard and pages tarballs, then install and import them
+        run: |
+          npm run pack
+          npm run pack:check
 
       - run: npm run build-storybook

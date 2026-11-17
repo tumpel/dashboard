@@ -1,0 +1,46 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check that the tag matches the package versions
+        run: |
+          for package in packages/dashboard packages/pages; do
+            version=$(node -p "require('./$package/package.json').version")
+            if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+              echo "the tag is $GITHUB_REF_NAME but $package/package.json names version $version; set the version in every packages/*/package.json to match and tag again" >&2
+              exit 1
+            fi
+          done
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Build and pack the dashboard and pages tarballs, then install and import them
+        run: |
+          npm run pack
+          npm run pack:check
+
+      - name: Create the GitHub release with the tarballs and their sha256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
