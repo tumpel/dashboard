@@ -170,6 +170,10 @@ const session = (
     createdAt: updatedAt - 600_000,
     updatedAt,
   },
+  lastTurnBoot: {
+    guestImageDigest: "4c".repeat(32),
+    layer: { layer: "Prebuild", prebuildId: "pbd_placeholder01", layerDigest: "8".repeat(64) },
+  },
   createdAt: updatedAt - 3_600_000,
   updatedAt,
 });

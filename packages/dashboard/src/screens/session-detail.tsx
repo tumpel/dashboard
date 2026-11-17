@@ -16,6 +16,7 @@ import { useSignedOut, useTenantApi } from "../context";
 import { formatMib, formatTime, HARNESS_NAMES, hostName, personaName, repositoryLabel } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
+import { shortDigest } from "../prebuild-rows";
 import {
   keys,
   useCredentialHandovers,
@@ -375,6 +376,14 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
   );
 };
 
+const BootNote = ({ boot }: { boot: NonNullable<Session["lastTurnBoot"]> }) => (
+  <p className="mb-4 text-sm text-muted-foreground">
+    {boot.layer.layer === "Prebuild"
+      ? `The box boots from prebuild layer ${shortDigest(boot.layer.layerDigest)} on guest image ${shortDigest(boot.guestImageDigest)}.`
+      : `The box boots from guest image ${shortDigest(boot.guestImageDigest)} without a prebuild: ${boot.layer.detail}.`}
+  </p>
+);
+
 const ArchivedNote = () => (
   <div className="rounded-lg border bg-muted p-3">
     <p className="font-semibold">Archived. The transcript stays readable; sends are refused.</p>
@@ -660,6 +669,7 @@ export const SessionDetailScreen = () => {
           {data.model} / {hostNameOf(data.hostId)}
         </span>
       </div>
+      {data.lastTurnBoot && <BootNote boot={data.lastTurnBoot} />}
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
       )}
