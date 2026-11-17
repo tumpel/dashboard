@@ -2,28 +2,15 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { ExternalLinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ConnectionSummary } from "../api/port";
-import { CopyValues } from "../components/copy-value";
 import { GitHubInstallations } from "../components/github-installations";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock } from "../components/problem-block";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
-import { formatTime } from "../fleet";
 import { type GitHubReturn, gitHubReturnOf, gitHubReturnUrl } from "../github-return";
-import {
-  useConnections,
-  useGitHubConnection,
-  useGitHubInstallations,
-  useNamespaceConnection,
-  useOwner,
-} from "../queries";
-import {
-  type ConnectionHash,
-  GitHubDisconnectDialog,
-  NamespaceConnectDialog,
-  NamespaceDisconnectDialog,
-} from "./connection-dialogs";
+import { useConnections, useGitHubConnection, useGitHubInstallations, useOwner } from "../queries";
+import { GitHubDisconnectDialog } from "./connection-dialogs";
 
 const StateBadge = ({ state }: { state: ConnectionSummary["state"] }) => {
   if (state === "Connected") return <Badge variant="success">Connected</Badge>;
@@ -80,16 +67,6 @@ const CardSkeleton = () => (
 );
 
 const OWNER_ONLY = "Only an Owner connects or disconnects services. Owners are listed under Members.";
-
-const dateOf = (epochMs: number): string => formatTime(epochMs).slice(0, 10);
-
-const hashLink = (hash: ConnectionHash, label: string, variant: "default" | "destructive" | "outline") => (
-  <Button asChild variant={variant} size="sm">
-    <Link to="." hash={hash} search={(search) => search}>
-      {label}
-    </Link>
-  </Button>
-);
 
 const GitHubCard = ({
   tenantId,
@@ -152,74 +129,6 @@ const GitHubCard = ({
   );
 };
 
-const NamespaceCard = ({
-  tenantId,
-  summary,
-  owner,
-}: {
-  tenantId: string;
-  summary: ConnectionSummary;
-  owner: boolean;
-}) => {
-  const detail = useNamespaceConnection(tenantId);
-  if (detail.isError) return <ProblemBlock error={detail.error} onRetry={() => void detail.refetch()} />;
-  const link = detail.data?.link;
-  const action = () => {
-    if (!owner) return null;
-    if (summary.state === "Connected") return hashLink("disconnect-namespace", "Disconnect", "destructive");
-    if (summary.state === "NotConnected") return hashLink("connect-namespace", "Connect", "default");
-    return null;
-  };
-  const lines = () => {
-    if (link?.state === "Connected") {
-      return (
-        <>
-          <p>
-            Bills: Namespace workspace <span className="font-medium">{link.connection.accountLabel}</span>, linked{" "}
-            {dateOf(link.connection.createdAt)}.
-          </p>
-          <p>Remote BuildKit. Namespace trusts Tumpel's OIDC tokens.</p>
-          <div className="mt-2 grid gap-2">
-            <p className="font-medium">Trust material in your Namespace workspace</p>
-            <CopyValues
-              values={[
-                { name: "Workspace", value: link.connection.workspaceId },
-                { name: "Issuer", value: link.connection.issuer },
-                { name: "Subject", value: link.connection.subjectPattern },
-                { name: "Audience", value: link.connection.audience },
-              ]}
-            />
-          </div>
-        </>
-      );
-    }
-    if (link?.state === "NotConfigured") {
-      return (
-        <>
-          <p>{link.detail}</p>
-          <p className="text-muted-foreground">{link.fix}</p>
-        </>
-      );
-    }
-    if (summary.state === "Connected") return <p>Bills: {summary.account}.</p>;
-    return (
-      <>
-        <p>
-          Remote BuildKit on your Namespace account. Namespace trusts Tumpel's OIDC issuer once Namespace Support
-          registers it.
-        </p>
-        {detail.isPending && <Skeleton className="h-4 w-64" />}
-      </>
-    );
-  };
-  return (
-    <ConnectionCard mark="NS" name="Namespace" state={summary.state} action={action()}>
-      {lines()}
-      {!owner && <p className="text-muted-foreground">{OWNER_ONLY}</p>}
-    </ConnectionCard>
-  );
-};
-
 const OpenRouterCard = ({ tenantId, summary }: { tenantId: string; summary: ConnectionSummary }) => (
   <ConnectionCard
     mark="OR"
@@ -261,8 +170,6 @@ export const ConnectionsScreen = () => {
       return (
         <div className="grid gap-3">
           <CardSkeleton />
-          <h2 className="mt-4 text-[15px] font-semibold">Build providers</h2>
-          <CardSkeleton />
         </div>
       );
     }
@@ -270,20 +177,12 @@ export const ConnectionsScreen = () => {
       return <ProblemBlock error={connections.error} onRetry={() => void connections.refetch()} />;
     }
     const gitHub = kind("GitHub");
-    const namespace = kind("Namespace");
     const openRouter = kind("OpenRouter");
     return (
       <div className="grid gap-3">
         {gitHub !== undefined && (
           <GitHubCard tenantId={tenantId} summary={gitHub} owner={owner} returned={returned} onClear={clearReturn} />
         )}
-        <div id="providers" className="mt-4 flex flex-wrap items-baseline gap-x-3">
-          <h2 className="text-[15px] font-semibold">Build providers</h2>
-          <p className="text-sm text-muted-foreground">
-            Prebuilds run on the tenant's own provider account. Tumpel runs no build.
-          </p>
-        </div>
-        {namespace !== undefined && <NamespaceCard tenantId={tenantId} summary={namespace} owner={owner} />}
         {openRouter !== undefined && (
           <>
             <h2 className="mt-4 text-[15px] font-semibold">Model providers</h2>
@@ -298,8 +197,6 @@ export const ConnectionsScreen = () => {
       <PageHeader title="Connections" />
       {body()}
       <GitHubDisconnectDialog tenantId={tenantId} installations={installations.data ?? []} />
-      <NamespaceConnectDialog tenantId={tenantId} />
-      <NamespaceDisconnectDialog tenantId={tenantId} />
     </>
   );
 };

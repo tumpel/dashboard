@@ -25,7 +25,7 @@ export const NotConnected: Story = {
   args: {
     path,
     api: fakeApi({
-      listConnections: async () => summaries("NotConnected", "NotConnected"),
+      listConnections: async () => summaries("NotConnected"),
       getGitHubConnection: async () => GITHUB_READY,
       listGitHubInstallations: async () => [],
     }),
@@ -36,7 +36,7 @@ export const NotConfigured: Story = {
   args: {
     path,
     api: fakeApi({
-      listConnections: async () => summaries("NotConfigured", "NotConnected"),
+      listConnections: async () => summaries("NotConfigured"),
       getGitHubConnection: async () => GITHUB_APP_MISSING,
       listGitHubInstallations: async () => [],
     }),
@@ -61,7 +61,6 @@ export const Loading: Story = {
       listConnections: never,
       getGitHubConnection: never,
       listGitHubInstallations: never,
-      getNamespaceConnection: never,
     }),
   },
 };
@@ -89,7 +88,7 @@ export const SignedOut: Story = {
 };
 
 const githubReady = {
-  listConnections: async () => summaries("Connected", "NotConnected"),
+  listConnections: async () => summaries("Connected"),
   getGitHubConnection: async () => GITHUB_READY,
   listGitHubInstallations: async () => GITHUB_INSTALLATIONS,
 };

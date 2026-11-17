@@ -2,7 +2,6 @@ import type {
   ConnectionSummary,
   GitHubConnection,
   GitHubInstallation,
-  NamespaceConnectionLink,
   Prebuild,
   PrebuildFailure,
   TumpelApi,
@@ -12,21 +11,14 @@ export type ConnectionOperation =
   | "startGitHubConnection"
   | "deleteGitHubConnection"
   | "listConnections"
-  | "getNamespaceConnection"
-  | "startNamespaceConnection"
-  | "deleteNamespaceConnection"
   | "listPrebuilds"
   | "listLatestPrebuilds"
-  | "startPrebuild"
   | "getPrebuildFailure";
 
 type ConnectionApi = Pick<TumpelApi, ConnectionOperation>;
 
 const TENANT_ID = "tnt_placeholder01";
 const LINKED = Date.parse("2026-11-01T10:14:00+01:00");
-const ISSUER = "https://id.example.com";
-const SUBJECT = `tenant:${TENANT_ID}:persona:<personaName>:job:prebuild`;
-const AUDIENCE = "federation.namespaceapis.com";
 
 export const GITHUB_READY: GitHubConnection = {
   tenantId: TENANT_ID,
@@ -59,40 +51,13 @@ export const GITHUB_INSTALLATIONS: GitHubInstallation[] = [
   },
 ];
 
-export const NAMESPACE_NOT_CONNECTED: NamespaceConnectionLink = {
-  tenantId: TENANT_ID,
-  link: { state: "NotConnected", issuer: ISSUER, subjectPattern: SUBJECT, audience: AUDIENCE },
-};
-
-export const NAMESPACE_CONNECTED: NamespaceConnectionLink = {
-  tenantId: TENANT_ID,
-  link: {
-    state: "Connected",
-    connection: {
-      namespaceConnectionId: "nsc_placeholder01",
-      tenantId: TENANT_ID,
-      accountLabel: "Acme builds",
-      workspaceId: "tenant_placeholder01",
-      issuer: ISSUER,
-      subjectPattern: SUBJECT,
-      audience: AUDIENCE,
-      createdAt: Date.parse("2026-11-15T09:30:00+01:00"),
-      updatedAt: Date.parse("2026-11-15T09:30:00+01:00"),
-    },
-  },
-};
-
 type PlainState = Extract<ConnectionSummary["state"], "Connected" | "NotConnected" | "NotConfigured">;
 
-export const summaries = (github: PlainState, namespace: PlainState): ConnectionSummary[] =>
-  (
-    [
-      ["GitHub", github, "owner-login"],
-      ["Namespace", namespace, "Acme builds"],
-    ] as const
-  ).map(
-    ([kind, state, account]): ConnectionSummary => (state === "Connected" ? { kind, state, account } : { kind, state }),
-  );
+export const summaries = (github: PlainState): ConnectionSummary[] => [
+  github === "Connected"
+    ? { kind: "GitHub", state: github, account: "owner-login" }
+    : { kind: "GitHub", state: github },
+];
 
 const digest = (seed: string): string => seed.repeat(64).slice(0, 64);
 
@@ -165,7 +130,7 @@ export const FAILURE: PrebuildFailure = {
   prebuildId: FAILED.prebuildId,
   tenantId: TENANT_ID,
   phase: "Build",
-  detail: "npm ci exited with status 1 on Namespace after 3 min 40 s. Lockfile and package.json disagree.",
+  detail: "npm ci exited with status 1 after 3 min 40 s. Lockfile and package.json disagree.",
   fix: "Run npm install, commit the lockfile, then Rebuild.",
   createdAt: Date.parse(FAILED.status.state === "Failed" ? FAILED.status.finishedAt : FAILED.startedAt),
 };
@@ -175,20 +140,9 @@ export const connectionFakes = (): ConnectionApi => ({
     installUrl: "https://github.com/apps/example/installations/new?state=placeholder",
     expiresAt: "2026-11-15T15:02:11+01:00",
   }),
-  listConnections: async () => summaries("Connected", "Connected"),
+  listConnections: async () => summaries("Connected"),
   deleteGitHubConnection: async (_installationId: number) => undefined,
-  getNamespaceConnection: async () => NAMESPACE_NOT_CONNECTED,
-  startNamespaceConnection: async () => NAMESPACE_CONNECTED,
-  deleteNamespaceConnection: async () => undefined,
   listPrebuilds: async (repository) => PREBUILDS[repository] ?? [],
   listLatestPrebuilds: async () => [BUILDING, FAILED, DONE],
-  startPrebuild: async (body) => ({
-    ...(PREBUILDS[body.repository]?.[0] ?? DONE),
-    prebuildId: body.rebuild ? "pbd_new" : (PREBUILDS[body.repository]?.[0]?.prebuildId ?? "pbd_new"),
-    provider: body.provider,
-    status: body.rebuild
-      ? { state: "Dispatched" }
-      : (PREBUILDS[body.repository]?.[0]?.status ?? { state: "Dispatched" }),
-  }),
   getPrebuildFailure: async () => FAILURE,
 });

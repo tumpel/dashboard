@@ -261,7 +261,6 @@ export const useSecretSet = (tenantId: string, secretSetId: string) => {
 
 export const connectionKeys = {
   list: (tenantId: string) => [tenantId, "connections"] as const,
-  namespace: (tenantId: string) => [tenantId, "connections", "Namespace"] as const,
 };
 
 export const prebuildKeys = {
@@ -274,11 +273,6 @@ export const prebuildKeys = {
 export const useConnections = (tenantId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({ queryKey: connectionKeys.list(tenantId), queryFn: () => api.listConnections() });
-};
-
-export const useNamespaceConnection = (tenantId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: connectionKeys.namespace(tenantId), queryFn: () => api.getNamespaceConnection() });
 };
 
 export const usePrebuildFailure = (tenantId: string, prebuildId: string) => {

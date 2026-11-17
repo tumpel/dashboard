@@ -30,8 +30,6 @@ import type {
   MetricTurnQuerySchema,
   MetricWindowSchema,
   MintedEnrolmentTokenSchema,
-  NamespaceConnectionLinkSchema,
-  NamespaceConnectionStartSchema,
   OAuthGrantSchema,
   OpenRouterAuthorizationSchema,
   OpenRouterAuthorizationStartSchema,
@@ -41,7 +39,6 @@ import type {
   PersonaUpdateSchema,
   PrebuildFailureSchema,
   PrebuildSchema,
-  PrebuildStartSchema,
   PrincipalSchema,
   ProblemSchema,
   ReleaseManifestSchema,
@@ -110,10 +107,7 @@ export type SecretMemberUpdate = SecretSetUpdate["secrets"][number];
 export type ModelProvider = HarnessCatalogEntry["credentials"][number]["provider"];
 export type GitHubInstallStart = z.infer<typeof GitHubInstallStartSchema>;
 export type ConnectionSummary = z.infer<typeof ConnectionSummarySchema>;
-export type NamespaceConnectionLink = z.infer<typeof NamespaceConnectionLinkSchema>;
-export type NamespaceConnectionStart = z.infer<typeof NamespaceConnectionStartSchema>;
 export type Prebuild = z.infer<typeof PrebuildSchema>;
-export type PrebuildStart = z.infer<typeof PrebuildStartSchema>;
 export type PrebuildFailure = z.infer<typeof PrebuildFailureSchema>;
 export type OAuthGrant = z.infer<typeof OAuthGrantSchema>;
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
@@ -222,12 +216,8 @@ export interface TumpelApi {
   startGitHubConnection(returnUrl: string | null, gitHubAccountId: number | null): Promise<GitHubInstallStart>;
   deleteGitHubConnection(installationId: number): Promise<void>;
   listConnections(): Promise<ConnectionSummary[]>;
-  getNamespaceConnection(): Promise<NamespaceConnectionLink>;
-  startNamespaceConnection(body: NamespaceConnectionStart): Promise<NamespaceConnectionLink>;
-  deleteNamespaceConnection(): Promise<void>;
   listPrebuilds(repository: string): Promise<Prebuild[]>;
   listLatestPrebuilds(): Promise<Prebuild[]>;
-  startPrebuild(body: PrebuildStart): Promise<Prebuild>;
   getPrebuildFailure(prebuildId: string): Promise<PrebuildFailure>;
   listTenants(): Promise<Membership[]>;
   listDevices(): Promise<Device[]>;

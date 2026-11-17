@@ -21,7 +21,6 @@ import {
   MetricSeriesSetSchema,
   MetricTurnPageSchema,
   MintedEnrolmentTokenSchema,
-  NamespaceConnectionLinkSchema,
   OAuthGrantSchema,
   OpenRouterAuthorizationSchema,
   PersonaFileUploadSchema,
@@ -314,16 +313,6 @@ export const createHttpApi = (
         "GitHubConnections_delete",
         client.DELETE("/v1/github-connection/installations/{installationId}", { params: { path: { installationId } } }),
       ),
-    getNamespaceConnection: () =>
-      settle("NamespaceConnections_get", NamespaceConnectionLinkSchema, client.GET("/v1/namespace-connection")),
-    startNamespaceConnection: (body) =>
-      settle(
-        "NamespaceConnections_start",
-        NamespaceConnectionLinkSchema,
-        client.POST("/v1/namespace-connection/start", { body }),
-      ),
-    deleteNamespaceConnection: () =>
-      settleEmpty("NamespaceConnections_delete", client.DELETE("/v1/namespace-connection")),
     listPrebuilds: (repository) =>
       settle(
         "Prebuilds_list",
@@ -332,7 +321,6 @@ export const createHttpApi = (
       ),
     listLatestPrebuilds: () =>
       settle("Prebuilds_listLatest", PrebuildSchema.array(), client.GET("/v1/prebuilds/latest")),
-    startPrebuild: (body) => settle("Prebuilds_start", PrebuildSchema, client.POST("/v1/prebuilds", { body })),
     getPrebuildFailure: (prebuildId) =>
       settle(
         "Prebuilds_getFailure",
