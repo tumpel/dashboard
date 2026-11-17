@@ -31,7 +31,11 @@ import {
   PersonaFileUploadSchema,
   PersonaSchema,
   PrebuildFailureSchema,
+  PrebuildPreviewSchema,
   PrebuildSchema,
+  PrebuildTemplatePullRequestSchema,
+  PrebuildTemplateSchema,
+  PrebuildTemplateVersionSchema,
   PrincipalSchema,
   ProblemSchema,
   ReleaseManifestSchema,
@@ -385,6 +389,30 @@ export const createHttpApi = (
         "Prebuilds_getFailure",
         PrebuildFailureSchema,
         client.GET("/v1/prebuilds/{prebuildId}/failure", { params: { path: { prebuildId } } }),
+      ),
+    previewPrebuild: (body) =>
+      settle("Prebuilds_preview", PrebuildPreviewSchema, client.POST("/v1/prebuilds/preview", { body })),
+    listPrebuildTemplates: () =>
+      settle("PrebuildTemplates_list", PrebuildTemplateSchema.array(), client.GET("/v1/prebuild-templates")),
+    getPrebuildTemplate: (prebuildTemplateId, prebuildTemplateVersion) =>
+      settle(
+        "PrebuildTemplates_get",
+        PrebuildTemplateVersionSchema,
+        client.GET("/v1/prebuild-templates/{prebuildTemplateId}/versions/{prebuildTemplateVersion}", {
+          params: { path: { prebuildTemplateId, prebuildTemplateVersion } },
+        }),
+      ),
+    openTemplatePullRequest: (body) =>
+      settle(
+        "PrebuildTemplates_openPullRequest",
+        PrebuildTemplatePullRequestSchema,
+        client.POST("/v1/prebuild-templates/pull-request", { body }),
+      ),
+    getTemplatePullRequest: (repository) =>
+      settle(
+        "PrebuildTemplates_getPullRequest",
+        PrebuildTemplatePullRequestSchema,
+        client.GET("/v1/prebuild-templates/pull-request", { params: { query: { repository } } }),
       ),
     listTenants: () => settle("Identity_listTenants", MembershipSchema.array(), client.GET("/v1/whoami/tenants")),
     listDevices: () => settle("Devices_list", DeviceSchema.array(), client.GET("/v1/devices")),

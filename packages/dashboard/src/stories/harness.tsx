@@ -23,6 +23,7 @@ import { firstRunFakes } from "./first-run-fixtures";
 import { memberFakes } from "./member-fixtures";
 import { metricFakes } from "./metric-fixtures";
 import { openRouterFakes } from "./openrouter-fixtures";
+import { templateFakes } from "./prebuild-template-fixtures";
 import { sessionFakes } from "./session-fixtures";
 
 const NOW = Date.parse("2026-11-15T14:02:11+01:00");
@@ -604,6 +605,7 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   ...claudeSetupFakes(),
   ...openRouterFakes(),
   ...metricFakes(),
+  ...templateFakes(),
   ...overrides,
 });
 

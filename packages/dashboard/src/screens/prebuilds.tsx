@@ -24,6 +24,7 @@ import {
   shortDigest,
   standingFailure,
 } from "../prebuild-rows";
+import { NO_WIZARD_SEARCH } from "../prebuild-wizard";
 import {
   useConnections,
   useLatestPrebuilds,
@@ -49,8 +50,7 @@ const PrebuildStateBadge = ({ state }: { state: Prebuild["status"]["state"] }) =
 
 const shortTime = (iso: string): string => formatTime(Date.parse(iso)).slice(5, 16);
 
-const LogLink = ({ prebuild }: { prebuild: Prebuild }) => {
-  const { tenantId } = useParams({ from: ROUTE });
+export const LogLink = ({ tenantId, prebuild }: { tenantId: string; prebuild: Prebuild }) => {
   const sessionId = sessionIdOfLogUrl(prebuild.logUrl);
   return (
     <Button asChild variant="outline" size="sm">
@@ -87,9 +87,39 @@ const TableLogLink = ({ prebuild }: { prebuild: Prebuild }) => {
   );
 };
 
-const RebuildLink = ({ label, hash }: { label: string; hash: "rebuild" | "build" }) => (
-  <Button asChild size="sm" variant={hash === "build" ? "default" : "outline"}>
-    <Link to="." hash={hash} search={(search) => search}>
+const RebuildLink = () => (
+  <Button asChild size="sm" variant="outline">
+    <Link to="." hash="rebuild" search={(search) => search}>
+      Rebuild
+    </Link>
+  </Button>
+);
+
+const NewPrebuildLink = ({ tenantId }: { tenantId: string }) => (
+  <Button asChild>
+    <Link to="/t/$tenantId/prebuilds/new" params={{ tenantId }} search={NO_WIZARD_SEARCH}>
+      New prebuild
+    </Link>
+  </Button>
+);
+
+const TemplateStepLink = ({
+  tenantId,
+  repository,
+  personaId,
+  label,
+}: {
+  tenantId: string;
+  repository: string;
+  personaId: string | null;
+  label: string;
+}) => (
+  <Button asChild size="sm" variant="outline">
+    <Link
+      to="/t/$tenantId/prebuilds/new/template"
+      params={{ tenantId }}
+      search={{ ...NO_WIZARD_SEARCH, repo: repositoryName(repository), persona: personaId }}
+    >
       {label}
     </Link>
   </Button>
@@ -131,8 +161,8 @@ const FailurePanel = ({
         }}
         actions={
           <>
-            {canRebuild && <RebuildLink label="Rebuild" hash="rebuild" />}
-            <LogLink prebuild={prebuild} />
+            {canRebuild && <RebuildLink />}
+            <LogLink tenantId={tenantId} prebuild={prebuild} />
           </>
         }
       />
@@ -150,10 +180,12 @@ const FailurePanel = ({
 };
 
 const LatestPanel = ({
+  tenantId,
   prebuild,
   canRebuild,
   onRefresh,
 }: {
+  tenantId: string;
   prebuild: Prebuild;
   canRebuild: boolean;
   onRefresh: () => void;
@@ -168,8 +200,8 @@ const LatestPanel = ({
           <h2 className="font-semibold">{repositoryName(prebuild.repository)}</h2>
           <PrebuildStateBadge state="Done" />
           <span className="flex-1" />
-          {canRebuild && <RebuildLink label="Rebuild" hash="rebuild" />}
-          <LogLink prebuild={prebuild} />
+          {canRebuild && <RebuildLink />}
+          <LogLink tenantId={tenantId} prebuild={prebuild} />
         </div>
         <Facts
           facts={[
@@ -192,7 +224,7 @@ const LatestPanel = ({
         <Button size="sm" variant="outline" onClick={onRefresh}>
           Refresh
         </Button>
-        <LogLink prebuild={prebuild} />
+        <LogLink tenantId={tenantId} prebuild={prebuild} />
       </div>
       <p role="status" className="text-sm text-muted-foreground">
         {status.state} on {PROVIDER_NAMES[prebuild.provider]} since {started}. The row re-reads on window focus and on
@@ -203,30 +235,17 @@ const LatestPanel = ({
   );
 };
 
-const CUSTOMIZE_PROMPT =
-  "Add a .devcontainer/devcontainer.json to this repository whose onCreateCommand installs its dependencies, so Tumpel prebuilds run it instead of the default setup. Prebuilds run on Tumpel's own image, so leave out image, build, dockerFile and features. Open a pull request with the change.";
-
 const DefaultConfigNote = ({ tenantId, prebuild }: { tenantId: string; prebuild: Prebuild }) => (
   <div role="note" className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm">
     <p className="min-w-0 flex-1">
-      Built with the default setup: npm ci when the root holds an npm lockfile. Customize it from a session.
+      Built with the default setup. A new build needs a devcontainer.json: pick a template to add one in a pull request.
     </p>
-    <Button asChild size="sm" variant="outline">
-      <Link
-        to="/t/$tenantId/sessions/new"
-        params={{ tenantId }}
-        search={{
-          source: ["prompt"],
-          persona: [prebuild.personaId],
-          repo: [repositoryName(prebuild.repository)],
-          issue: [],
-          model: [],
-          prompt: [CUSTOMIZE_PROMPT],
-        }}
-      >
-        Customize prebuild
-      </Link>
-    </Button>
+    <TemplateStepLink
+      tenantId={tenantId}
+      repository={prebuild.repository}
+      personaId={prebuild.personaId}
+      label="Pick a template"
+    />
   </div>
 );
 
@@ -252,7 +271,9 @@ const SelectedPanel = ({
           <p className="text-sm text-muted-foreground">
             No prebuild yet. Boxes start from the image alone until a prebuild is Done.
           </p>
-          {canRebuild && <RebuildLink label="Build now" hash="build" />}
+          {canRebuild && (
+            <TemplateStepLink tenantId={tenantId} repository={repository} personaId={null} label="Set up a prebuild" />
+          )}
         </div>
       );
     }
@@ -260,7 +281,12 @@ const SelectedPanel = ({
       <div className="grid gap-4">
         {latest.configSource === "Default" && <DefaultConfigNote tenantId={tenantId} prebuild={latest} />}
         {failed !== undefined && <FailurePanel tenantId={tenantId} prebuild={failed} canRebuild={canRebuild} />}
-        <LatestPanel prebuild={latest} canRebuild={canRebuild} onRefresh={() => void list.refetch()} />
+        <LatestPanel
+          tenantId={tenantId}
+          prebuild={latest}
+          canRebuild={canRebuild}
+          onRefresh={() => void list.refetch()}
+        />
       </div>
     );
   };
@@ -415,8 +441,8 @@ export const PrebuildsScreen = () => {
       return (
         <EmptyState
           title="No prebuild yet"
-          detail="A repository shows here once its first prebuild starts. Build now picks one your GitHub connections cover, or any owner/name the persona's GITHUB_TOKEN reads."
-          action={canBuild ? <RebuildLink label="Build now" hash="build" /> : null}
+          detail="A repository shows here once its first prebuild starts. New prebuild picks a repository and a template, and opens a pull request that adds its devcontainer.json."
+          action={<NewPrebuildLink tenantId={tenantId} />}
         />
       );
     }
@@ -444,7 +470,7 @@ export const PrebuildsScreen = () => {
 
   return (
     <>
-      <PageHeader title="Prebuilds" actions={canBuild ? <RebuildLink label="Build now" hash="build" /> : undefined} />
+      <PageHeader title="Prebuilds" actions={canBuild ? <NewPrebuildLink tenantId={tenantId} /> : undefined} />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">Filter by state</legend>
@@ -486,7 +512,7 @@ export const PrebuildsScreen = () => {
         </NativeSelect>
       </div>
       {body()}
-      {canBuild && (
+      {canBuild && selected !== null && (
         <RebuildPrebuildDialog
           tenantId={tenantId}
           repository={selected}

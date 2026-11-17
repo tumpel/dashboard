@@ -48,8 +48,14 @@ import type {
   PersonaSchema,
   PersonaUpdateSchema,
   PrebuildFailureSchema,
+  PrebuildPreviewRequestSchema,
+  PrebuildPreviewSchema,
   PrebuildSchema,
   PrebuildStartSchema,
+  PrebuildTemplatePullRequestOpenSchema,
+  PrebuildTemplatePullRequestSchema,
+  PrebuildTemplateSchema,
+  PrebuildTemplateVersionSchema,
   PrincipalSchema,
   ProblemSchema,
   ReleaseManifestSchema,
@@ -133,6 +139,14 @@ export type NamespaceConnectionStart = z.infer<typeof NamespaceConnectionStartSc
 export type Prebuild = z.infer<typeof PrebuildSchema>;
 export type PrebuildStart = z.infer<typeof PrebuildStartSchema>;
 export type PrebuildFailure = z.infer<typeof PrebuildFailureSchema>;
+export type PrebuildPreviewRequest = z.infer<typeof PrebuildPreviewRequestSchema>;
+export type PrebuildPreview = z.infer<typeof PrebuildPreviewSchema>;
+export type PrebuildPreviewCommand = PrebuildPreview["commands"][number];
+export type PrebuildTemplate = z.infer<typeof PrebuildTemplateSchema>;
+export type PrebuildTemplateVersionSummary = PrebuildTemplate["versions"][number];
+export type PrebuildTemplateVersion = z.infer<typeof PrebuildTemplateVersionSchema>;
+export type PrebuildTemplatePullRequestOpen = z.infer<typeof PrebuildTemplatePullRequestOpenSchema>;
+export type PrebuildTemplatePullRequest = z.infer<typeof PrebuildTemplatePullRequestSchema>;
 export type OAuthGrant = z.infer<typeof OAuthGrantSchema>;
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
 export type TenantConfigPlanRequest = z.infer<typeof TenantConfigPlanRequestSchema>;
@@ -257,6 +271,11 @@ export interface TumpelApi {
   listLatestPrebuilds(): Promise<Prebuild[]>;
   startPrebuild(body: PrebuildStart): Promise<Prebuild>;
   getPrebuildFailure(prebuildId: string): Promise<PrebuildFailure>;
+  previewPrebuild(body: PrebuildPreviewRequest): Promise<PrebuildPreview>;
+  listPrebuildTemplates(): Promise<PrebuildTemplate[]>;
+  getPrebuildTemplate(prebuildTemplateId: string, prebuildTemplateVersion: number): Promise<PrebuildTemplateVersion>;
+  openTemplatePullRequest(body: PrebuildTemplatePullRequestOpen): Promise<PrebuildTemplatePullRequest>;
+  getTemplatePullRequest(repository: string): Promise<PrebuildTemplatePullRequest>;
   listTenants(): Promise<Membership[]>;
   listDevices(): Promise<Device[]>;
   revokeDevice(deviceId: string): Promise<void>;

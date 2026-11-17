@@ -24,8 +24,16 @@ import { Button } from "./components/ui/button";
 import { useDashboard } from "./context";
 import { gitHubReturnSearch } from "./github-return";
 import { RANGES, STATS } from "./metrics";
+import type { WizardSearch } from "./prebuild-wizard";
 import { AccountScreen } from "./screens/account";
 import { ConnectionsScreen } from "./screens/connections";
+import {
+  BuildStepScreen,
+  MergeStepScreen,
+  PreviewStepScreen,
+  RepositoryStepScreen,
+  TemplateStepScreen,
+} from "./screens/create-prebuild";
 import { HarnessesScreen } from "./screens/harnesses";
 import { HostDetailScreen } from "./screens/host-detail";
 import { HostsListScreen } from "./screens/hosts-list";
@@ -311,6 +319,49 @@ const prebuildsRoute = createRoute({
   component: PrebuildsScreen,
 });
 
+const wizardSearch = (search: Record<string, unknown>): WizardSearch => ({
+  repo: single(z.string().min(1), search.repo),
+  persona: single(z.string().min(1), search.persona),
+  template: single(z.string().min(1), search.template),
+  pr: single(z.string().regex(/^[1-9][0-9]*$/), search.pr),
+  prebuild: single(z.string().min(1), search.prebuild),
+});
+
+const newPrebuildRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/prebuilds/new",
+  validateSearch: wizardSearch,
+  component: RepositoryStepScreen,
+});
+
+const newPrebuildTemplateRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/prebuilds/new/template",
+  validateSearch: wizardSearch,
+  component: TemplateStepScreen,
+});
+
+const newPrebuildPreviewRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/prebuilds/new/preview",
+  validateSearch: wizardSearch,
+  component: PreviewStepScreen,
+});
+
+const newPrebuildMergeRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/prebuilds/new/merge",
+  validateSearch: wizardSearch,
+  component: MergeStepScreen,
+});
+
+const newPrebuildBuildRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/prebuilds/new/build",
+  validateSearch: wizardSearch,
+  component: BuildStepScreen,
+});
+
 const membersRoute = createRoute({
   getParentRoute: () => tenantRoute,
   path: "/members",
@@ -361,6 +412,11 @@ const routeTree = rootRoute.addChildren([
     editSecretSetRoute,
     connectionsRoute,
     prebuildsRoute,
+    newPrebuildRoute,
+    newPrebuildTemplateRoute,
+    newPrebuildPreviewRoute,
+    newPrebuildMergeRoute,
+    newPrebuildBuildRoute,
     membersRoute,
     accountRoute,
   ]),

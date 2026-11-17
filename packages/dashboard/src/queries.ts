@@ -8,14 +8,17 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import type {
-  ClaudeSetup,
-  ClaudeSetupHarness,
-  GitHubRepositoryPath,
-  MetricBucket,
-  MetricSeriesQuery,
-  MetricTurnPoint,
-  MetricWindow,
+import {
+  type ClaudeSetup,
+  type ClaudeSetupHarness,
+  failureOf,
+  type GitHubRepositoryPath,
+  type MetricBucket,
+  type MetricSeriesQuery,
+  type MetricTurnPoint,
+  type MetricWindow,
+  type PrebuildPreview,
+  type PrebuildTemplateVersion,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { useTenantApi } from "./context";
@@ -321,6 +324,81 @@ export const usePrebuilds = (tenantId: string, repository: string) => {
   return useQuery({
     queryKey: prebuildKeys.list(tenantId, repository),
     queryFn: () => api.listPrebuilds(repository),
+  });
+};
+
+export const templateKeys = {
+  list: (tenantId: string) => [tenantId, "prebuildTemplates"] as const,
+  version: (tenantId: string, prebuildTemplateId: string, prebuildTemplateVersion: number) =>
+    [tenantId, "prebuildTemplates", prebuildTemplateId, prebuildTemplateVersion] as const,
+  repositoryConfig: (tenantId: string, repository: string, personaId: string) =>
+    [tenantId, "prebuildPreviews", repository, personaId, "RepositoryFile"] as const,
+  preview: (tenantId: string, repository: string, personaId: string, digest: string) =>
+    [tenantId, "prebuildPreviews", repository, personaId, "Supplied", digest] as const,
+  pullRequest: (tenantId: string, repository: string) =>
+    [tenantId, "prebuildTemplatePullRequests", repository] as const,
+};
+
+export const usePrebuildTemplates = (tenantId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({ queryKey: templateKeys.list(tenantId), queryFn: () => api.listPrebuildTemplates() });
+};
+
+export const usePrebuildTemplate = (tenantId: string, prebuildTemplateId: string, prebuildTemplateVersion: number) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: templateKeys.version(tenantId, prebuildTemplateId, prebuildTemplateVersion),
+    queryFn: () => api.getPrebuildTemplate(prebuildTemplateId, prebuildTemplateVersion),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+};
+
+export type RepositoryConfig = { kind: "Present"; preview: PrebuildPreview } | { kind: "Missing" };
+
+export const useRepositoryConfig = (tenantId: string, repository: string, personaId: string | null) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: templateKeys.repositoryConfig(tenantId, repository, personaId ?? ""),
+    queryFn:
+      personaId === null
+        ? skipToken
+        : () =>
+            api
+              .previewPrebuild({ source: "RepositoryFile", repository, personaId })
+              .then((preview): RepositoryConfig => ({ kind: "Present", preview }))
+              .catch((error: unknown): RepositoryConfig => {
+                const failure = failureOf(error);
+                if (failure.kind === "Problem" && failure.problem.code === "DevcontainerMissing") {
+                  return { kind: "Missing" };
+                }
+                throw error;
+              }),
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useTemplatePreview = (
+  tenantId: string,
+  repository: string,
+  personaId: string | null,
+  template: PrebuildTemplateVersion | undefined,
+) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: templateKeys.preview(tenantId, repository, personaId ?? "", template?.digest ?? ""),
+    queryFn:
+      personaId === null || template === undefined
+        ? skipToken
+        : () => api.previewPrebuild({ source: "Supplied", repository, personaId, devcontainer: template.devcontainer }),
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useTemplatePullRequest = (tenantId: string, repository: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: templateKeys.pullRequest(tenantId, repository),
+    queryFn: () => api.getTemplatePullRequest(repository),
   });
 };
 

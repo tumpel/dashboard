@@ -6,22 +6,21 @@ import { toast } from "sonner";
 import { failureOf, type Persona, type Prebuild, type PrebuildStart } from "../api/port";
 import { Field } from "../components/field";
 import { ProblemBlock } from "../components/problem-block";
-import { RepositoryPicker } from "../components/repository-picker";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "../components/ui/dialog";
 import { NativeSelect } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { useTenantApi } from "../context";
 import { useHashDialog } from "../hash-dialog";
-import { type BuildProviderName, PROVIDER_NAMES, repositoryName, shortDigest } from "../prebuild-rows";
+import { type BuildProviderName, PROVIDER_NAMES, repositoryName } from "../prebuild-rows";
+import { NO_WIZARD_SEARCH } from "../prebuild-wizard";
 import { prebuildKeys } from "../queries";
-import { htmlUrlOf, pathOf, type RepositoryChoice, typedPathOf } from "../repository-picker";
 
 const ROUTE = "/t/$tenantId/prebuilds";
 
-const isNoBuildProvider = (error: unknown): boolean => {
+const problemCode = (error: unknown): string | null => {
   const failure = failureOf(error);
-  return failure.kind === "Problem" && failure.problem.code === "NoBuildProvider";
+  return failure.kind === "Problem" ? failure.problem.code : null;
 };
 
 export const RebuildPrebuildDialog = ({
@@ -32,7 +31,7 @@ export const RebuildPrebuildDialog = ({
   personas,
 }: {
   tenantId: string;
-  repository: string | null;
+  repository: string;
   latest: Prebuild | null;
   providers: readonly BuildProviderName[];
   personas: UseQueryResult<Persona[]>;
@@ -41,14 +40,10 @@ export const RebuildPrebuildDialog = ({
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: ROUTE });
   const dialog = useHashDialog();
-  const rebuild = dialog.isOpen("rebuild") && repository !== null;
-  const open = dialog.isOpen("build") || rebuild;
-  const [choice, setChoice] = useState<RepositoryChoice | null>(null);
+  const open = dialog.isOpen("rebuild");
   const [pickedProvider, setPickedProvider] = useState<BuildProviderName | null>(null);
   const [pickedPersona, setPickedPersona] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
-  const target = rebuild || choice === null ? repository : htmlUrlOf(choice);
-  const selected = choice === null ? (repository === null ? null : typedPathOf(repository)) : pathOf(choice);
   const provider =
     pickedProvider ?? (latest !== null && providers.includes(latest.provider) ? latest.provider : providers[0]) ?? null;
   const personaList = personas.data ?? [];
@@ -59,7 +54,6 @@ export const RebuildPrebuildDialog = ({
     null;
 
   const reset = () => {
-    setChoice(null);
     setPickedProvider(null);
     setPickedPersona(null);
     setInvalid(null);
@@ -67,17 +61,10 @@ export const RebuildPrebuildDialog = ({
 
   const start = useMutation({
     mutationFn: (body: PrebuildStart) => api.startPrebuild(body),
-    onSuccess: (started, body) => {
-      const stored = [
-        ...(queryClient.getQueryData<Prebuild[]>(prebuildKeys.latest(tenantId)) ?? []),
-        ...(queryClient.getQueryData<Prebuild[]>(prebuildKeys.list(tenantId, started.repository)) ?? []),
-      ];
-      const reused = !body.rebuild && stored.some((item) => item.prebuildId === started.prebuildId);
+    onSuccess: (started) => {
       void queryClient.invalidateQueries({ queryKey: prebuildKeys.all(tenantId) });
       toast(
-        reused
-          ? `Same inputs as the stored prebuild ${shortDigest(started.inputDigest)}. No job started.`
-          : `${repositoryName(started.repository)}: prebuild ${started.status.state} on ${PROVIDER_NAMES[started.provider]}.`,
+        `${repositoryName(started.repository)}: prebuild ${started.status.state} on ${PROVIDER_NAMES[started.provider]}.`,
       );
       start.reset();
       reset();
@@ -93,9 +80,9 @@ export const RebuildPrebuildDialog = ({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const parsed = PrebuildStartSchema.safeParse({ repository: target, personaId: persona, provider, rebuild });
+    const parsed = PrebuildStartSchema.safeParse({ repository, personaId: persona, provider, rebuild: true });
     if (!parsed.success) {
-      setInvalid("Pick a repository, a persona and a connected provider.");
+      setInvalid("Pick a persona and a connected provider.");
       return;
     }
     setInvalid(null);
@@ -134,25 +121,11 @@ export const RebuildPrebuildDialog = ({
     <Dialog open={open} onOpenChange={(next) => !next && dismiss()}>
       <DialogContent>
         <form className="grid gap-4" onSubmit={submit}>
-          <DialogTitle>
-            {rebuild && repository !== null ? `Rebuild ${repositoryName(repository)}` : "Build a prebuild"}
-          </DialogTitle>
+          <DialogTitle>Rebuild {repositoryName(repository)}</DialogTitle>
           <DialogDescription>
-            {rebuild
-              ? "Starts a job even when a prebuild with the same inputs is stored."
-              : "A stored prebuild with the same input digest answers at once and starts no job."}{" "}
-            Tumpel reads the devcontainer files and lockfiles on the default branch.
+            Starts a job even when a prebuild with the same inputs is stored. Tumpel reads the devcontainer files and
+            lockfiles on the default branch.
           </DialogDescription>
-          {!rebuild && (
-            <RepositoryPicker
-              tenantId={tenantId}
-              id="prebuild-repository"
-              selected={selected}
-              acceptsTyped
-              nextFocusId="prebuild-provider"
-              onPick={setChoice}
-            />
-          )}
           <Field
             id="prebuild-provider"
             label="Provider"
@@ -181,13 +154,26 @@ export const RebuildPrebuildDialog = ({
             <ProblemBlock
               error={start.error}
               actions={
-                isNoBuildProvider(start.error) ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
-                      Open Connections
-                    </Link>
-                  </Button>
-                ) : undefined
+                <>
+                  {problemCode(start.error) === "NoBuildProvider" && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
+                        Open Connections
+                      </Link>
+                    </Button>
+                  )}
+                  {problemCode(start.error) === "DevcontainerMissing" && (
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        to="/t/$tenantId/prebuilds/new/template"
+                        params={{ tenantId }}
+                        search={{ ...NO_WIZARD_SEARCH, repo: repositoryName(repository), persona }}
+                      >
+                        Pick a template
+                      </Link>
+                    </Button>
+                  )}
+                </>
               }
             />
           )}
@@ -195,8 +181,8 @@ export const RebuildPrebuildDialog = ({
             <Button type="button" variant="outline" onClick={dismiss}>
               Cancel
             </Button>
-            <Button type="submit" disabled={target === null || start.isPending || personas.isPending}>
-              {start.isPending ? "Starting..." : rebuild ? "Rebuild" : "Build now"}
+            <Button type="submit" disabled={start.isPending || personas.isPending}>
+              {start.isPending ? "Starting..." : "Rebuild"}
             </Button>
           </DialogFooter>
         </form>
