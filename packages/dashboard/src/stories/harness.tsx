@@ -343,10 +343,19 @@ export const RELEASE: ReleaseManifest = {
       sha256: digest("5"),
       sizeBytes: 9_000_000,
       supervisorVersion: "0.9.2",
+      downloadUrl: "https://github.com/tumpel/supervisor/releases/download/v0.9.2/tumpel-supervisor-x86_64-linux",
       guestProtocolVersion: 11,
     },
   ],
-  clis: [{ architecture: "Amd64", sha256: digest("7"), sizeBytes: 12_000_000 }],
+  clis: [
+    {
+      architecture: "Amd64",
+      sha256: digest("7"),
+      sizeBytes: 12_000_000,
+      cliVersion: "0.9.2",
+      downloadUrl: "https://github.com/tumpel/cli/releases/download/v0.9.2/tumpel-x86_64-linux",
+    },
+  ],
   images: [
     image("ClaudeCode", "2.1.4", "Amd64"),
     image("Codex", "0.48.0", "Amd64"),
