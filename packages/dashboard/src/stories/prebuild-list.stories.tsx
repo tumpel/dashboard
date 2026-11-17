@@ -32,6 +32,10 @@ export const NoProviderMember: Story = {
 
 export const NoPrebuildYet: Story = { args: { path, api: fakeApi({ listLatestPrebuilds: async () => [] }) } };
 
+export const RepositoryNoPrebuild: Story = {
+  args: { path: tenantPath(`/prebuilds?repo=${encodeURIComponent("https://github.com/owner/new-repo")}`) },
+};
+
 export const MemberView: Story = {
   args: { path: tenantPath(`/prebuilds?repo=${encodeURIComponent(REPO)}`), api: fakeApi({ whoami: memberWhoami }) },
 };

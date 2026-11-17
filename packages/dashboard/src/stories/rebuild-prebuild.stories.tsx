@@ -17,7 +17,24 @@ const submit = (name: string) => async () => {
 
 export const Open: Story = { args: { path: at("rebuild") } };
 
-export const Reused: Story = { args: { path: at("build") }, play: submit("Build now") };
+export const DevcontainerMissing: Story = {
+  args: {
+    path: at("rebuild"),
+    api: fakeApi({
+      startPrebuild: () =>
+        Promise.reject(
+          problem(
+            409,
+            "DevcontainerMissing",
+            "The repository has no devcontainer.json",
+            "owner/repo-name holds neither .devcontainer/devcontainer.json nor .devcontainer.json on its default branch.",
+            "Pick a template to add one in a pull request, or commit your own.",
+          ),
+        ),
+    }),
+  },
+  play: submit("Rebuild"),
+};
 
 export const BuildProviderUnavailable: Story = {
   args: {

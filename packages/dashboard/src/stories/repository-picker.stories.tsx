@@ -31,7 +31,7 @@ const FIVE: GitHubRepository[] = [
   repository("org-two", "web-name", "main", false),
 ];
 
-const BUILD = tenantPath("/prebuilds#build");
+const BUILD = tenantPath("/prebuilds/new");
 
 const listing = (listRepositories: () => Promise<GitHubRepository[]>) => ({
   path: BUILD,
@@ -43,8 +43,7 @@ const five = listing(async () => FIVE);
 const body = () => within(document.body);
 
 const open = async () => {
-  const dialog = within(await body().findByRole("dialog"));
-  await userEvent.click(await dialog.findByRole("button", { name: "Repository" }));
+  await userEvent.click(await body().findByRole("button", { name: "Repository" }));
 };
 
 const typeSearch = (text: string) => async () => {
