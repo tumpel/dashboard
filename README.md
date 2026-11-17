@@ -66,3 +66,5 @@ npm run storybook -w @tumpel/dashboard
 ## Licence
 
 Apache-2.0. See `LICENSE` and `NOTICE`.
+
+Docs-only CI probe.
