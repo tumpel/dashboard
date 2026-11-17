@@ -398,8 +398,8 @@ export const PrebuildsScreen = () => {
           title="No build provider connected"
           detail={
             owner
-              ? "Prebuilds run on your own GitHub Actions or Namespace account. Connect one to build."
-              : "Prebuilds run on the tenant's own GitHub Actions or Namespace account. Ask an Owner to connect a provider."
+              ? "Prebuilds run on your own build provider account. Connect one to build."
+              : "Prebuilds run on the tenant's own build provider account. Ask an Owner to connect a provider."
           }
           action={
             <Button asChild>

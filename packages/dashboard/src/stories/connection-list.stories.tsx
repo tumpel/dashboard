@@ -1,13 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { ApiFailure } from "../api/port";
-import {
-  GHA_NOT_CONNECTED,
-  GITHUB_APP_MISSING,
-  GITHUB_INSTALLATIONS,
-  GITHUB_READY,
-  summaries,
-} from "./connection-fixtures";
+import { GITHUB_APP_MISSING, GITHUB_INSTALLATIONS, GITHUB_READY, summaries } from "./connection-fixtures";
 import { fakeApi, memberWhoami, never, problem, StoryApp, signedOutFailure, tenantPath } from "./harness";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Connections/ConnectionList", component: StoryApp };
@@ -31,10 +25,9 @@ export const NotConnected: Story = {
   args: {
     path,
     api: fakeApi({
-      listConnections: async () => summaries("NotConnected", "NotConnected", "NotConnected"),
+      listConnections: async () => summaries("NotConnected", "NotConnected"),
       getGitHubConnection: async () => GITHUB_READY,
       listGitHubInstallations: async () => [],
-      getGitHubActionsConnection: async () => GHA_NOT_CONNECTED,
     }),
   },
 };
@@ -43,10 +36,9 @@ export const NotConfigured: Story = {
   args: {
     path,
     api: fakeApi({
-      listConnections: async () => summaries("NotConfigured", "NotConnected", "NotConnected"),
+      listConnections: async () => summaries("NotConfigured", "NotConnected"),
       getGitHubConnection: async () => GITHUB_APP_MISSING,
       listGitHubInstallations: async () => [],
-      getGitHubActionsConnection: async () => GHA_NOT_CONNECTED,
     }),
   },
 };
@@ -69,7 +61,6 @@ export const Loading: Story = {
       listConnections: never,
       getGitHubConnection: never,
       listGitHubInstallations: never,
-      getGitHubActionsConnection: never,
       getNamespaceConnection: never,
     }),
   },
@@ -98,10 +89,9 @@ export const SignedOut: Story = {
 };
 
 const githubReady = {
-  listConnections: async () => summaries("Connected", "NotConnected", "NotConnected"),
+  listConnections: async () => summaries("Connected", "NotConnected"),
   getGitHubConnection: async () => GITHUB_READY,
   listGitHubInstallations: async () => GITHUB_INSTALLATIONS,
-  getGitHubActionsConnection: async () => GHA_NOT_CONNECTED,
 };
 
 const startedWith: (number | null)[] = [];
