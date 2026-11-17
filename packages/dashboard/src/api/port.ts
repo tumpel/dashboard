@@ -226,6 +226,7 @@ export interface TumpelApi {
   startSession(body: SessionStart): Promise<StartedSession>;
   startSessionFromIssue(body: SessionStartFromIssue): Promise<StartedSessionFromIssue>;
   stopSession(sessionId: string): Promise<Session>;
+  cancelTurn(sessionId: string): Promise<Session>;
   archiveSession(sessionId: string): Promise<Session>;
   listTurns(sessionId: string): Promise<Turn[]>;
   sendTurn(sessionId: string, prompt: string): Promise<Turn>;

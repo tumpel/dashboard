@@ -14,7 +14,7 @@ import { keys } from "../queries";
 export const STOPPABLE: ReadonlySet<Session["state"]> = new Set(["Starting", "Idle", "Running"]);
 export const ARCHIVABLE: ReadonlySet<Session["state"]> = new Set(["Idle", "Stopped", "Failed"]);
 
-export type SessionAction = "stop" | "archive";
+export type SessionAction = "stop" | "cancel" | "archive";
 
 const SessionActionDialog = ({
   tenantId,
@@ -95,6 +95,22 @@ export const SessionActionDialogs = ({
         pendingLabel="Stopping..."
         run={() => api.stopSession(sessionId)}
         toast="Stopping. Tumpel takes the last snapshot, then removes the box."
+      />
+      <SessionActionDialog
+        tenantId={tenantId}
+        open={action === "cancel"}
+        onClose={onClose}
+        title="Cancel the running turn?"
+        body={
+          <>
+            <p>The turn stops at once and fails as cancelled. Tumpel snapshots what the box holds, then removes it.</p>
+            <p>The next prompt boots a fresh box from that snapshot.</p>
+          </>
+        }
+        actionLabel="Cancel turn"
+        pendingLabel="Cancelling..."
+        run={() => api.cancelTurn(sessionId)}
+        toast="Cancelled. Tumpel takes the last snapshot, then removes the box."
       />
       <SessionActionDialog
         tenantId={tenantId}

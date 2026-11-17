@@ -607,6 +607,11 @@ export const SessionDetailScreen = () => {
         >
           Archive
         </Button>
+        {data.state === "Running" && (
+          <Button variant="destructive" onClick={() => void navigate({ search: (current) => current, hash: "cancel" })}>
+            Cancel turn
+          </Button>
+        )}
         {STOPPABLE.has(data.state) && (
           <Button variant="destructive" onClick={() => void navigate({ search: (current) => current, hash: "stop" })}>
             Stop session
@@ -691,7 +696,7 @@ export const SessionDetailScreen = () => {
       <SessionActionDialogs
         tenantId={tenantId}
         sessionId={sessionId}
-        action={dialog.isOpen("stop") ? "stop" : dialog.isOpen("archive") ? "archive" : null}
+        action={(["stop", "cancel", "archive"] as const).find((action) => dialog.isOpen(action)) ?? null}
         onClose={dialog.close}
       />
     </>

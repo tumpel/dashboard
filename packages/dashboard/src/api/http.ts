@@ -178,6 +178,12 @@ export const createHttpApi = (
         SessionSchema,
         client.POST("/v1/sessions/{sessionId}/stop", { params: { path: { sessionId } } }),
       ),
+    cancelTurn: (sessionId) =>
+      settle(
+        "Sessions_stop",
+        SessionSchema,
+        client.POST("/v1/sessions/{sessionId}/stop", { params: { path: { sessionId }, query: { cancelTurn: true } } }),
+      ),
     archiveSession: (sessionId) =>
       settle(
         "Sessions_archive",

@@ -46,3 +46,5 @@ export const Refused: Story = {
     await userEvent.click(await within(document.body).findByRole("button", { name: "Stop session" }));
   },
 };
+
+export const CancelTurn: Story = { args: { path: turnPath("ses_1", "#cancel") } };

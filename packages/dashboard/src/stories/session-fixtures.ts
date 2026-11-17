@@ -16,6 +16,7 @@ type SessionApi = Pick<
   | "startSession"
   | "startSessionFromIssue"
   | "stopSession"
+  | "cancelTurn"
   | "archiveSession"
   | "listTurns"
   | "sendTurn"
@@ -199,6 +200,7 @@ export const sessionFakes = (sessions: Session[], personas: Persona[], now: numb
       };
     },
     stopSession: async (sessionId) => ({ ...find(sessionId), state: "Stopping" }),
+    cancelTurn: async (sessionId) => ({ ...find(sessionId), state: "Stopping" }),
     archiveSession: async (sessionId) => ({ ...find(sessionId), state: "Archived" }),
     listTurns: async (sessionId) => turnsFor(find(sessionId)),
     sendTurn: async (sessionId, prompt) => ({
