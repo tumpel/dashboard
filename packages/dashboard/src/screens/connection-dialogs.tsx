@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { GitHubActionsConnectionStartSchema, NamespaceConnectionStartSchema } from "@tumpel/schemas";
+import { NamespaceConnectionStartSchema } from "@tumpel/schemas";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import type { z } from "zod";
@@ -17,16 +17,7 @@ import { installationSettingsUrl } from "../github-settings";
 import { useHashDialog } from "../hash-dialog";
 import { connectionKeys, keys, useNamespaceConnection } from "../queries";
 
-export type ConnectionHash =
-  | "connect-github-actions"
-  | "connect-circleci"
-  | "connect-namespace"
-  | `disconnect-github-${number}`
-  | "disconnect-github-actions"
-  | "disconnect-circleci"
-  | "disconnect-namespace";
-
-const CALLER_WORKFLOW_DEFAULT = ".github/workflows/tumpel-prebuild.yml";
+export type ConnectionHash = "connect-namespace" | `disconnect-github-${number}` | "disconnect-namespace";
 
 export const useRefreshConnections = (tenantId: string) => {
   const queryClient = useQueryClient();
@@ -69,8 +60,7 @@ export const GitHubDisconnectDialog = ({
         <>
           <p>
             Turns on repositories of {installation?.accountLogin ?? "this account"} stop getting installation tokens and
-            fall back to the secret set's GITHUB_TOKEN, and their GitHub Actions prebuilds stop. Other connected
-            accounts stay.
+            fall back to the secret set's GITHUB_TOKEN. Other connected accounts stay.
           </p>
           <p className="font-semibold text-foreground">
             The App stays installed on GitHub. Uninstall it there to remove it:{" "}
@@ -97,95 +87,6 @@ export const GitHubDisconnectDialog = ({
         if (installationId !== null) disconnect.mutate(installationId);
       }}
     />
-  );
-};
-
-export const GitHubActionsConnectDialog = ({
-  tenantId,
-  githubLogin,
-}: {
-  tenantId: string;
-  githubLogin: string | null;
-}) => {
-  const api = useTenantApi(tenantId);
-  const dialog = useHashDialog();
-  const refresh = useRefreshConnections(tenantId);
-  const [callerWorkflow, setCallerWorkflow] = useState(CALLER_WORKFLOW_DEFAULT);
-  const [accountLabel, setAccountLabel] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Map<string, string>>(new Map());
-  const account = accountLabel ?? githubLogin ?? "";
-  const connect = useMutation({
-    mutationFn: (body: z.infer<typeof GitHubActionsConnectionStartSchema>) => api.startGitHubActionsConnection(body),
-    onSuccess: (_, body) => {
-      refresh();
-      toast(`GitHub Actions connected. It bills ${body.accountLabel}.`);
-      dismiss();
-    },
-  });
-  const dismiss = () => {
-    connect.reset();
-    setErrors(new Map());
-    dialog.close();
-  };
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const parsed = GitHubActionsConnectionStartSchema.safeParse({ callerWorkflow, accountLabel: account });
-    if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
-      return;
-    }
-    setErrors(new Map());
-    connect.mutate(parsed.data);
-  };
-  const callerError = errors.get("callerWorkflow") ?? null;
-  const accountError = errors.get("accountLabel") ?? null;
-  return (
-    <Dialog open={dialog.isOpen("connect-github-actions")} onOpenChange={(next) => !next && dismiss()}>
-      <DialogContent className="max-w-2xl">
-        <form className="grid gap-4" onSubmit={submit}>
-          <DialogTitle>Connect GitHub Actions</DialogTitle>
-          <DialogDescription>
-            Each repository opts in with a caller workflow at the path below, which Tumpel dispatches. Tumpel never
-            commits this file. The GitHub App needs write on actions to dispatch; GitHub asks an owner to accept it.
-          </DialogDescription>
-          <Field
-            id="caller-workflow"
-            label="Caller workflow path"
-            error={callerError}
-            hint="The file each repository holds, under .github/workflows/, ending in .yml or .yaml."
-          >
-            <Input
-              id="caller-workflow"
-              value={callerWorkflow}
-              aria-invalid={callerError !== null}
-              onChange={(event) => setCallerWorkflow(event.target.value)}
-            />
-          </Field>
-          <Field
-            id="gha-account"
-            label="Billing account"
-            error={accountError}
-            hint="The GitHub account GitHub Actions bills, as you want it shown."
-          >
-            <Input
-              id="gha-account"
-              value={account}
-              aria-invalid={accountError !== null}
-              onChange={(event) => setAccountLabel(event.target.value)}
-            />
-          </Field>
-          {connect.isError && <ProblemBlock error={connect.error} />}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={dismiss}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={connect.isPending}>
-              {connect.isPending ? "Connecting..." : "Connect"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 };
 
@@ -302,44 +203,18 @@ export const NamespaceConnectDialog = ({ tenantId }: { tenantId: string }) => {
 };
 
 const DISCONNECT = {
-  GitHubActions: {
-    hash: "disconnect-github-actions",
-    name: "GitHub Actions",
-    effect: "New prebuilds stop dispatching to GitHub Actions. Stored prebuild layers stay and boxes keep using them.",
-    providerStep: "Also remove the caller workflow from your repositories.",
-  },
-  CircleCI: {
-    hash: "disconnect-circleci",
-    name: "CircleCI",
-    effect:
-      "New prebuilds stop running on CircleCI and every project binding is deleted. Stored prebuild layers stay and boxes keep using them.",
-    providerStep: "Also revoke the token under Personal API Tokens in your CircleCI user settings.",
-  },
-  Namespace: {
-    hash: "disconnect-namespace",
-    name: "Namespace",
-    effect: "New prebuilds stop running on Namespace. Stored prebuild layers stay and boxes keep using them.",
-    providerStep: "Also remove the trust rule in your Namespace workspace.",
-  },
-} as const;
+  name: "Namespace",
+  effect: "New prebuilds stop running on Namespace. Stored prebuild layers stay and boxes keep using them.",
+  providerStep: "Also remove the trust rule in your Namespace workspace.",
+};
 
-export const ProviderDisconnectDialog = ({
-  tenantId,
-  provider,
-}: {
-  tenantId: string;
-  provider: keyof typeof DISCONNECT;
-}) => {
+export const NamespaceDisconnectDialog = ({ tenantId }: { tenantId: string }) => {
   const api = useTenantApi(tenantId);
-  const copy = DISCONNECT[provider];
+  const copy = DISCONNECT;
   const dialog = useHashDialog();
   const refresh = useRefreshConnections(tenantId);
   const disconnect = useMutation({
-    mutationFn: () => {
-      if (provider === "GitHubActions") return api.deleteGitHubActionsConnection();
-      if (provider === "CircleCI") return api.deleteCircleCIConnection();
-      return api.deleteNamespaceConnection();
-    },
+    mutationFn: () => api.deleteNamespaceConnection(),
     onSuccess: () => {
       refresh();
       toast(`${copy.name} disconnected. ${copy.providerStep}`);
@@ -349,7 +224,7 @@ export const ProviderDisconnectDialog = ({
   });
   return (
     <ConfirmDialog
-      open={dialog.isOpen(copy.hash)}
+      open={dialog.isOpen("disconnect-namespace")}
       onClose={dialog.close}
       title={`Disconnect ${copy.name}?`}
       description={
