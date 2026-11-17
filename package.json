@@ -1,0 +1,33 @@
+{
+  "name": "tumpel-dashboard",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/pages",
+    "packages/dashboard"
+  ],
+  "scripts": {
+    "lint": "biome check .",
+    "fix": "biome check --write .",
+    "build": "npm run build --workspaces --if-present",
+    "build-storybook": "npm run build-storybook -w @tumpel/dashboard",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "comments:check": "node npm-scripts/comments-check.mjs",
+    "secrets:check": "node npm-scripts/secrets-check.mjs",
+    "prose:check": "node npm-scripts/prose-check.mjs",
+    "check": "npm run lint && npm run comments:check && npm run secrets:check && npm run prose:check && npm run typecheck",
+    "test": "npm test --workspaces --if-present",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.0",
+    "typescript": "^5.9.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
