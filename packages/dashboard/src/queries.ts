@@ -1,4 +1,5 @@
 import {
+  type InvalidateQueryFilters,
   skipToken,
   type UseMutationResult,
   type UseQueryResult,
@@ -19,6 +20,7 @@ import {
   type MetricWindow,
   type PrebuildPreview,
   type PrebuildTemplateVersion,
+  type TenantEvent,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { useTenantApi } from "./context";
@@ -479,4 +481,27 @@ export const useSessionCostPoints = (tenantId: string, sessionId: string, window
         }
       : skipToken,
   });
+};
+
+const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
+  if ("sessionId" in event) {
+    return [{ queryKey: keys.sessions(tenantId), exact: true }, { queryKey: keys.session(tenantId, event.sessionId) }];
+  }
+  if ("hostId" in event) return [{ queryKey: keys.hosts(tenantId) }, { queryKey: keys.hostUsage(tenantId) }];
+  return [{ queryKey: prebuildKeys.all(tenantId) }];
+};
+
+export const useLiveEvents = (tenantId: string): void => {
+  const api = useTenantApi(tenantId);
+  const queryClient = useQueryClient();
+  useEffect(
+    () =>
+      api.followEvents({
+        onEvent: (event) => {
+          for (const filters of staleQueriesOf(tenantId, event)) void queryClient.invalidateQueries(filters);
+        },
+        onGap: () => void queryClient.invalidateQueries({ queryKey: [tenantId] }),
+      }),
+    [api, queryClient, tenantId],
+  );
 };

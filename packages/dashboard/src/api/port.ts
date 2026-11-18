@@ -73,6 +73,7 @@ import type {
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
   TenantConfigSchema,
+  TenantEventSchema,
   TranscriptPageSchema,
   TranscriptQuerySchema,
   TurnSchema,
@@ -81,6 +82,12 @@ import type {
 import type { z } from "zod";
 
 export type Host = z.infer<typeof HostSchema>;
+export type TenantEvent = z.infer<typeof TenantEventSchema>;
+
+export interface EventListener {
+  onEvent(event: TenantEvent): void;
+  onGap(): void;
+}
 export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
@@ -299,6 +306,7 @@ export interface TumpelApi {
   metricCatalog(window: MetricWindow): Promise<MetricCatalog>;
   queryMetric(metric: string, query: MetricSeriesQuery): Promise<MetricSeriesSet>;
   metricTurns(metric: string, query: MetricTurnQuery): Promise<MetricTurnPage>;
+  followEvents(listener: EventListener): () => void;
 }
 
 export interface SignedInTenant {

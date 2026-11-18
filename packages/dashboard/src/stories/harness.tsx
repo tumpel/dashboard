@@ -635,6 +635,7 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   ...openRouterFakes(),
   ...metricFakes(),
   ...templateFakes(),
+  followEvents: () => () => undefined,
   ...overrides,
 });
 
