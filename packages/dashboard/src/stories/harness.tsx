@@ -479,6 +479,7 @@ const persona = (
   name,
   harness,
   secretSetId,
+  connectorIds: [],
   files,
   createdAt: NOW,
   updatedAt: NOW,
@@ -591,6 +592,7 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   getPersona: async (personaId) => findPersona(personaId),
   createPersona: async (created) => ({
     ...persona("prs_placeholder09", created.name, created.harness, created.secretSetId, []),
+    connectorIds: created.connectorIds,
     files: filesOf(created.files ?? []),
   }),
   updatePersona: async (personaId, updated) => ({

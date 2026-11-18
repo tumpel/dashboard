@@ -323,8 +323,8 @@ const PersonaEditor = ({
       for (const [path, draft] of Object.entries(drafts)) files.push(await writeFile(api, path, draft, setUpload));
       setUpload(null);
       const fields = { name: name.trim(), secretSetId, files };
-      if (persona === null) return api.createPersona({ ...fields, harness });
-      return api.updatePersona(persona.personaId, fields);
+      if (persona === null) return api.createPersona({ ...fields, harness, connectorIds: [] });
+      return api.updatePersona(persona.personaId, { ...fields, connectorIds: persona.connectorIds });
     },
     onSettled: () => setUpload(null),
     onSuccess: (saved) => {
