@@ -29,6 +29,24 @@ export const Loading: Story = {
 
 export const Idle: Story = { args: { path: turnPath("ses_4") } };
 
+export const WithoutPrebuild: Story = {
+  args: {
+    path: turnPath("ses_4"),
+    api: fakeApi({
+      getSession: async () => ({
+        ...sessionOf("ses_4"),
+        lastTurnImage: { kind: "Full", guestImageDigest: "7e".repeat(32) },
+        prebuildLayer: {
+          layer: "None",
+          reason: "NoPrebuild",
+          detail:
+            "https://github.com/owner/repo-name has no stored prebuild; start a prebuild of it so later sessions start from its layer",
+        },
+      }),
+    }),
+  },
+};
+
 export const SendRefused: Story = {
   args: {
     path: turnPath("ses_4"),
