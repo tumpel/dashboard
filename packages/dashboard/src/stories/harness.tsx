@@ -151,6 +151,7 @@ const session = (
   boxId: `box_${sessionId}`,
   personaId,
   repository,
+  origin: { kind: "Prompt" },
   harness,
   harnessVersion: "2.1.4",
   model: "placeholder-model",
@@ -158,6 +159,17 @@ const session = (
   lastTurnId: `trn_${sessionId}`,
   lastTurnState: state === "Running" ? "Running" : "Completed",
   lastTurnAt: new Date(updatedAt).toISOString(),
+  lastTurn: {
+    turnId: `trn_${sessionId}`,
+    tenantId: TENANT_ID,
+    sessionId,
+    boxId: `box_${sessionId}`,
+    prompt: "Work issue #42: Add a retry budget to the uploader.",
+    state: state === "Running" ? "Running" : "Completed",
+    lineCount: 214,
+    createdAt: updatedAt - 600_000,
+    updatedAt,
+  },
   createdAt: updatedAt - 3_600_000,
   updatedAt,
 });
@@ -256,6 +268,7 @@ const claudeCode = (harnessVersion: string): HarnessCatalogEntry => ({
   personaFilePaths: [".claude/CLAUDE.md", ".claude/settings.json", ".claude/agents/reviewer.md"],
   installRecipe: { kind: "Npm", package: "placeholder-claude-code", packageVersion: harnessVersion },
   compactTranscript: true,
+  goals: false,
 });
 
 export const CATALOG: HarnessCatalogEntry[] = [
@@ -280,6 +293,7 @@ export const CATALOG: HarnessCatalogEntry[] = [
     personaFilePaths: [".codex/AGENTS.md"],
     installRecipe: { kind: "Npm", package: "placeholder-codex", packageVersion: "0.48.0" },
     compactTranscript: true,
+    goals: false,
   },
   {
     harness: "OpenCode",
@@ -298,6 +312,7 @@ export const CATALOG: HarnessCatalogEntry[] = [
     personaFilePaths: [".config/opencode/opencode.json", ".config/opencode/AGENTS.md"],
     installRecipe: { kind: "Npm", package: "placeholder-opencode", packageVersion: "1.0.2" },
     compactTranscript: true,
+    goals: false,
   },
   {
     harness: "PiDev",
@@ -309,6 +324,7 @@ export const CATALOG: HarnessCatalogEntry[] = [
     personaFilePaths: [".pi/agent/settings.json", ".pi/agent/AGENTS.md"],
     installRecipe: { kind: "Npm", package: "placeholder-pi", packageVersion: "0.9.0" },
     compactTranscript: true,
+    goals: false,
   },
 ];
 
@@ -436,13 +452,18 @@ export const SECRET_SETS: SecretSet[] = [
   },
 ];
 
-const file = (path: string, kib: number, seed: string) => ({
+const storedFile = (path: string, digest: string, sizeBytes: number): Persona["files"][number] => ({
+  source: "Stored",
   path,
-  digest: digest(seed),
-  sizeBytes: kib * 1024,
+  digest,
+  sizeBytes,
+  downloadUrl: `https://files.example.com/${digest}`,
+  downloadExpiresAt: new Date(NOW + 3_600_000).toISOString(),
   createdAt: NOW,
   updatedAt: NOW,
 });
+
+const file = (path: string, kib: number, seed: string) => storedFile(path, digest(seed), kib * 1024);
 
 const persona = (
   personaId: string,
@@ -473,9 +494,11 @@ export const PERSONAS: Persona[] = [
 const filesOf = (writes: PersonaFileWrite[]): Persona["files"] =>
   writes.map((write) =>
     write.source === "Stored"
-      ? { path: write.path, digest: write.digest, sizeBytes: write.sizeBytes, createdAt: NOW, updatedAt: NOW }
+      ? storedFile(write.path, write.digest, write.sizeBytes)
       : {
+          source: "Inline",
           path: write.path,
+          content: write.content,
           digest: digest("9"),
           sizeBytes: atob(write.content).length,
           createdAt: NOW,
