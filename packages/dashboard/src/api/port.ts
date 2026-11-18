@@ -205,6 +205,12 @@ export const failureOf = (error: unknown): Failure =>
     ? error.failure
     : { kind: "Unexpected", status: 0, detail: error instanceof Error ? error.message : String(error) };
 
+export const refusedAlone = (error: unknown): error is ApiFailure =>
+  error instanceof ApiFailure &&
+  error.failure.kind === "Problem" &&
+  error.failure.status !== 401 &&
+  error.failure.status !== 403;
+
 export const isSignedOut = (error: unknown): boolean =>
   error instanceof ApiFailure && error.failure.kind === "Problem" && error.failure.status === 401;
 

@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
+import { useState } from "react";
 import type { Session } from "../api/port";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
@@ -13,7 +14,13 @@ import { formatTime, hostName, personaName, repositoryLabel, SESSION_STATES } fr
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
 import { useHosts, usePersonas, useSessions } from "../queries";
-import { type SessionAction, SessionActionDialogs, STOPPABLE } from "./session-actions";
+import {
+  ARCHIVABLE,
+  ArchiveSessionsDialog,
+  type SessionAction,
+  SessionActionDialogs,
+  STOPPABLE,
+} from "./session-actions";
 
 const ROUTE = "/t/$tenantId/sessions";
 
@@ -25,23 +32,20 @@ const TableSkeleton = () => (
   </div>
 );
 
-const RowActions = ({ session, onPick }: { session: Session; onPick: (hash: string) => void }) => {
-  if (STOPPABLE.has(session.state)) {
-    return (
+const RowActions = ({ session, onPick }: { session: Session; onPick: (hash: string) => void }) => (
+  <div className="flex justify-end gap-2">
+    {STOPPABLE.has(session.state) && (
       <Button size="sm" variant="outline" onClick={() => onPick(`stop-${session.sessionId}`)}>
         Stop
       </Button>
-    );
-  }
-  if (session.state === "Stopped") {
-    return (
+    )}
+    {ARCHIVABLE.has(session.state) && (
       <Button size="sm" variant="outline" onClick={() => onPick(`archive-${session.sessionId}`)}>
         Archive
       </Button>
-    );
-  }
-  return null;
-};
+    )}
+  </div>
+);
 
 const pendingAction = (hash: string): { action: SessionAction; sessionId: string } | null => {
   for (const action of ["stop", "archive"] as const) {
@@ -60,6 +64,17 @@ export const SessionsListScreen = () => {
   const personas = usePersonas(tenantId);
   const hostId = hostIds[0] ?? "";
   const pending = pendingAction(dialog.hash);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [archiving, setArchiving] = useState(false);
+  const select = (sessionIds: string[], on: boolean) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const sessionId of sessionIds) {
+        if (on) next.add(sessionId);
+        else next.delete(sessionId);
+      }
+      return next;
+    });
   const setSearch = (state: Session["state"][], host: string) =>
     void navigate({ search: { state, hostId: host === "" ? [] : [host] } });
   const toggle = (state: Session["state"]) =>
@@ -104,13 +119,33 @@ export const SessionsListScreen = () => {
         </div>
       );
     }
+    const selectable = rows.filter((session) => ARCHIVABLE.has(session.state)).map((session) => session.sessionId);
+    const picked = rows.filter((session) => ARCHIVABLE.has(session.state) && selected.has(session.sessionId));
+    const allPicked = selectable.length > 0 && selectable.every((sessionId) => selected.has(sessionId));
     return (
       <div className="grid gap-3">
         {hosts.isError && <ProblemBlock error={hosts.error} onRetry={() => void hosts.refetch()} />}
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
+        {picked.length > 0 && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border bg-card p-2 pl-3">
+            <p className="text-sm font-medium">{picked.length} selected</p>
+            <Button size="sm" variant="destructive" onClick={() => setArchiving(true)}>
+              Archive selected
+            </Button>
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8">
+                <input
+                  type="checkbox"
+                  aria-label="Select every session shown that can be archived"
+                  checked={allPicked}
+                  disabled={selectable.length === 0}
+                  onChange={(event) => select(selectable, event.target.checked)}
+                />
+              </TableHead>
               <TableHead>Repository</TableHead>
               <TableHead>Persona</TableHead>
               <TableHead>State</TableHead>
@@ -124,6 +159,16 @@ export const SessionsListScreen = () => {
           <TableBody>
             {rows.map((session) => (
               <TableRow key={session.sessionId}>
+                <TableCell>
+                  {ARCHIVABLE.has(session.state) && (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${repositoryLabel(session.repository)}`}
+                      checked={selected.has(session.sessionId)}
+                      onChange={(event) => select([session.sessionId], event.target.checked)}
+                    />
+                  )}
+                </TableCell>
                 <TableCell>
                   <Link
                     to="/t/$tenantId/sessions/$sessionId"
@@ -147,6 +192,19 @@ export const SessionsListScreen = () => {
           </TableBody>
         </Table>
         <p className="text-xs text-muted-foreground">Sorted by last change, newest first.</p>
+        {archiving && (
+          <ArchiveSessionsDialog
+            tenantId={tenantId}
+            sessions={picked}
+            onClose={() => setArchiving(false)}
+            onArchived={() =>
+              select(
+                picked.map((session) => session.sessionId),
+                false,
+              )
+            }
+          />
+        )}
         {pending !== null && (
           <SessionActionDialogs
             tenantId={tenantId}

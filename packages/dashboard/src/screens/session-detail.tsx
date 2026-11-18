@@ -29,7 +29,7 @@ import {
   useTurns,
 } from "../queries";
 import { type TranscriptView, useTranscript } from "../transcript";
-import { SessionActionDialogs, STOPPABLE } from "./session-actions";
+import { ARCHIVABLE, SessionActionDialogs, STOPPABLE } from "./session-actions";
 import { SessionCostTab } from "./session-cost";
 
 const ROUTE = "/t/$tenantId/sessions/$sessionId/turns/$turnId";
@@ -46,7 +46,6 @@ const TAB_LABELS: [SessionTab, string][] = [
 ];
 
 const SENDABLE: ReadonlySet<Session["state"]> = new Set(["Idle", "Stopped"]);
-const ARCHIVABLE: ReadonlySet<Session["state"]> = new Set(["Stopped", "Failed"]);
 const IN_FLIGHT: ReadonlySet<Turn["state"]> = new Set(["Offered", "Running"]);
 
 const turnLabel = (turns: readonly Turn[], turnId: string): string => {
@@ -603,7 +602,7 @@ export const SessionDetailScreen = () => {
         <Button
           variant="outline"
           disabled={!ARCHIVABLE.has(data.state)}
-          title={ARCHIVABLE.has(data.state) ? undefined : "Stop the session first"}
+          title={ARCHIVABLE.has(data.state) ? undefined : "Wait until the session reads Idle or Stopped"}
           onClick={() => void navigate({ search: (current) => current, hash: "archive" })}
         >
           Archive
