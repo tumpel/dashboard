@@ -26,7 +26,6 @@ import {
   useSession,
   useSnapshots,
   useStopFailures,
-  useTurnFailure,
   useTurns,
 } from "../queries";
 import { type TranscriptView, useTranscript } from "../transcript";
@@ -168,20 +167,15 @@ const TranscriptLines = ({ prompt, lines }: { prompt: string; lines: TranscriptT
   </ol>
 );
 
-const TurnFailureBlock = ({ tenantId, label, turnId }: { tenantId: string; label: string; turnId: string }) => {
-  const failure = useTurnFailure(tenantId, turnId);
-  if (failure.isPending) return <Skeleton className="h-24 w-full" />;
-  if (failure.isError) return <ProblemBlock error={failure.error} onRetry={() => void failure.refetch()} />;
-  return (
-    <ProblemCard
-      wording={{
-        title: `${label} failed: ${failure.data.reason}`,
-        detail: failure.data.detail,
-        fix: "Fix what the detail names, then send the next prompt to start a new turn.",
-      }}
-    />
-  );
-};
+const TurnFailureBlock = ({ label, turn }: { label: string; turn: Extract<Turn, { state: "Failed" }> }) => (
+  <ProblemCard
+    wording={{
+      title: `${label} failed: ${turn.reason}`,
+      detail: turn.detail,
+      fix: "Fix what the detail names, then send the next prompt to start a new turn.",
+    }}
+  />
+);
 
 const TranscriptPanel = ({
   tenantId,
@@ -309,9 +303,7 @@ const TranscriptPanel = ({
       {transcript.isError && !signedOut && (
         <ProblemBlock error={transcript.error} retryLabel="Resume" onRetry={resume} />
       )}
-      {finished && turn.state === "Failed" && (
-        <TurnFailureBlock tenantId={tenantId} label={label} turnId={turn.turnId} />
-      )}
+      {finished && turn.state === "Failed" && <TurnFailureBlock label={label} turn={turn} />}
     </div>
   );
 };
