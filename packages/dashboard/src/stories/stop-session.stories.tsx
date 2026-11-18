@@ -26,6 +26,8 @@ export const Stopping: Story = {
   },
 };
 
+export const ConfirmRunning: Story = { args: { path: turnPath("ses_1", "#stop") } };
+
 export const Refused: Story = {
   args: {
     path: turnPath("ses_1", "#stop"),
@@ -36,15 +38,13 @@ export const Refused: Story = {
             409,
             "TurnInFlight",
             "Stop refused: TurnInFlight",
-            "Turn 3 is running.",
-            "Wait for the turn to finish, then stop.",
+            "Turn 3 is running on a host whose supervisor is too old to cancel a turn.",
+            "Wait for the turn to finish, then stop again.",
           ),
         ),
     }),
   },
   play: async () => {
-    await userEvent.click(await within(document.body).findByRole("button", { name: "Stop session" }));
+    await userEvent.click(await within(document.body).findByRole("button", { name: "Cancel turn and stop" }));
   },
 };
-
-export const CancelTurn: Story = { args: { path: turnPath("ses_1", "#cancel") } };
