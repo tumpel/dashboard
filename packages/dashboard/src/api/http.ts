@@ -47,7 +47,6 @@ import {
   StartedSessionSchema,
   StopFailureSchema,
   TranscriptPageSchema,
-  TurnFailureSchema,
   TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
@@ -196,12 +195,6 @@ export const createHttpApi = (
         "Turns_send",
         TurnSchema,
         client.POST("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } }, body: { prompt } }),
-      ),
-    getTurnFailure: (turnId) =>
-      settle(
-        "Turns_getFailure",
-        TurnFailureSchema,
-        client.GET("/v1/turns/{turnId}/failure", { params: { path: { turnId } } }),
       ),
     readTranscript: (sessionId, query) =>
       settle(

@@ -19,7 +19,6 @@ type SessionApi = Pick<
   | "archiveSession"
   | "listTurns"
   | "sendTurn"
-  | "getTurnFailure"
   | "readTranscript"
   | "listSnapshots"
   | "listCredentialHandovers"
@@ -91,9 +90,9 @@ export const turnsFor = (
     return {
       ...base,
       state,
-      reason: "HarnessExited",
+      reason: "Undelivered",
       detail:
-        "The harness exited with status 1 after 41 lines. stderr tail: Error: persona file .claude/settings.json is not valid JSON. Fix the persona file, then send the next prompt.",
+        "no host took the turn within 3600 seconds of its offer, so it never ran; host box is offline. Check that its supervisor runs and reads Online, then send the turn again",
       failedAt: "2026-11-15T14:03:12+01:00",
     };
   });
@@ -212,16 +211,6 @@ export const sessionFakes = (sessions: Session[], personas: Persona[], now: numb
       lineCount: 0,
       createdAt: now,
       updatedAt: now,
-    }),
-    getTurnFailure: async (failedTurnId) => ({
-      turnId: failedTurnId,
-      tenantId: sessions[0]?.tenantId ?? "",
-      sessionId: sessions[0]?.sessionId ?? "",
-      reason: "HarnessExited",
-      detail:
-        "The harness exited with status 1 after 41 lines. stderr tail: Error: persona file .claude/settings.json is not valid JSON. Fix the persona file, then send the next prompt.",
-      failedAt: "2026-11-15T14:03:12+01:00",
-      createdAt: now,
     }),
     readTranscript: async (sessionId, query) => {
       const session = find(sessionId);

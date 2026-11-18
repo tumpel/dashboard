@@ -39,7 +39,6 @@ export const keys = {
   secretSet: (tenantId: string, secretSetId: string) => [tenantId, "secretSets", secretSetId] as const,
   session: (tenantId: string, sessionId: string) => [tenantId, "sessions", sessionId] as const,
   turns: (tenantId: string, sessionId: string) => [tenantId, "sessions", sessionId, "turns"] as const,
-  turnFailure: (tenantId: string, turnId: string) => [tenantId, "turnFailures", turnId] as const,
   transcript: (tenantId: string, sessionId: string, turnId: string, compact: boolean) =>
     [tenantId, "sessions", sessionId, "transcript", turnId, compact] as const,
   snapshots: (tenantId: string, sessionId: string) => [tenantId, "sessions", sessionId, "snapshots"] as const,
@@ -161,15 +160,6 @@ export const useSession = (tenantId: string, sessionId: string) => {
 export const useTurns = (tenantId: string, sessionId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({ queryKey: keys.turns(tenantId, sessionId), queryFn: () => api.listTurns(sessionId) });
-};
-
-export const useTurnFailure = (tenantId: string, turnId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({
-    queryKey: keys.turnFailure(tenantId, turnId),
-    queryFn: () => api.getTurnFailure(turnId),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
 };
 
 export const useSnapshots = (tenantId: string, sessionId: string) => {
