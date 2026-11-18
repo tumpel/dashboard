@@ -16,6 +16,7 @@ import { useSignedOut, useTenantApi } from "../context";
 import { formatMib, formatTime, HARNESS_NAMES, hostName, personaName, repositoryLabel } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
+import { shortDigest } from "../prebuild-rows";
 import {
   keys,
   useCredentialHandovers,
@@ -375,6 +376,25 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
   );
 };
 
+const layerText = (layer: NonNullable<Session["prebuildLayer"]>): string =>
+  layer.layer === "Prebuild"
+    ? `The session's files start from prebuild layer ${shortDigest(layer.layerDigest)}.`
+    : `The session's files start without a prebuild: ${layer.detail}.`;
+
+const imageText = (image: NonNullable<Session["lastTurnImage"]>): string =>
+  image.kind === "Full"
+    ? `The latest turn boots guest image ${shortDigest(image.guestImageDigest)}.`
+    : `The latest turn boots base image ${shortDigest(image.baseImageDigest)} with harness layer ${shortDigest(image.harnessLayerDigest)}.`;
+
+const BootNote = ({ session }: { session: Session }) => {
+  const lines = [
+    session.prebuildLayer && layerText(session.prebuildLayer),
+    session.lastTurnImage && imageText(session.lastTurnImage),
+  ].filter((line) => line !== undefined);
+  if (lines.length === 0) return null;
+  return <p className="mb-4 text-sm text-muted-foreground">{lines.join(" ")}</p>;
+};
+
 const ArchivedNote = () => (
   <div className="rounded-lg border bg-muted p-3">
     <p className="font-semibold">Archived. The transcript stays readable; sends are refused.</p>
@@ -660,6 +680,7 @@ export const SessionDetailScreen = () => {
           {data.model} / {hostNameOf(data.hostId)}
         </span>
       </div>
+      <BootNote session={data} />
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
       )}
