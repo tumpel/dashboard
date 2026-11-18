@@ -17,7 +17,7 @@ export const Loading: Story = {
 };
 
 export const NoProvider: Story = {
-  args: { path, api: fakeApi({ listConnections: async () => summaries("Connected", "NotConnected", "NotConnected") }) },
+  args: { path, api: fakeApi({ listConnections: async () => summaries("Connected", "NotConnected") }) },
 };
 
 export const NoProviderMember: Story = {
@@ -25,7 +25,7 @@ export const NoProviderMember: Story = {
     path,
     api: fakeApi({
       whoami: memberWhoami,
-      listConnections: async () => summaries("Connected", "NotConnected", "NotConnected"),
+      listConnections: async () => summaries("Connected", "NotConnected"),
     }),
   },
 };

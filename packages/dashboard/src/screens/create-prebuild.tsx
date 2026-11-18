@@ -895,7 +895,7 @@ const BuildBody = ({
         <ProblemCard
           wording={{
             title: "No build provider connected",
-            detail: "Prebuilds run on the tenant's own GitHub Actions, CircleCI or Namespace account.",
+            detail: "Prebuilds run on the tenant's own Namespace account.",
             fix: "Connect a provider on Connections, then come back and press Build now.",
           }}
           actions={
