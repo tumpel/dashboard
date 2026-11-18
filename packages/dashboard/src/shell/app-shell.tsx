@@ -35,7 +35,7 @@ import {
 import { Toaster } from "../components/ui/sonner";
 import { useDashboard, useSignedOut } from "../context";
 import { useHashDialog } from "../hash-dialog";
-import { useTenants, useWhoami } from "../queries";
+import { useLiveEvents, useTenants, useWhoami } from "../queries";
 import { SwitchingNotice, type SwitchTarget, useSwitchTenant } from "./switch-tenant";
 
 const OVERVIEW = { to: "/t/$tenantId/overview", label: "Overview", icon: LayoutDashboardIcon } as const;
@@ -258,6 +258,7 @@ export const AppShell = () => {
   const { ports } = useDashboard();
   const signedOut = useSignedOut();
   const whoami = useWhoami(tenantId);
+  useLiveEvents(tenantId);
   const stored = ports.auth.signedInTenants().find((tenant) => tenant.tenantId === tenantId);
   const tenantName = whoami.data?.tenant.name ?? stored?.tenantName ?? tenantId;
   const email = whoami.data?.principal.email ?? stored?.email ?? "";

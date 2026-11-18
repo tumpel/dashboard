@@ -1,6 +1,6 @@
 {
   "name": "@tumpel/dashboard",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "The built tumpel web dashboard: static assets to serve behind a server that inserts the tumpel-api-origin meta tag",
   "license": "Apache-2.0",

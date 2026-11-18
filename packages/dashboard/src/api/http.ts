@@ -46,6 +46,7 @@ import {
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
   StopFailureSchema,
+  TenantEventSchema,
   TranscriptPageSchema,
   TurnSchema,
   WhoamiSchema,
@@ -53,11 +54,14 @@ import {
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
-import { ApiFailure, type PersonaFileUpload, type TumpelApi } from "./port.ts";
+import { ApiFailure, type EventListener, type PersonaFileUpload, type TumpelApi } from "./port.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
 const REQUEST_LIMIT_MS = 15_000;
+const RECONNECT_MS = 1000;
+const RECONNECT_CAP_MS = 30_000;
+const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
@@ -125,6 +129,49 @@ const notSignedIn = (tenantId: string): ApiFailure =>
       fix: "Sign in again.",
     },
   });
+
+const followEvents = (
+  apiOrigin: string,
+  tenantId: string,
+  accessToken: (tenantId: string) => Promise<TokenLookup>,
+  listener: EventListener,
+): (() => void) => {
+  const url = new URL("/v1/events?waitSeconds=0", apiOrigin);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  let socket: WebSocket | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
+  let opened = false;
+  let delay = RECONNECT_MS;
+  const reconnect = (): void => {
+    if (stopped) return;
+    timer = setTimeout(open, delay);
+    delay = Math.min(delay * 2, RECONNECT_CAP_MS);
+  };
+  const open = async (): Promise<void> => {
+    const lookup = await accessToken(tenantId);
+    if (stopped || lookup.kind === "None") return;
+    if (lookup.kind === "Failed") return reconnect();
+    socket = new WebSocket(url, [BEARER_SUBPROTOCOL, `${BEARER_SUBPROTOCOL}.${lookup.token}`]);
+    socket.onopen = () => {
+      delay = RECONNECT_MS;
+      if (opened) listener.onGap();
+      opened = true;
+    };
+    socket.onmessage = (message) => {
+      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
+      if (event.success) listener.onEvent(event.data);
+      else listener.onGap();
+    };
+    socket.onclose = reconnect;
+  };
+  void open();
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    socket?.close();
+  };
+};
 
 export const createHttpApi = (
   apiOrigin: string,
@@ -481,5 +528,6 @@ export const createHttpApi = (
         MetricTurnPageSchema,
         client.GET("/v1/metrics/{metric}/turns", { params: { path: { metric }, query } }),
       ),
+    followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
   };
 };
