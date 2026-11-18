@@ -75,19 +75,28 @@ export const turnsFor = (
   session: Session,
   last: Turn["state"] = session.state === "Running" ? "Running" : "Completed",
 ) =>
-  PROMPTS.map(
-    (prompt, index): Turn => ({
+  PROMPTS.map((prompt, index): Turn => {
+    const state = index === PROMPTS.length - 1 ? last : "Completed";
+    const base = {
       turnId: turnId(session.sessionId, index + 1),
       tenantId: session.tenantId,
       sessionId: session.sessionId,
       boxId: session.boxId,
       prompt,
-      state: index === PROMPTS.length - 1 ? last : "Completed",
-      lineCount: [1210, 388, last === "Failed" ? 41 : 214][index] ?? 0,
+      lineCount: [1210, 388, state === "Failed" ? 41 : 214][index] ?? 0,
       createdAt: session.createdAt + index * 600_000,
       updatedAt: session.createdAt + index * 600_000 + 360_000,
-    }),
-  );
+    };
+    if (state !== "Failed") return { ...base, state };
+    return {
+      ...base,
+      state,
+      reason: "HarnessExited",
+      detail:
+        "The harness exited with status 1 after 41 lines. stderr tail: Error: persona file .claude/settings.json is not valid JSON. Fix the persona file, then send the next prompt.",
+      failedAt: "2026-11-15T14:03:12+01:00",
+    };
+  });
 
 const COMPACT = [
   "I'll read the uploader module and its tests first.",
