@@ -144,5 +144,5 @@ export interface ShellCss {
 
 export const shellDocument = (page: Page, context: PageContext, css: ShellCss): string => {
   const script = page.script === null ? "" : `<script>${page.script}</script>`;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>${escapeHtml(page.title)} · Tumpel</title><link rel="icon" type="image/png" href="${escapeHtml(context.links.dashboard)}/logo32.png"><style>${fontFaces(context.links)}${css.tokens}body{margin:0}${css.shell}</style></head><body>${shellBody(page, context)}${script}</body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>${escapeHtml(page.title)} · Tumpel</title><link rel="icon" type="image/svg+xml" href="${escapeHtml(context.links.dashboard)}/favicon.svg"><link rel="icon" type="image/png" sizes="32x32" href="${escapeHtml(context.links.dashboard)}/favicon-32.png"><link rel="apple-touch-icon" href="${escapeHtml(context.links.dashboard)}/apple-touch-icon.png"><style>${fontFaces(context.links)}${css.tokens}body{margin:0}${css.shell}</style></head><body>${shellBody(page, context)}${script}</body></html>`;
 };
