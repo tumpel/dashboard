@@ -11,7 +11,7 @@ import { useTenantApi } from "../context";
 import { repositoryLabel } from "../fleet";
 import { keys } from "../queries";
 
-export const STOPPABLE: ReadonlySet<Session["state"]> = new Set(["Starting", "Idle", "Running"]);
+export const STOPPABLE: ReadonlySet<Session["state"]> = new Set(["Starting", "Idle"]);
 export const ARCHIVABLE: ReadonlySet<Session["state"]> = new Set(["Idle", "Stopped", "Failed"]);
 
 export type SessionAction = "stop" | "archive";
@@ -70,11 +70,13 @@ export const SessionActionDialogs = ({
   tenantId,
   sessionId,
   action,
+  running,
   onClose,
 }: {
   tenantId: string;
   sessionId: string;
   action: SessionAction | null;
+  running: boolean;
   onClose: () => void;
 }) => {
   const api = useTenantApi(tenantId);
@@ -84,16 +86,20 @@ export const SessionActionDialogs = ({
         tenantId={tenantId}
         open={action === "stop"}
         onClose={onClose}
-        title="Stop this session?"
+        title={running ? "Cancel the running turn and stop this session?" : "Stop this session?"}
         body={
           <>
-            <p>Tumpel snapshots the session now, then removes its box.</p>
+            <p>
+              {running
+                ? "The turn stops at once and fails as cancelled. Tumpel snapshots what the box holds, then removes it."
+                : "Tumpel snapshots the session now, then removes its box."}
+            </p>
             <p>The next prompt boots a fresh box from that snapshot. A stopped session can be archived.</p>
           </>
         }
-        actionLabel="Stop session"
+        actionLabel={running ? "Cancel turn and stop" : "Stop session"}
         pendingLabel="Stopping..."
-        run={() => api.stopSession(sessionId)}
+        run={() => api.stopSession(sessionId, running)}
         toast="Stopping. Tumpel takes the last snapshot, then removes the box."
       />
       <SessionActionDialog
