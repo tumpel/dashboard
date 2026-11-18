@@ -35,6 +35,7 @@ const DEFAULT_PERSONA: Persona = {
   name: "Default",
   harness: "ClaudeCode",
   secretSetId: "sst_default",
+  connectorIds: [],
   files: [],
   createdAt: CREATED,
   updatedAt: CREATED,
