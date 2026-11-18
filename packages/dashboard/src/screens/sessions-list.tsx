@@ -210,6 +210,7 @@ export const SessionsListScreen = () => {
             tenantId={tenantId}
             sessionId={pending.sessionId}
             action={pending.action}
+            running={false}
             onClose={dialog.close}
           />
         )}
