@@ -9,6 +9,9 @@ import type {
   CompactTranscriptLineSchema,
   ConfigPlanSchema,
   ConnectionSummarySchema,
+  ConnectorAuthorizationSchema,
+  ConnectorSchema,
+  ConnectorUpdateSchema,
   CostBasisSchema,
   CredentialHandoverSchema,
   DeviceSchema,
@@ -72,6 +75,7 @@ import type {
   SnapshotSchema,
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
+  StaticConnectorCreateSchema,
   StopFailureSchema,
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
@@ -194,6 +198,11 @@ export type Invitation = z.infer<typeof InvitationSchema>;
 export type InvitationCreate = z.infer<typeof InvitationCreateSchema>;
 export type InvitationCreated = z.infer<typeof InvitationCreatedSchema>;
 export type Role = Member["role"];
+export type Connector = z.infer<typeof ConnectorSchema>;
+export type ConnectorStatus = Connector["status"];
+export type ConnectorCreate = z.infer<typeof StaticConnectorCreateSchema>;
+export type ConnectorUpdate = z.infer<typeof ConnectorUpdateSchema>;
+export type ConnectorAuthorization = z.infer<typeof ConnectorAuthorizationSchema>;
 export type PushKey = z.infer<typeof PushKeySchema>;
 export type PushSubscription = z.infer<typeof PushSubscriptionSchema>;
 export type PushSubscriptionCreate = z.infer<typeof PushSubscriptionCreateSchema>;
@@ -316,6 +325,13 @@ export interface TumpelApi {
   listPushSubscriptions(): Promise<PushSubscription[]>;
   createPushSubscription(body: PushSubscriptionCreate): Promise<PushSubscription>;
   deletePushSubscription(pushSubscriptionId: string): Promise<void>;
+  listConnectors(): Promise<Connector[]>;
+  createConnector(auth: Connector["auth"], body: ConnectorCreate): Promise<Connector>;
+  updateConnector(connector: Connector, body: ConnectorUpdate): Promise<Connector>;
+  deleteConnector(connector: Connector): Promise<void>;
+  setConnectorToken(connector: Connector, value: string): Promise<Connector>;
+  clearConnectorCredential(connector: Connector): Promise<Connector>;
+  authorizeConnector(connector: Connector): Promise<ConnectorAuthorization>;
   followEvents(listener: EventListener): () => void;
 }
 

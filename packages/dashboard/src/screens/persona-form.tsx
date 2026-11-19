@@ -5,6 +5,7 @@ import { LoaderCircleIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  type Connector,
   type EffectiveHarnessVersion,
   failureOf,
   type Harness,
@@ -28,7 +29,7 @@ import { useTenantApi } from "../context";
 import { formatKib } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
-import { keys, useHarnessCatalog, useHarnessPins, usePersona, useSecretSets } from "../queries";
+import { keys, useConnectors, useHarnessCatalog, useHarnessPins, usePersona, useSecretSets } from "../queries";
 
 type FileDraft =
   | { kind: "Stored"; digest: string; sizeBytes: number }
@@ -252,6 +253,7 @@ const PersonaEditor = ({
   catalog,
   versions,
   secretSets,
+  connectors,
   initialHarness,
   openFile,
 }: {
@@ -260,6 +262,7 @@ const PersonaEditor = ({
   catalog: HarnessCatalogEntry[];
   versions: EffectiveHarnessVersion[];
   secretSets: SecretSet[];
+  connectors: Connector[];
   initialHarness: Harness;
   openFile: string | undefined;
 }) => {
@@ -270,6 +273,7 @@ const PersonaEditor = ({
   const [name, setName] = useState(persona?.name ?? "");
   const [harness, setHarness] = useState<Harness>(persona?.harness ?? initialHarness);
   const [secretSetId, setSecretSetId] = useState(persona?.secretSetId ?? secretSets[0]?.secretSetId ?? "");
+  const [connectorIds, setConnectorIds] = useState<string[]>(persona?.connectorIds ?? []);
   const [drafts, setDrafts] = useState<Drafts>(() => storedDrafts(persona));
   const [dirty, setDirty] = useState(false);
   const [upload, setUpload] = useState<Upload | null>(null);
@@ -322,9 +326,9 @@ const PersonaEditor = ({
       const files: PersonaFileWrite[] = [];
       for (const [path, draft] of Object.entries(drafts)) files.push(await writeFile(api, path, draft, setUpload));
       setUpload(null);
-      const fields = { name: name.trim(), secretSetId, files };
-      if (persona === null) return api.createPersona({ ...fields, harness, connectorIds: [] });
-      return api.updatePersona(persona.personaId, { ...fields, connectorIds: persona.connectorIds });
+      const fields = { name: name.trim(), secretSetId, connectorIds, files };
+      if (persona === null) return api.createPersona({ ...fields, harness });
+      return api.updatePersona(persona.personaId, fields);
     },
     onSettled: () => setUpload(null),
     onSuccess: (saved) => {
@@ -390,6 +394,36 @@ const PersonaEditor = ({
               ))}
             </NativeSelect>
           </Field>
+          <fieldset className="grid gap-1 text-sm">
+            <legend className="mb-1 font-medium">Connectors</legend>
+            {connectors.map((connector) => (
+              <label key={connector.connectorId} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={connectorIds.includes(connector.connectorId)}
+                  onChange={(event) => {
+                    const { checked } = event.target;
+                    edit(() =>
+                      setConnectorIds((current) =>
+                        checked
+                          ? [...current, connector.connectorId]
+                          : current.filter((item) => item !== connector.connectorId),
+                      ),
+                    );
+                  }}
+                />
+                <span className="truncate">{connector.name}</span>
+                {connector.status.state !== "Connected" && (
+                  <span className="text-xs text-muted-foreground">not connected</span>
+                )}
+              </label>
+            ))}
+            <p className="text-xs text-muted-foreground">
+              {connectors.length === 0
+                ? "No connectors yet. An Owner adds them under Connectors."
+                : "Sessions on this persona can call these MCP servers."}
+            </p>
+          </fieldset>
         </div>
         <div className="grid content-start gap-3">
           <FileMeter total={total} />
@@ -531,13 +565,19 @@ const PersonaPage = ({
   const catalog = useHarnessCatalog(tenantId);
   const versions = useHarnessPins(tenantId);
   const secretSets = useSecretSets(tenantId);
+  const connectors = useConnectors(tenantId);
   const body = (): ReactNode => {
     if (catalog.isError) return <ProblemBlock error={catalog.error} onRetry={() => void catalog.refetch()} />;
     if (versions.isError) return <ProblemBlock error={versions.error} onRetry={() => void versions.refetch()} />;
     if (secretSets.isError) {
       return <ProblemBlock error={secretSets.error} onRetry={() => void secretSets.refetch()} />;
     }
-    if (catalog.isPending || versions.isPending || secretSets.isPending) return <Skeleton className="h-96 w-full" />;
+    if (connectors.isError) {
+      return <ProblemBlock error={connectors.error} onRetry={() => void connectors.refetch()} />;
+    }
+    if (catalog.isPending || versions.isPending || secretSets.isPending || connectors.isPending) {
+      return <Skeleton className="h-96 w-full" />;
+    }
     const firstHarness = initialHarness ?? catalog.data[0]?.harness;
     if (firstHarness === undefined) {
       return (
@@ -558,6 +598,7 @@ const PersonaPage = ({
         catalog={catalog.data}
         versions={versions.data}
         secretSets={secretSets.data}
+        connectors={connectors.data}
         initialHarness={firstHarness}
         openFile={openFile}
       />

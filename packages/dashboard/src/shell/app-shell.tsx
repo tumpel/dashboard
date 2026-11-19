@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import {
+  BlocksIcon,
   BotIcon,
   ChartLineIcon,
   CheckIcon,
@@ -46,6 +47,7 @@ const HARNESSES = { to: "/t/$tenantId/harnesses", label: "Harnesses", icon: Laye
 const PERSONAS = { to: "/t/$tenantId/personas", label: "Personas", icon: BotIcon } as const;
 const SECRETS = { to: "/t/$tenantId/secrets", label: "Secret sets", icon: KeyRoundIcon } as const;
 const CONNECTIONS = { to: "/t/$tenantId/connections", label: "Connections", icon: PlugIcon } as const;
+const CONNECTORS = { to: "/t/$tenantId/connectors", label: "Connectors", icon: BlocksIcon } as const;
 const PREBUILDS = { to: "/t/$tenantId/prebuilds", label: "Prebuilds", icon: PackageIcon } as const;
 const MEMBERS = { to: "/t/$tenantId/members", label: "Members", icon: UsersIcon } as const;
 const ACCOUNT = { to: "/t/$tenantId/account", label: "Account", icon: CircleUserIcon } as const;
@@ -59,10 +61,21 @@ const SECTIONS = [
   PERSONAS,
   SECRETS,
   CONNECTIONS,
+  CONNECTORS,
   PREBUILDS,
   MEMBERS,
 ] as const;
-const MORE_SECTIONS = [METRICS, PREBUILDS, PERSONAS, HARNESSES, SECRETS, CONNECTIONS, MEMBERS, ACCOUNT] as const;
+const MORE_SECTIONS = [
+  METRICS,
+  PREBUILDS,
+  PERSONAS,
+  HARNESSES,
+  SECRETS,
+  CONNECTIONS,
+  CONNECTORS,
+  MEMBERS,
+  ACCOUNT,
+] as const;
 const MORE_HASH = "more";
 
 const TAB_CLASS = "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-muted-foreground";

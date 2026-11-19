@@ -19,6 +19,7 @@ import {
 import { App } from "../app";
 import { claudeSetupFakes } from "./claude-setup-fixtures";
 import { connectionFakes } from "./connection-fixtures";
+import { connectorFakes } from "./connector-fixtures";
 import { firstRunFakes } from "./first-run-fixtures";
 import { memberFakes } from "./member-fixtures";
 import { metricFakes } from "./metric-fixtures";
@@ -488,10 +489,13 @@ const persona = (
 });
 
 export const PERSONAS: Persona[] = [
-  persona("prs_placeholder01", "Ticket worker", "ClaudeCode", "sst_placeholder01", [
-    file(".claude/CLAUDE.md", 12, "a"),
-    file(".claude/settings.json", 6, "b"),
-  ]),
+  {
+    ...persona("prs_placeholder01", "Ticket worker", "ClaudeCode", "sst_placeholder01", [
+      file(".claude/CLAUDE.md", 12, "a"),
+      file(".claude/settings.json", 6, "b"),
+    ]),
+    connectorIds: ["con_placeholder01", "con_placeholder02"],
+  },
   persona("prs_placeholder02", "Reviewer", "ClaudeCode", "sst_placeholder02", [file(".claude/CLAUDE.md", 4, "c")]),
   persona("prs_placeholder03", "Writer", "Codex", "sst_placeholder01", [file(".codex/AGENTS.md", 71, "d")]),
 ];
@@ -629,6 +633,7 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   }),
   deleteSecretSet: async () => undefined,
   ...connectionFakes(),
+  ...connectorFakes(),
   ...memberFakes(),
   ...firstRunFakes(),
   ...claudeSetupFakes(),
