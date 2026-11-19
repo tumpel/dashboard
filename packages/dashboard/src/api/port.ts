@@ -58,6 +58,9 @@ import type {
   PrebuildTemplateVersionSchema,
   PrincipalSchema,
   ProblemSchema,
+  PushKeySchema,
+  PushSubscriptionCreateSchema,
+  PushSubscriptionSchema,
   ReleaseManifestSchema,
   ReportedHostUsageSchema,
   SecretSetCreateSchema,
@@ -191,6 +194,9 @@ export type Invitation = z.infer<typeof InvitationSchema>;
 export type InvitationCreate = z.infer<typeof InvitationCreateSchema>;
 export type InvitationCreated = z.infer<typeof InvitationCreatedSchema>;
 export type Role = Member["role"];
+export type PushKey = z.infer<typeof PushKeySchema>;
+export type PushSubscription = z.infer<typeof PushSubscriptionSchema>;
+export type PushSubscriptionCreate = z.infer<typeof PushSubscriptionCreateSchema>;
 
 export type Failure =
   | { kind: "Problem"; status: number; problem: Problem }
@@ -306,6 +312,10 @@ export interface TumpelApi {
   metricCatalog(window: MetricWindow): Promise<MetricCatalog>;
   queryMetric(metric: string, query: MetricSeriesQuery): Promise<MetricSeriesSet>;
   metricTurns(metric: string, query: MetricTurnQuery): Promise<MetricTurnPage>;
+  getPushKey(): Promise<PushKey>;
+  listPushSubscriptions(): Promise<PushSubscription[]>;
+  createPushSubscription(body: PushSubscriptionCreate): Promise<PushSubscription>;
+  deletePushSubscription(pushSubscriptionId: string): Promise<void>;
   followEvents(listener: EventListener): () => void;
 }
 

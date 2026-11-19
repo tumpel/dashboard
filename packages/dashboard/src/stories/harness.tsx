@@ -635,6 +635,17 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   ...openRouterFakes(),
   ...metricFakes(),
   ...templateFakes(),
+  getPushKey: async () => ({ applicationServerKey: "BPlaceholderApplicationServerKey" }),
+  listPushSubscriptions: async () => [],
+  createPushSubscription: async (created) => ({
+    pushSubscriptionId: "psb_placeholder01",
+    tenantId: TENANT_ID,
+    principalId: "prn_placeholder01",
+    endpoint: created.endpoint,
+    events: created.events,
+    createdAt: NOW,
+  }),
+  deletePushSubscription: async () => undefined,
   followEvents: () => () => undefined,
   ...overrides,
 });
