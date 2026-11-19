@@ -60,13 +60,13 @@ const useLiveNow = (live: boolean): { now: number; updatedAt: number } => {
 };
 
 export const useMetricsView = (tenantId: string, search: MetricsSearch): MetricsView => {
-  const customFrom = Date.parse(search.from[0] ?? "");
-  const customTo = Date.parse(search.to[0] ?? "");
-  const custom = !Number.isNaN(customFrom) && !Number.isNaN(customTo);
+  const requested = { from: Date.parse(search.from[0] ?? ""), to: Date.parse(search.to[0] ?? "") };
+  const [firstNow] = useState(useClock());
+  const custom = customRangeValid(requested, firstNow);
   const { now, updatedAt } = useLiveNow(!custom);
   const offsetMinutes = -new Date(now).getTimezoneOffset();
   const range: MetricRange = search.range[0] ?? "24h";
-  const span = custom ? { from: customFrom, to: customTo } : spanFor(range, now);
+  const span = custom ? requested : spanFor(range, now);
   return {
     tenantId,
     search,
@@ -126,7 +126,7 @@ export const useZoom = (view: MetricsView): ((from: number, to: number) => void)
   return (from, to) =>
     set({
       from: [zoned(from, view.offsetMinutes)],
-      to: [zoned(to, view.offsetMinutes)],
+      to: [zoned(Math.min(to, Math.floor(view.now / 60_000) * 60_000), view.offsetMinutes)],
       bucket: [],
       back:
         view.search.back.length > 0
