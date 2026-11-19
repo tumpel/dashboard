@@ -15,6 +15,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { useTenantApi } from "../context";
 import { formatMib, formatTime, freeSlots } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
+import { EMPTY_SEARCH } from "../metrics-search";
 import { keys, useHost, useHostUsage } from "../queries";
 
 const GIB = 1024 ** 3;
@@ -201,13 +202,20 @@ export const HostDetailScreen = () => {
         title={data.name}
         crumb={crumb}
         actions={
-          data.state === "Revoked" ? undefined : (
-            <Button variant="destructive" asChild>
-              <Link to="." hash="revoke">
-                Revoke host
+          <>
+            <Button variant="outline" asChild>
+              <Link to="/t/$tenantId/metrics/hosts/$hostId" params={{ tenantId, hostId }} search={EMPTY_SEARCH}>
+                Open metrics
               </Link>
             </Button>
-          )
+            {data.state !== "Revoked" && (
+              <Button variant="destructive" asChild>
+                <Link to="." hash="revoke">
+                  Revoke host
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
       <div className="grid gap-4 md:grid-cols-2">

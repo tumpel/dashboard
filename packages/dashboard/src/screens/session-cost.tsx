@@ -5,7 +5,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { useClock } from "../context";
 import { COST_METRIC, type CostTally, costByTurn, formatValue, sessionCost, sinceWindow } from "../metrics";
-import { useMetricCatalog, useSessionCostPoints } from "../queries";
+import { useMetricCatalog, useSessionPoints } from "../queries";
 
 const dollars = (value: number): string => formatValue(value, "uUSD", "Sum");
 
@@ -35,7 +35,7 @@ export const SessionCostTab = ({ tenantId, session, turns }: { tenantId: string;
   const window = sinceWindow(session.createdAt, now(), -new Date(now()).getTimezoneOffset());
   const catalog = useMetricCatalog(tenantId, window);
   const reported = catalog.data?.metrics.some((entry) => entry.metric === COST_METRIC) ?? false;
-  const points = useSessionCostPoints(tenantId, session.sessionId, window, reported);
+  const points = useSessionPoints(tenantId, session.sessionId, COST_METRIC, window, reported);
   if (catalog.isPending) return <Skeleton className="h-40 w-full" />;
   if (catalog.isError) return <ProblemBlock error={catalog.error} onRetry={() => void catalog.refetch()} />;
   if (!reported) {

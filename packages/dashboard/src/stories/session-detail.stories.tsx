@@ -145,3 +145,16 @@ export const CostNotReported: Story = {
     api: fakeApi({ metricCatalog: async () => CATALOG_WITHOUT_SPEND }),
   },
 };
+
+export const StartupTab: Story = { args: { path: turnPath("ses_4", "?tab=startup") } };
+
+export const StartupNotReported: Story = {
+  args: {
+    path: turnPath("ses_4", "?tab=startup"),
+    api: fakeApi({
+      metricCatalog: async () => ({
+        metrics: CATALOG_WITHOUT_SPEND.metrics.filter((item) => item.metric !== "turn.phase"),
+      }),
+    }),
+  },
+};
