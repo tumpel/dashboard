@@ -81,9 +81,9 @@ export const StatTiles = ({ scope }: { scope: CardScope }) => {
           if (set === undefined || latest === undefined) return null;
           return (
             <div className="grid gap-1">
-              <div className="text-2xl font-semibold tabular-nums">
-                p50 {formatValue(latest.p50, "s", "p50")}{" "}
-                <span className="text-base font-normal">p90 {formatValue(latest.p90, "s", "p90")}</span>
+              <div className="flex flex-wrap items-baseline gap-x-3">
+                <span className="text-2xl font-semibold tabular-nums">p50 {formatValue(latest.p50, "s", "p50")}</span>
+                <span className="text-base tabular-nums">p90 {formatValue(latest.p90, "s", "p90")}</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 {bucketSpanLabel(Date.parse(latest.bucketStart), view.bucket, view.offsetMinutes)}

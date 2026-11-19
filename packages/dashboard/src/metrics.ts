@@ -191,7 +191,7 @@ export const formatValue = (value: number, unit: string, stat: MetricStat): stri
     const dollars = value / 1_000_000;
     return `$${dollars.toFixed(Math.abs(dollars) < 1 ? 4 : 2)}`;
   }
-  if (unit === "s") return Math.abs(value) < 1 ? `${plain(value * 1000, 0)} ms` : `${plain(value, 2)} s`;
+  if (unit === "s") return value !== 0 && Math.abs(value) < 1 ? `${plain(value * 1000, 0)} ms` : `${plain(value, 2)} s`;
   if (unit === "MiB") return `${plain(value, 0)} MiB`;
   if (unit === "1" || unit.startsWith("{")) return plain(value, 2);
   return `${plain(value, 2)} ${unit}`;
@@ -488,7 +488,7 @@ export const clockLabel = (epochMs: number, offsetMinutes: number): string =>
 
 export const tickLabel = (epochMs: number, bucket: MetricBucket, spanMs: number, offsetMinutes: number): string => {
   if (bucket === "Day") return dayMonth(epochMs, offsetMinutes);
-  if (spanMs > DAY_MS) return `${dayMonth(epochMs, offsetMinutes)} ${clockLabel(epochMs, offsetMinutes)}`;
+  if (spanMs >= 18 * HOUR_MS) return `${dayMonth(epochMs, offsetMinutes)} ${clockLabel(epochMs, offsetMinutes)}`;
   return clockLabel(epochMs, offsetMinutes);
 };
 

@@ -130,7 +130,7 @@ const PanelBody = ({
                   to="/t/$tenantId/sessions/$sessionId/turns/$turnId"
                   params={{ tenantId, sessionId: item.sessionId, turnId: item.turnId }}
                   search={{ compact: [], tab: [] }}
-                  className="font-mono text-[13px] text-primary hover:underline"
+                  className="font-mono text-[13px] underline underline-offset-2 hover:no-underline"
                 >
                   {item.turnId}
                 </Link>

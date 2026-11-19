@@ -121,12 +121,12 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
                 const latestLoad = latestValue(row.load);
                 return (
                   <TableRow key={row.hostId}>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Link
                         to="/t/$tenantId/metrics/hosts/$hostId"
                         params={{ tenantId: view.tenantId, hostId: row.hostId }}
                         search={linkSearch(view.search, {})}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium underline underline-offset-2 hover:no-underline"
                       >
                         {row.name}
                       </Link>
@@ -168,7 +168,7 @@ export const DroppedBanner = ({ scope }: { scope: CardScope }) => {
               to="/t/$tenantId/metrics/hosts/$hostId"
               params={{ tenantId: view.tenantId, hostId }}
               search={linkSearch(view.search, {})}
-              className="font-medium text-primary hover:underline"
+              className="font-medium underline underline-offset-2 hover:no-underline"
             >
               {hostNames(hostId)}
             </Link>
