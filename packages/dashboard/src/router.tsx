@@ -13,7 +13,6 @@ import {
   BuildProviderSchema,
   HarnessSchema,
   HostStateSchema,
-  MetricBucketSchema,
   PrebuildStateSchema,
   SessionStateSchema,
 } from "@tumpel/schemas";
@@ -23,7 +22,7 @@ import { EmptyState } from "./components/empty-state";
 import { Button } from "./components/ui/button";
 import { useDashboard } from "./context";
 import { gitHubReturnSearch } from "./github-return";
-import { RANGES, STATS } from "./metrics";
+import { MetricsSearchSchema } from "./metrics-search";
 import type { WizardSearch } from "./prebuild-wizard";
 import { AccountScreen } from "./screens/account";
 import { ConnectionsScreen } from "./screens/connections";
@@ -40,7 +39,10 @@ import { HostDetailScreen } from "./screens/host-detail";
 import { HostsListScreen } from "./screens/hosts-list";
 import { LandingScreen } from "./screens/landing";
 import { MembersScreen } from "./screens/members";
-import { MetricsScreen } from "./screens/metrics";
+import { MetricsExploreScreen } from "./screens/metrics-explore";
+import { MetricsHostScreen, MetricsHostsScreen } from "./screens/metrics-hosts";
+import { MetricsOverviewScreen } from "./screens/metrics-overview";
+import { MetricsStartupScreen } from "./screens/metrics-startup";
 import { OverviewScreen } from "./screens/overview";
 import { NewPersonaScreen, PersonaScreen } from "./screens/persona-form";
 import { PersonasListScreen } from "./screens/personas-list";
@@ -142,22 +144,53 @@ const overviewRoute = createRoute({
   component: OverviewScreen,
 });
 
-const MetricsSearchSchema = z.object({
-  metric: z.array(z.string()).catch([]),
-  range: z.array(z.enum(RANGES)).catch([]),
-  bucket: z.array(MetricBucketSchema).catch([]),
-  stat: z.array(z.enum(STATS)).catch([]),
-  filter: z.array(z.string()).catch([]),
-  groupBy: z.array(z.string()).max(2).catch([]),
-  at: z.array(z.string()).catch([]),
-  group: z.array(z.string()).catch([]),
-});
-
 const metricsRoute = createRoute({
   getParentRoute: () => tenantRoute,
   path: "/metrics",
   validateSearch: MetricsSearchSchema,
-  component: MetricsScreen,
+  component: () => (
+    <MetricsOverviewScreen tenantId={tenantRoute.useParams().tenantId} search={metricsRoute.useSearch()} />
+  ),
+});
+
+const metricsStartupRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/metrics/startup",
+  validateSearch: MetricsSearchSchema,
+  component: () => (
+    <MetricsStartupScreen tenantId={tenantRoute.useParams().tenantId} search={metricsStartupRoute.useSearch()} />
+  ),
+});
+
+const metricsHostsRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/metrics/hosts",
+  validateSearch: MetricsSearchSchema,
+  component: () => (
+    <MetricsHostsScreen tenantId={tenantRoute.useParams().tenantId} search={metricsHostsRoute.useSearch()} />
+  ),
+});
+
+const metricsHostRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/metrics/hosts/$hostId",
+  validateSearch: MetricsSearchSchema,
+  component: () => (
+    <MetricsHostScreen
+      tenantId={tenantRoute.useParams().tenantId}
+      hostId={metricsHostRoute.useParams().hostId}
+      search={metricsHostRoute.useSearch()}
+    />
+  ),
+});
+
+const metricsExploreRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/metrics/explore",
+  validateSearch: MetricsSearchSchema,
+  component: () => (
+    <MetricsExploreScreen tenantId={tenantRoute.useParams().tenantId} search={metricsExploreRoute.useSearch()} />
+  ),
 });
 
 const HostsSearchSchema = z.object({ state: z.array(HostStateSchema).catch([]) });
@@ -402,6 +435,10 @@ const routeTree = rootRoute.addChildren([
     tenantHomeRoute,
     overviewRoute,
     metricsRoute,
+    metricsStartupRoute,
+    metricsHostsRoute,
+    metricsHostRoute,
+    metricsExploreRoute,
     hostsRoute,
     hostRoute,
     sessionsRoute,

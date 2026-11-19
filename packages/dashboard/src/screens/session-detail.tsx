@@ -31,14 +31,16 @@ import {
 import { type TranscriptView, useTranscript } from "../transcript";
 import { ARCHIVABLE, SessionActionDialogs, STOPPABLE } from "./session-actions";
 import { SessionCostTab } from "./session-cost";
+import { SessionStartupCard } from "./session-startup";
 
 const ROUTE = "/t/$tenantId/sessions/$sessionId/turns/$turnId";
 
-export const SESSION_TABS = ["cost", "snapshots", "handovers", "stop-failures"] as const;
+export const SESSION_TABS = ["startup", "cost", "snapshots", "handovers", "stop-failures"] as const;
 type SessionTab = (typeof SESSION_TABS)[number] | "transcript";
 
 const TAB_LABELS: [SessionTab, string][] = [
   ["transcript", "Transcript"],
+  ["startup", "Startup"],
   ["cost", "Cost"],
   ["snapshots", "Snapshots"],
   ["handovers", "Handovers"],
@@ -640,6 +642,7 @@ export const SessionDetailScreen = () => {
           compact={search.compact}
         />
         <div className="grid min-w-0 content-start gap-3">
+          <SessionStartupCard tenantId={tenantId} session={data} turns={turnList} turnId={turnId} />
           <TranscriptPanel
             key={`${turnId}-${compact}`}
             tenantId={tenantId}
@@ -682,6 +685,7 @@ export const SessionDetailScreen = () => {
         }
       />
       {tab === "transcript" && transcriptTab()}
+      {tab === "startup" && <SessionStartupCard tenantId={tenantId} session={data} turns={turnList} />}
       {tab === "cost" && <SessionCostTab tenantId={tenantId} session={data} turns={turnList} />}
       {tab === "snapshots" && <SnapshotsTab tenantId={tenantId} sessionId={sessionId} turns={turnList} />}
       {tab === "handovers" && (
