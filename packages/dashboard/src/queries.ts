@@ -23,6 +23,7 @@ import {
   type TenantEvent,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
+import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from "./connectors";
 import { useTenantApi } from "./context";
 import { COST_METRIC, turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
@@ -54,6 +55,7 @@ export const keys = {
   claudeSetup: (tenantId: string, claudeSetupId: string) => [tenantId, "claudeSetups", claudeSetupId] as const,
   claudeSetups: (tenantId: string, secretSetId: string) =>
     [tenantId, "secretSets", secretSetId, "claudeSetups"] as const,
+  connectors: (tenantId: string) => [tenantId, "connectors"] as const,
   repositories: (tenantId: string) => [tenantId, "githubRepositories"] as const,
   issues: (tenantId: string, owner: string, name: string) =>
     [tenantId, "githubRepositories", owner, name, "issues"] as const,
@@ -238,6 +240,16 @@ export const usePersona = (tenantId: string, personaId: string) => {
     queryKey: keys.persona(tenantId, personaId),
     queryFn: () => api.getPersona(personaId),
     refetchOnWindowFocus: false,
+  });
+};
+
+export const useConnectors = (tenantId: string, awaiting: PendingAuthorization | null = null) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: keys.connectors(tenantId),
+    queryFn: () => api.listConnectors(),
+    refetchInterval: () => (awaiting !== null && stillAwaiting(awaiting, Date.now()) ? AUTHORIZATION_READ_MS : false),
+    refetchIntervalInBackground: true,
   });
 };
 

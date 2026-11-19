@@ -6,6 +6,8 @@ import {
   ClaudeSetupSchema,
   ConfigPlanSchema,
   ConnectionSummarySchema,
+  ConnectorAuthorizationSchema,
+  ConnectorSchema,
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
@@ -539,6 +541,47 @@ export const createHttpApi = (
       settleEmpty(
         "PushSubscriptions_delete",
         client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
+      ),
+    listConnectors: () => settle("Connectors_list", ConnectorSchema.array(), client.GET("/v1/connectors")),
+    createConnector: (auth, body) =>
+      auth === "Static"
+        ? settle("StaticConnectors_create", ConnectorSchema, client.POST("/v1/static-connectors", { body }))
+        : settle("OAuthConnectors_create", ConnectorSchema, client.POST("/v1/oauth-connectors", { body })),
+    updateConnector: ({ connectorId, updatedAt }, body) =>
+      settle(
+        "Connectors_update",
+        ConnectorSchema,
+        client.PUT("/v1/connectors/{connectorId}", { params: { path: { connectorId }, query: { updatedAt } }, body }),
+      ),
+    deleteConnector: ({ connectorId, updatedAt }) =>
+      settleEmpty(
+        "Connectors_delete",
+        client.DELETE("/v1/connectors/{connectorId}", { params: { path: { connectorId }, query: { updatedAt } } }),
+      ),
+    setConnectorToken: ({ connectorId, updatedAt }, value) =>
+      settle(
+        "StaticConnectors_setToken",
+        ConnectorSchema,
+        client.PUT("/v1/static-connectors/{connectorId}/token", {
+          params: { path: { connectorId }, query: { updatedAt } },
+          body: { value },
+        }),
+      ),
+    clearConnectorCredential: ({ connectorId, updatedAt }) =>
+      settle(
+        "Connectors_clearCredential",
+        ConnectorSchema,
+        client.DELETE("/v1/connectors/{connectorId}/credential", {
+          params: { path: { connectorId }, query: { updatedAt } },
+        }),
+      ),
+    authorizeConnector: ({ connectorId, updatedAt }) =>
+      settle(
+        "OAuthConnectors_authorize",
+        ConnectorAuthorizationSchema,
+        client.POST("/v1/oauth-connectors/{connectorId}/authorize", {
+          params: { path: { connectorId }, query: { updatedAt } },
+        }),
       ),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
   };

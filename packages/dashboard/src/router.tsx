@@ -27,6 +27,7 @@ import { RANGES, STATS } from "./metrics";
 import type { WizardSearch } from "./prebuild-wizard";
 import { AccountScreen } from "./screens/account";
 import { ConnectionsScreen } from "./screens/connections";
+import { ConnectorsScreen } from "./screens/connectors";
 import {
   BuildStepScreen,
   MergeStepScreen,
@@ -299,6 +300,12 @@ const connectionsRoute = createRoute({
   component: ConnectionsScreen,
 });
 
+const connectorsRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/connectors",
+  component: ConnectorsScreen,
+});
+
 const single = <T,>(schema: z.ZodType<T>, value: unknown): T | null => {
   const parsed = schema.safeParse([value].flat()[0]);
   return parsed.success ? parsed.data : null;
@@ -411,6 +418,7 @@ const routeTree = rootRoute.addChildren([
     addSecretRoute,
     editSecretSetRoute,
     connectionsRoute,
+    connectorsRoute,
     prebuildsRoute,
     newPrebuildRoute,
     newPrebuildTemplateRoute,
