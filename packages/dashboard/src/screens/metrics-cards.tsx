@@ -64,12 +64,13 @@ export const useSeriesList = (
   scope: Pick<CardScope, "view" | "catalog">,
   metrics: readonly string[],
   filter: readonly string[],
+  groupBy: readonly string[] = [],
 ): UseQueryResult<MetricSeriesSet>[] =>
   useMetricSeriesList(
     scope.view.tenantId,
     metrics.map((metric) => ({
       metric: metricMissing(scope.catalog.metrics, metric) ? null : metric,
-      query: seriesQuery(scope.view.window, scope.view.bucket, filter, []),
+      query: seriesQuery(scope.view.window, scope.view.bucket, filter, groupBy),
     })),
   );
 

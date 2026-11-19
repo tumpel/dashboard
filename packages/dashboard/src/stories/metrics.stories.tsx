@@ -167,3 +167,20 @@ export const SignedOut: Story = {
     }),
   },
 };
+
+export const HostsWithoutBoxTelemetry: Story = {
+  args: {
+    path: tenantPath("/metrics/hosts"),
+    api: fakeApi({
+      metricCatalog: async () => ({
+        metrics: CATALOG_WITHOUT_SPEND.metrics.filter((item) => !item.metric.startsWith("host.boxes")),
+      }),
+    }),
+  },
+};
+
+export const InvalidCustomRangeInUrl: Story = {
+  args: {
+    path: tenantPath("/metrics?from=2026-11-16T08:00:00%2B01:00&to=2026-11-14T14:00:00%2B01:00"),
+  },
+};

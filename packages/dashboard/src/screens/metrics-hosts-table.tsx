@@ -10,11 +10,12 @@ import {
   type GridValues,
   latestValue,
   memoryUsedShare,
+  metricMissing,
   percentLabel,
   placeOnGrid,
   valuesOn,
 } from "../metrics";
-import { type CardScope, ChartCard, facetValues, MISSING_TEXT, useSeries } from "./metrics-cards";
+import { type CardScope, ChartCard, facetValues, MISSING_TEXT, useSeries, useSeriesList } from "./metrics-cards";
 import { linkSearch } from "./metrics-view";
 
 interface HostRow {
@@ -36,10 +37,19 @@ const sortValue = (row: HostRow, sort: Sort): number | string => {
   return latestValue(row[sort]) ?? -1;
 };
 
+const HOST_METRICS = [
+  "host.cpu.busy",
+  "host.memory.available",
+  "host.memory.total",
+  "host.load.1m",
+  "host.boxes.running",
+  "host.boxes.warm",
+];
+
 const pointsOf = (
-  set: { series: { group: Record<string, string>; points: MetricPoint[] }[] },
+  set: { series: { group: Record<string, string>; points: MetricPoint[] }[] } | undefined,
   hostId: string,
-): MetricPoint[] => set.series.find((series) => series.group.hostId === hostId)?.points ?? [];
+): MetricPoint[] => set?.series.find((series) => series.group.hostId === hostId)?.points ?? [];
 
 const roundedLatest = (values: GridValues): string => {
   const latest = latestValue(values);
@@ -49,24 +59,27 @@ const roundedLatest = (values: GridValues): string => {
 export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title?: string }) => {
   const { view, catalog, hostNames } = scope;
   const [sort, setSort] = useState<Sort>("name");
-  const cpu = useSeries(scope, "host.cpu.busy", ["hostId"], []);
-  const available = useSeries(scope, "host.memory.available", ["hostId"], []);
-  const total = useSeries(scope, "host.memory.total", ["hostId"], []);
-  const load = useSeries(scope, "host.load.1m", ["hostId"], []);
-  const running = useSeries(scope, "host.boxes.running", ["hostId"], []);
-  const warm = useSeries(scope, "host.boxes.warm", ["hostId"], []);
+  const all = useSeriesList(scope, HOST_METRICS, [], ["hostId"]);
+  const present = HOST_METRICS.map((metric) => !metricMissing(catalog.metrics, metric));
+  const queries = all.filter((_, index) => present[index]);
   const grid = bucketGrid(view.window, view.bucket);
   const hostIds = facetValues(catalog, "host.cpu.busy", "hostId");
   return (
     <ChartCard
       title={title}
-      queries={[cpu, available, total, load, running, warm]}
+      queries={queries}
       missing={hostIds.length === 0 ? MISSING_TEXT["host.cpu.busy"] : undefined}
       height={160}
       emptyText="No host has reported load in this period."
     >
-      {([cpuSet, availableSet, totalSet, loadSet, runningSet, warmSet]) => {
-        if (!cpuSet || !availableSet || !totalSet || !loadSet || !runningSet || !warmSet) return null;
+      {(sets) => {
+        const setOf = (metric: string) => sets[present.slice(0, HOST_METRICS.indexOf(metric)).filter(Boolean).length];
+        const cpuSet = setOf("host.cpu.busy");
+        const availableSet = setOf("host.memory.available");
+        const totalSet = setOf("host.memory.total");
+        const loadSet = setOf("host.load.1m");
+        const runningSet = setOf("host.boxes.running");
+        const warmSet = setOf("host.boxes.warm");
         const rows: HostRow[] = hostIds.map((hostId) => ({
           hostId,
           name: hostNames(hostId),
