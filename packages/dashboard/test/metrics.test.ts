@@ -18,6 +18,7 @@ import {
   narrowTo,
   phaseWindow,
   placeOnGrid,
+  resultFor,
   seriesQuery,
   sessionCost,
   sinceWindow,
@@ -292,4 +293,11 @@ test("a color follows its entity in the sorted catalog values, so a filter never
   assert.equal(entityColor("phase", "FirstOutput", []), "var(--chart-2)");
   assert.equal(entityColor("outcome", "Withdrawn", []), "var(--chart-neutral)");
   assert.equal(entityColor("outcome", "CloneFailed", []), "var(--chart-critical)");
+});
+
+test("a metric the catalog lacks has no result instead of the next metric's", () => {
+  const present = ["host.cpu.busy", "host.memory.total"];
+  const results = ["cpu", "total"];
+  assert.equal(resultFor(present, results, "host.memory.available"), undefined);
+  assert.equal(resultFor(present, results, "host.memory.total"), "total");
 });

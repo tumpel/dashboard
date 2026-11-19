@@ -518,6 +518,11 @@ export const latestBucket = (set: MetricSeriesSet): MetricPoint | undefined =>
 export const metricMissing = (metrics: readonly { metric: string }[], metric: string): boolean =>
   !metrics.some((entry) => entry.metric === metric);
 
+export const resultFor = <T>(present: readonly string[], results: readonly T[], metric: string): T | undefined => {
+  const index = present.indexOf(metric);
+  return index === -1 ? undefined : results[index];
+};
+
 export const bucketTitle = (epochMs: number, bucket: MetricBucket, offsetMinutes: number): string =>
   bucket === "Day"
     ? dayMonth(epochMs, offsetMinutes)

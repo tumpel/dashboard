@@ -13,6 +13,7 @@ import {
   metricMissing,
   percentLabel,
   placeOnGrid,
+  resultFor,
   valuesOn,
 } from "../metrics";
 import { type CardScope, ChartCard, facetValues, MISSING_TEXT, useSeries, useSeriesList } from "./metrics-cards";
@@ -60,8 +61,9 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
   const { view, catalog, hostNames } = scope;
   const [sort, setSort] = useState<Sort>("name");
   const all = useSeriesList(scope, HOST_METRICS, [], ["hostId"]);
-  const present = HOST_METRICS.map((metric) => !metricMissing(catalog.metrics, metric));
-  const queries = all.filter((_, index) => present[index]);
+  const shown = HOST_METRICS.map((metric) => !metricMissing(catalog.metrics, metric));
+  const present = HOST_METRICS.filter((_, index) => shown[index]);
+  const queries = all.filter((_, index) => shown[index]);
   const grid = bucketGrid(view.window, view.bucket);
   const hostIds = facetValues(catalog, "host.cpu.busy", "hostId");
   return (
@@ -73,7 +75,7 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
       emptyText="No host has reported load in this period."
     >
       {(sets) => {
-        const setOf = (metric: string) => sets[present.slice(0, HOST_METRICS.indexOf(metric)).filter(Boolean).length];
+        const setOf = (metric: string) => resultFor(present, sets, metric);
         const cpuSet = setOf("host.cpu.busy");
         const availableSet = setOf("host.memory.available");
         const totalSet = setOf("host.memory.total");
