@@ -25,6 +25,7 @@ import {
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { useTenantApi } from "./context";
 import { COST_METRIC, turnsQuery } from "./metrics";
+import { pushSupported, thisDevice } from "./push";
 
 export const keys = {
   whoami: (tenantId: string) => [tenantId, "whoami"] as const,
@@ -399,6 +400,7 @@ export const memberKeys = {
   members: (tenantId: string) => [tenantId, "members"] as const,
   invitations: (tenantId: string) => [tenantId, "invitations"] as const,
   devices: (tenantId: string) => [tenantId, "devices"] as const,
+  push: (tenantId: string) => [tenantId, "push-subscriptions"] as const,
 };
 
 export const useTenants = (tenantId: string) => {
@@ -413,6 +415,14 @@ export const useTenants = (tenantId: string) => {
 export const useDevices = (tenantId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({ queryKey: memberKeys.devices(tenantId), queryFn: () => api.listDevices() });
+};
+
+export const usePushDevice = (tenantId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: memberKeys.push(tenantId),
+    queryFn: pushSupported() ? async () => thisDevice(await api.listPushSubscriptions()) : skipToken,
+  });
 };
 
 export const useMembers = (tenantId: string) => {

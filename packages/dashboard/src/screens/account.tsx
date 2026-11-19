@@ -2,10 +2,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Device } from "../api/port";
+import type { Device, PushSubscription } from "../api/port";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { PageHeader } from "../components/page-header";
-import { ProblemBlock } from "../components/problem-block";
+import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { RoleBadge } from "../components/role-badge";
 import { TableSkeleton } from "../components/table-skeleton";
 import { Button } from "../components/ui/button";
@@ -13,7 +13,8 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { useDashboard, useTenantApi } from "../context";
 import { formatDate, formatTime, mcpUrl } from "../fleet";
-import { memberKeys, useDevices, useWhoami } from "../queries";
+import { disablePush, enablePush, pushSupported } from "../push";
+import { memberKeys, useDevices, usePushDevice, useWhoami } from "../queries";
 import { CONNECTORS_URL } from "./setup/claude-step";
 import { CopyBlock } from "./setup/parts";
 
@@ -126,6 +127,53 @@ const McpServer = () => {
   );
 };
 
+const Notifications = ({ tenantId }: { tenantId: string }) => {
+  const api = useTenantApi(tenantId);
+  const queryClient = useQueryClient();
+  const device = usePushDevice(tenantId);
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: memberKeys.push(tenantId) });
+  const enable = useMutation({ mutationFn: () => enablePush(api), onSuccess: refresh });
+  const disable = useMutation({
+    mutationFn: (stored: PushSubscription) => disablePush(api, stored),
+    onSuccess: refresh,
+  });
+
+  if (!pushSupported()) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        This browser cannot show notifications from Tumpel. On an iPhone or iPad, add Tumpel to the Home Screen and open
+        it from there.
+      </p>
+    );
+  }
+  if (device.isPending) return <Skeleton className="h-9 w-48" />;
+  if (device.isError) return <ProblemBlock error={device.error} onRetry={() => void device.refetch()} />;
+  const stored = device.data;
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm">
+        {stored === null
+          ? "Get a notification on this device when a turn ends, a session fails, a host goes offline or a prebuild finishes."
+          : "This device shows a notification when a turn ends, a session fails, a host goes offline or a prebuild finishes."}
+      </p>
+      <div>
+        {stored === null ? (
+          <Button size="sm" disabled={enable.isPending} onClick={() => enable.mutate()}>
+            {enable.isPending ? "Turning on..." : "Turn on notifications"}
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" disabled={disable.isPending} onClick={() => disable.mutate(stored)}>
+            {disable.isPending ? "Turning off..." : "Turn off notifications"}
+          </Button>
+        )}
+      </div>
+      {enable.data?.ok === false && <ProblemCard wording={enable.data.wording} />}
+      {enable.isError && <ProblemBlock error={enable.error} />}
+      {disable.isError && <ProblemBlock error={disable.error} />}
+    </div>
+  );
+};
+
 export const AccountScreen = () => {
   const { tenantId } = useParams({ from: "/t/$tenantId/account" });
   const whoami = useWhoami(tenantId);
@@ -167,6 +215,12 @@ export const AccountScreen = () => {
           </h2>
           {deviceList()}
           <InstallCli />
+        </section>
+        <section className="grid gap-3" aria-labelledby="notifications">
+          <h2 id="notifications" className="font-semibold">
+            Notifications
+          </h2>
+          <Notifications tenantId={tenantId} />
         </section>
         <section className="grid gap-3" aria-labelledby="mcp-server">
           <h2 id="mcp-server" className="font-semibold">

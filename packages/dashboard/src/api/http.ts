@@ -38,6 +38,8 @@ import {
   PrebuildTemplateVersionSchema,
   PrincipalSchema,
   ProblemSchema,
+  PushKeySchema,
+  PushSubscriptionSchema,
   ReleaseManifestSchema,
   ReportedHostUsageSchema,
   SecretSetSchema,
@@ -527,6 +529,16 @@ export const createHttpApi = (
         "Metrics_turns",
         MetricTurnPageSchema,
         client.GET("/v1/metrics/{metric}/turns", { params: { path: { metric }, query } }),
+      ),
+    getPushKey: () => settle("PushKeys_get", PushKeySchema, client.GET("/v1/push-key")),
+    listPushSubscriptions: () =>
+      settle("PushSubscriptions_list", PushSubscriptionSchema.array(), client.GET("/v1/push-subscriptions")),
+    createPushSubscription: (body) =>
+      settle("PushSubscriptions_create", PushSubscriptionSchema, client.POST("/v1/push-subscriptions", { body })),
+    deletePushSubscription: (pushSubscriptionId) =>
+      settleEmpty(
+        "PushSubscriptions_delete",
+        client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
       ),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
   };
