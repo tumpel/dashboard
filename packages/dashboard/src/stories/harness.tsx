@@ -56,6 +56,8 @@ const host = (
   labels,
   supervisorUpdateStep,
   supervisorUpdateFailure,
+  channelProtocol: { state: "NotReported" },
+  guestProtocol: { state: "NotReported" },
   createdAt: Date.parse("2026-11-01T10:14:00+01:00"),
   updatedAt: NOW,
 });
@@ -251,6 +253,7 @@ const claudeCode = (harnessVersion: string): HarnessCatalogEntry => ({
       fixed: [],
       arguments: [],
       costBasis: "Billed",
+      modelSupport: { kind: "ProviderChecked" },
     },
     {
       provider: "Anthropic",
@@ -259,6 +262,7 @@ const claudeCode = (harnessVersion: string): HarnessCatalogEntry => ({
       fixed: [],
       arguments: [],
       costBasis: "NotBilled",
+      modelSupport: { kind: "ProviderChecked" },
     },
     {
       provider: "OpenRouter",
@@ -267,6 +271,7 @@ const claudeCode = (harnessVersion: string): HarnessCatalogEntry => ({
       fixed: [{ name: "ANTHROPIC_BASE_URL", value: "https://openrouter.ai/api" }],
       arguments: [],
       costBasis: "Billed",
+      modelSupport: { kind: "ProviderChecked" },
     },
   ],
   personaFilePaths: [".claude/CLAUDE.md", ".claude/settings.json", ".claude/agents/reviewer.md"],
@@ -283,7 +288,15 @@ export const CATALOG: HarnessCatalogEntry[] = [
     harnessVersion: "0.48.0",
     credentialChoice: "CatalogOrder",
     credentials: [
-      { provider: "OpenAi", kind: "ApiKey", variable: "OPENAI_API_KEY", fixed: [], arguments: [], costBasis: "Billed" },
+      {
+        provider: "OpenAi",
+        kind: "ApiKey",
+        variable: "OPENAI_API_KEY",
+        fixed: [],
+        arguments: [],
+        costBasis: "Billed",
+        modelSupport: { kind: "ProviderChecked" },
+      },
       {
         provider: "OpenAi",
         kind: "CredentialFile",
@@ -292,6 +305,7 @@ export const CATALOG: HarnessCatalogEntry[] = [
         fixed: [],
         arguments: [],
         costBasis: "NotBilled",
+        modelSupport: { kind: "ProviderChecked" },
       },
     ],
     personaFilePaths: [".codex/AGENTS.md"],
@@ -311,6 +325,7 @@ export const CATALOG: HarnessCatalogEntry[] = [
         fixed: [],
         arguments: [],
         costBasis: "Billed",
+        modelSupport: { kind: "ProviderChecked" },
       },
     ],
     personaFilePaths: [".config/opencode/opencode.json", ".config/opencode/AGENTS.md"],
@@ -323,7 +338,15 @@ export const CATALOG: HarnessCatalogEntry[] = [
     harnessVersion: "0.9.0",
     credentialChoice: "ModelProvider",
     credentials: [
-      { provider: "Google", kind: "ApiKey", variable: "GEMINI_API_KEY", fixed: [], arguments: [], costBasis: "Billed" },
+      {
+        provider: "Google",
+        kind: "ApiKey",
+        variable: "GEMINI_API_KEY",
+        fixed: [],
+        arguments: [],
+        costBasis: "Billed",
+        modelSupport: { kind: "ProviderChecked" },
+      },
     ],
     personaFilePaths: [".pi/agent/settings.json", ".pi/agent/AGENTS.md"],
     installRecipe: { kind: "Npm", package: "placeholder-pi", packageVersion: "0.9.0" },

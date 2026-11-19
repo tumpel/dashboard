@@ -49,6 +49,7 @@ import {
   SnapshotSchema,
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
+  SteerSchema,
   StopFailureSchema,
   TenantEventSchema,
   TranscriptPageSchema,
@@ -248,6 +249,12 @@ export const createHttpApi = (
         "Turns_send",
         TurnSchema,
         client.POST("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } }, body: { prompt } }),
+      ),
+    steerTurn: (turnId, prompt) =>
+      settle(
+        "Turns_steer",
+        SteerSchema,
+        client.POST("/v1/turns/{turnId}/steers", { params: { path: { turnId } }, body: { prompt } }),
       ),
     readTranscript: (sessionId, query) =>
       settle(

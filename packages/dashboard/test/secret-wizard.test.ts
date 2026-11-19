@@ -15,6 +15,7 @@ const CATALOG = [
       fixed: [],
       arguments: [],
       costBasis: "Billed",
+      modelSupport: { kind: "ProviderChecked" },
     },
     {
       provider: "Anthropic",
@@ -23,6 +24,7 @@ const CATALOG = [
       fixed: [],
       arguments: [],
       costBasis: "NotBilled",
+      modelSupport: { kind: "ProviderChecked" },
     },
     {
       provider: "OpenRouter",
@@ -31,6 +33,7 @@ const CATALOG = [
       fixed: [{ name: "ANTHROPIC_BASE_URL", value: "https://openrouter.ai/api" }],
       arguments: [],
       costBasis: "Billed",
+      modelSupport: { kind: "ProviderChecked" },
     },
   ]),
   credentials([
@@ -41,6 +44,7 @@ const CATALOG = [
       fixed: [],
       arguments: [],
       costBasis: "Billed",
+      modelSupport: { kind: "ProviderChecked" },
     },
   ]),
 ];

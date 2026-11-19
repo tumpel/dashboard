@@ -17,6 +17,8 @@ const host = (hostId: string, state: Host["state"]): Host => ({
   labels: [],
   supervisorUpdateStep: { state: "NotReported" },
   supervisorUpdateFailure: { state: "NotReported" },
+  channelProtocol: { state: "NotReported" },
+  guestProtocol: { state: "NotReported" },
   createdAt: 0,
   updatedAt: 0,
 });

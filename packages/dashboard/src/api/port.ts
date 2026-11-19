@@ -76,6 +76,7 @@ import type {
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
   StaticConnectorCreateSchema,
+  SteerSchema,
   StopFailureSchema,
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
@@ -109,6 +110,7 @@ export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>;
 export type GitHubRepositoryPath = z.infer<typeof GitHubRepositoryPathSchema>;
 export type GitHubIssue = z.infer<typeof GitHubIssueSchema>;
 export type Turn = z.infer<typeof TurnSchema>;
+export type Steer = z.infer<typeof SteerSchema>;
 export type TranscriptQuery = z.infer<typeof TranscriptQuerySchema>;
 export type TranscriptPage = z.infer<typeof TranscriptPageSchema>;
 export type TranscriptText = z.infer<typeof CompactTranscriptLineSchema>;
@@ -251,6 +253,7 @@ export interface TumpelApi {
   archiveSession(sessionId: string): Promise<Session>;
   listTurns(sessionId: string): Promise<Turn[]>;
   sendTurn(sessionId: string, prompt: string): Promise<Turn>;
+  steerTurn(turnId: string, prompt: string): Promise<Steer>;
   readTranscript(sessionId: string, query: TranscriptQuery): Promise<TranscriptPage>;
   listSnapshots(sessionId: string): Promise<Snapshot[]>;
   listCredentialHandovers(sessionId: string): Promise<CredentialHandover[]>;

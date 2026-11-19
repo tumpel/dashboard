@@ -19,6 +19,7 @@ type SessionApi = Pick<
   | "archiveSession"
   | "listTurns"
   | "sendTurn"
+  | "steerTurn"
   | "readTranscript"
   | "listSnapshots"
   | "listCredentialHandovers"
@@ -201,6 +202,13 @@ export const sessionFakes = (sessions: Session[], personas: Persona[], now: numb
     stopSession: async (sessionId) => ({ ...find(sessionId), state: "Stopping" }),
     archiveSession: async (sessionId) => ({ ...find(sessionId), state: "Archived" }),
     listTurns: async (sessionId) => turnsFor(find(sessionId)),
+    steerTurn: async (turnId, prompt) => ({
+      steerId: `${turnId}-steer`,
+      turnId,
+      prompt,
+      state: "Pending",
+      createdAt: now,
+    }),
     sendTurn: async (sessionId, prompt) => ({
       turnId: turnId(sessionId, 4),
       tenantId: find(sessionId).tenantId,
