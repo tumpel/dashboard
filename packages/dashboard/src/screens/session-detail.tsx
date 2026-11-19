@@ -312,10 +312,20 @@ const composerHint = (session: Session): string => {
   if (session.state === "Stopped") return "A send boots a fresh box from the last snapshot.";
   if (session.state === "Stopping") return "The session takes no prompts while it stops.";
   if (session.state === "Failed") return "The repository could not be cloned. Start a new session.";
-  return "Send unlocks when the turn finishes.";
+  return "Steer hands the prompt to the running turn. Send unlocks when the turn finishes.";
 };
 
-const Composer = ({ tenantId, session, compact }: { tenantId: string; session: Session; compact: ("0" | "1")[] }) => {
+const Composer = ({
+  tenantId,
+  session,
+  running,
+  compact,
+}: {
+  tenantId: string;
+  session: Session;
+  running: Turn | undefined;
+  compact: ("0" | "1")[];
+}) => {
   const api = useTenantApi(tenantId);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -334,7 +344,12 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
       });
     },
   });
+  const steer = useMutation({
+    mutationFn: ({ turnId, prompt }: { turnId: string; prompt: string }) => api.steerTurn(turnId, prompt),
+    onSuccess: () => setDraft(""),
+  });
   const sendable = SENDABLE.has(session.state) && draft.trim() !== "" && !send.isPending;
+  const steerable = running?.state === "Running" && draft.trim() !== "" && !steer.isPending;
   const submit = () => {
     if (sendable) send.mutate(draft.trim());
   };
@@ -349,6 +364,7 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
           value={draft}
           onChange={(event) => {
             send.reset();
+            steer.reset();
             setDraft(event.target.value);
           }}
           onKeyDown={(event) => {
@@ -357,12 +373,29 @@ const Composer = ({ tenantId, session, compact }: { tenantId: string; session: S
         />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">{composerHint(session)}</span>
-          <Button size="sm" disabled={!sendable} onClick={submit}>
-            {send.isPending ? "Sending..." : "Send"}
-          </Button>
+          <div className="flex gap-2">
+            {running?.state === "Running" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!steerable}
+                title="The running turn reads this after its next step and keeps working"
+                onClick={() => steer.mutate({ turnId: running.turnId, prompt: draft.trim() })}
+              >
+                {steer.isPending ? "Steering..." : "Steer"}
+              </Button>
+            )}
+            <Button size="sm" disabled={!sendable} onClick={submit}>
+              {send.isPending ? "Sending..." : "Send"}
+            </Button>
+          </div>
         </div>
       </div>
       {send.isError && <ProblemBlock error={send.error} />}
+      {steer.isError && <ProblemBlock error={steer.error} />}
+      {steer.isSuccess && (
+        <p className="text-xs text-muted-foreground">The running turn reads your steer after its next step.</p>
+      )}
     </div>
   );
 };
@@ -655,7 +688,12 @@ export const SessionDetailScreen = () => {
           {data.state === "Archived" ? (
             <ArchivedNote />
           ) : (
-            <Composer tenantId={tenantId} session={data} compact={search.compact} />
+            <Composer
+              tenantId={tenantId}
+              session={data}
+              running={turnList.find((turn) => IN_FLIGHT.has(turn.state))}
+              compact={search.compact}
+            />
           )}
         </div>
       </div>
