@@ -106,6 +106,7 @@ const PanelBody = ({
     }
     return (
       <div className="grid gap-3">
+        {phases.isError && <ProblemBlock error={phases.error} onRetry={() => void phases.refetch()} />}
         <ul className="grid divide-y rounded-md border">
           {points.map((item) => {
             const waterfall = bars.get(item.turnId);
