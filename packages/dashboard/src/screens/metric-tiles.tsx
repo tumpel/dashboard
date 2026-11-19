@@ -13,25 +13,23 @@ import {
   statOf,
   windowFor,
 } from "../metrics";
+import { EMPTY_SEARCH } from "../metrics-search";
 import { useMetricCatalog, useMetricSeries } from "../queries";
 
-const TileLink = ({ tenantId, tile, groupBy }: { tenantId: string; tile: MetricTile; groupBy: string[] }) => (
+const TILE_ROUTES = {
+  "": "/t/$tenantId/metrics",
+  "/startup": "/t/$tenantId/metrics/startup",
+  "/hosts": "/t/$tenantId/metrics/hosts",
+} as const;
+
+const TileLink = ({ tenantId, tile }: { tenantId: string; tile: MetricTile }) => (
   <Link
-    to="/t/$tenantId/metrics"
+    to={TILE_ROUTES[tile.dashboard]}
     params={{ tenantId }}
-    search={{
-      metric: [tile.metric],
-      range: [tile.range],
-      bucket: [tile.bucket],
-      stat: tile.stats.slice(0, 1),
-      filter: [],
-      groupBy,
-      at: [],
-      group: [],
-    }}
+    search={EMPTY_SEARCH}
     className="text-sm text-primary hover:underline"
   >
-    Open in Metrics
+    Open dashboard
   </Link>
 );
 
@@ -82,7 +80,7 @@ const TileBody = ({ tenantId, tile }: { tenantId: string; tile: MetricTile }) =>
           </tbody>
         </table>
       )}
-      <TileLink tenantId={tenantId} tile={tile} groupBy={groupBy} />
+      <TileLink tenantId={tenantId} tile={tile} />
     </div>
   );
 };

@@ -1,10 +1,12 @@
 import {
   type InvalidateQueryFilters,
+  keepPreviousData,
   skipToken,
   type UseMutationResult,
   type UseQueryResult,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -14,8 +16,8 @@ import {
   type ClaudeSetupHarness,
   failureOf,
   type GitHubRepositoryPath,
-  type MetricBucket,
   type MetricSeriesQuery,
+  type MetricSeriesSet,
   type MetricTurnPoint,
   type MetricWindow,
   type PrebuildPreview,
@@ -25,7 +27,7 @@ import {
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from "./connectors";
 import { useTenantApi } from "./context";
-import { COST_METRIC, turnsQuery } from "./metrics";
+import { turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
 
 export const keys = {
@@ -451,15 +453,19 @@ export const metricKeys = {
   catalog: (tenantId: string, window: MetricWindow) => [tenantId, "metrics", "catalog", window] as const,
   series: (tenantId: string, metric: string, query: MetricSeriesQuery) =>
     [tenantId, "metrics", metric, "series", query] as const,
-  turns: (tenantId: string, metric: string, bucketStart: string, bucket: MetricBucket, filter: readonly string[]) =>
-    [tenantId, "metrics", metric, "turns", bucketStart, bucket, filter] as const,
-  sessionCost: (tenantId: string, sessionId: string, window: MetricWindow) =>
-    [tenantId, "metrics", COST_METRIC, "session", sessionId, window] as const,
+  turns: (tenantId: string, metric: string, window: MetricWindow, filter: readonly string[]) =>
+    [tenantId, "metrics", metric, "turns", window, filter] as const,
+  sessionPoints: (tenantId: string, sessionId: string, metric: string, window: MetricWindow) =>
+    [tenantId, "metrics", metric, "session", sessionId, window] as const,
 };
 
 export const useMetricCatalog = (tenantId: string, window: MetricWindow) => {
   const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: metricKeys.catalog(tenantId, window), queryFn: () => api.metricCatalog(window) });
+  return useQuery({
+    queryKey: metricKeys.catalog(tenantId, window),
+    queryFn: () => api.metricCatalog(window),
+    placeholderData: keepPreviousData,
+  });
 };
 
 export const useMetricSeries = (tenantId: string, metric: string | null, query: MetricSeriesQuery) => {
@@ -467,35 +473,54 @@ export const useMetricSeries = (tenantId: string, metric: string | null, query: 
   return useQuery({
     queryKey: metricKeys.series(tenantId, metric ?? "", query),
     queryFn: metric === null ? skipToken : () => api.queryMetric(metric, query),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === metric ? previous : undefined),
+  });
+};
+
+export const useMetricSeriesList = (tenantId: string, specs: { metric: string | null; query: MetricSeriesQuery }[]) => {
+  const api = useTenantApi(tenantId);
+  return useQueries({
+    queries: specs.map(({ metric, query }) => ({
+      queryKey: metricKeys.series(tenantId, metric ?? "", query),
+      queryFn: metric === null ? skipToken : () => api.queryMetric(metric, query),
+      placeholderData: (previous: MetricSeriesSet | undefined) => previous,
+    })),
   });
 };
 
 export const useMetricTurns = (
   tenantId: string,
   metric: string,
-  bucketStart: string,
-  bucket: MetricBucket,
+  window: MetricWindow,
   filter: readonly string[],
+  enabled: boolean,
 ) => {
   const api = useTenantApi(tenantId);
   return useInfiniteQuery({
-    queryKey: metricKeys.turns(tenantId, metric, bucketStart, bucket, filter),
-    queryFn: ({ pageParam }) => api.metricTurns(metric, turnsQuery(bucketStart, bucket, filter, pageParam)),
+    queryKey: metricKeys.turns(tenantId, metric, window, filter),
+    queryFn: ({ pageParam }) => api.metricTurns(metric, turnsQuery(window, filter, pageParam)),
     initialPageParam: "",
     getNextPageParam: (page) => (page.finished ? undefined : page.cursor),
+    enabled,
   });
 };
 
-export const useSessionCostPoints = (tenantId: string, sessionId: string, window: MetricWindow, enabled: boolean) => {
+export const useSessionPoints = (
+  tenantId: string,
+  sessionId: string,
+  metric: string,
+  window: MetricWindow,
+  enabled: boolean,
+) => {
   const api = useTenantApi(tenantId);
   return useQuery({
-    queryKey: metricKeys.sessionCost(tenantId, sessionId, window),
+    queryKey: metricKeys.sessionPoints(tenantId, sessionId, metric, window),
     queryFn: enabled
       ? async () => {
           const points: MetricTurnPoint[] = [];
           let cursor = "";
           for (;;) {
-            const page = await api.metricTurns(COST_METRIC, { ...window, sessionId, ...(cursor !== "" && { cursor }) });
+            const page = await api.metricTurns(metric, { ...window, sessionId, ...(cursor !== "" && { cursor }) });
             points.push(...page.points);
             if (page.finished) return points;
             cursor = page.cursor;

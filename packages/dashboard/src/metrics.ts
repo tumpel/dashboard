@@ -3,6 +3,7 @@ import type {
   MetricBucket,
   MetricKind,
   MetricPoint,
+  MetricSeries,
   MetricSeriesQuery,
   MetricSeriesSet,
   MetricTurnPoint,
@@ -46,15 +47,26 @@ const BUCKET_MS: Record<MetricBucket, number> = { Minute: MINUTE_MS, Hour: HOUR_
 export const STATS = ["Count", "Sum", "Mean", "Min", "Max", "p50", "p90", "p99"] as const;
 export type MetricStat = (typeof STATS)[number];
 
-export const fittingBuckets = (range: MetricRange): MetricBucket[] =>
+export const MAX_CUSTOM_AGE_MS = 400 * DAY_MS;
+
+export interface Span {
+  from: number;
+  to: number;
+}
+
+export const spanFor = (range: MetricRange, now: number): Span => {
+  const to = Math.ceil(now / MINUTE_MS) * MINUTE_MS;
+  return { from: to - RANGE_MS[range], to };
+};
+
+export const fittingBuckets = (span: Span, now: number): MetricBucket[] =>
   BUCKETS.filter((bucket) => {
-    const span = RANGE_MS[range];
-    if (bucket === "Minute" && span > MINUTE_RETENTION_MS) return false;
-    return Math.ceil(span / BUCKET_MS[bucket]) + 1 <= MAX_BUCKETS;
+    if (bucket === "Minute" && span.from < now - MINUTE_RETENTION_MS) return false;
+    return Math.ceil((span.to - span.from) / BUCKET_MS[bucket]) + 1 <= MAX_BUCKETS;
   });
 
-export const bucketFor = (range: MetricRange, chosen: MetricBucket | undefined): MetricBucket => {
-  const fitting = fittingBuckets(range);
+export const bucketFor = (span: Span, now: number, chosen: MetricBucket | undefined): MetricBucket => {
+  const fitting = fittingBuckets(span, now);
   if (chosen !== undefined && fitting.includes(chosen)) return chosen;
   return fitting[0] ?? "Day";
 };
@@ -75,10 +87,27 @@ const offsetMinutesOf = (at: string): number => {
   return (Number(hours) * 60 + Number(minutes)) * (sign === "-" ? -1 : 1);
 };
 
-export const windowFor = (range: MetricRange, now: number, offsetMinutes: number): MetricWindow => {
-  const to = Math.ceil(now / MINUTE_MS) * MINUTE_MS;
-  return { from: zoned(to - RANGE_MS[range], offsetMinutes), to: zoned(to, offsetMinutes) };
-};
+export const windowOf = (span: Span, offsetMinutes: number): MetricWindow => ({
+  from: zoned(span.from, offsetMinutes),
+  to: zoned(span.to, offsetMinutes),
+});
+
+export const windowFor = (range: MetricRange, now: number, offsetMinutes: number): MetricWindow =>
+  windowOf(spanFor(range, now), offsetMinutes);
+
+export const offsetLabel = (offsetMinutes: number): string => `UTC${zoned(0, offsetMinutes).slice(-6)}`;
+
+export const localInput = (epochMs: number, offsetMinutes: number): string =>
+  zoned(epochMs, offsetMinutes).slice(0, 16);
+
+export const parseLocalInput = (value: string, offsetMinutes: number): number =>
+  Date.parse(`${value}:00${zoned(0, offsetMinutes).slice(-6)}`);
+
+export const CUSTOM_RANGE_RULE =
+  "The range must end now or earlier, start before it ends, and start within the last 400 days.";
+
+export const customRangeValid = (span: Span, now: number): boolean =>
+  span.from < span.to && span.to <= now && span.from >= now - MAX_CUSTOM_AGE_MS;
 
 export const seriesQuery = (
   window: MetricWindow,
@@ -114,16 +143,17 @@ export const narrowTo = (filter: readonly string[], group: Record<string, string
 export const bucketEnd = (bucketStart: string, bucket: MetricBucket): string =>
   zoned(Date.parse(bucketStart) + BUCKET_MS[bucket], offsetMinutesOf(bucketStart));
 
-export const turnsQuery = (
-  bucketStart: string,
-  bucket: MetricBucket,
-  filter: readonly string[],
-  cursor: string,
-): MetricTurnQuery => ({
-  from: bucketStart,
-  to: bucketEnd(bucketStart, bucket),
+export const bucketMs = (bucket: MetricBucket): number => BUCKET_MS[bucket];
+
+export const turnsQuery = (window: MetricWindow, filter: readonly string[], cursor: string): MetricTurnQuery => ({
+  ...window,
   ...(filter.length > 0 && { filter: [...filter] }),
   ...(cursor !== "" && { cursor }),
+});
+
+export const bucketWindow = (bucketStart: string, bucket: MetricBucket): MetricWindow => ({
+  from: bucketStart,
+  to: bucketEnd(bucketStart, bucket),
 });
 
 export const bucketLabel = (bucketStart: string, bucket: MetricBucket): string => {
@@ -161,7 +191,7 @@ export const formatValue = (value: number, unit: string, stat: MetricStat): stri
     const dollars = value / 1_000_000;
     return `$${dollars.toFixed(Math.abs(dollars) < 1 ? 4 : 2)}`;
   }
-  if (unit === "s") return Math.abs(value) < 1 ? `${plain(value * 1000, 0)} ms` : `${plain(value, 2)} s`;
+  if (unit === "s") return value !== 0 && Math.abs(value) < 1 ? `${plain(value * 1000, 0)} ms` : `${plain(value, 2)} s`;
   if (unit === "MiB") return `${plain(value, 0)} MiB`;
   if (unit === "1" || unit.startsWith("{")) return plain(value, 2);
   return `${plain(value, 2)} ${unit}`;
@@ -214,6 +244,7 @@ export interface MetricTile {
   groupBy: string;
   stats: MetricStat[];
   empty: string;
+  dashboard: "" | "/startup" | "/hosts";
 }
 
 export const OVERVIEW_TILES: MetricTile[] = [
@@ -225,6 +256,7 @@ export const OVERVIEW_TILES: MetricTile[] = [
     groupBy: "model",
     stats: ["Sum"],
     empty: "No spend reported yet.",
+    dashboard: "",
   },
   {
     label: "Startup today by harness",
@@ -234,6 +266,7 @@ export const OVERVIEW_TILES: MetricTile[] = [
     groupBy: "harness",
     stats: ["p50", "p90"],
     empty: "No turns started yet.",
+    dashboard: "/startup",
   },
   {
     label: "Host CPU busy this hour",
@@ -243,6 +276,7 @@ export const OVERVIEW_TILES: MetricTile[] = [
     groupBy: "hostId",
     stats: ["Mean"],
     empty: "No host has reported load yet.",
+    dashboard: "/hosts",
   },
 ];
 
@@ -304,3 +338,192 @@ export const sinceWindow = (startedAt: number, now: number, offsetMinutes: numbe
   from: zoned(Math.floor(startedAt / MINUTE_MS) * MINUTE_MS, offsetMinutes),
   to: zoned(Math.ceil((now + 1) / MINUTE_MS) * MINUTE_MS, offsetMinutes),
 });
+
+export const bucketGrid = (window: MetricWindow, bucket: MetricBucket): number[] => {
+  const size = BUCKET_MS[bucket];
+  const offset = offsetMinutesOf(window.from) * MINUTE_MS;
+  const from = Date.parse(window.from);
+  const first = bucket === "Day" ? Math.floor((from + offset) / size) * size - offset : Math.floor(from / size) * size;
+  const grid: number[] = [];
+  for (let start = first; start < Date.parse(window.to); start += size) grid.push(start);
+  return grid;
+};
+
+export const placeOnGrid = (grid: readonly number[], points: readonly MetricPoint[]): (MetricPoint | undefined)[] => {
+  const byStart = new Map(points.map((point) => [Date.parse(point.bucketStart), point]));
+  return grid.map((start) => byStart.get(start));
+};
+
+export type GridValues = (number | undefined)[];
+
+export const valuesOn = (
+  grid: readonly number[],
+  points: readonly MetricPoint[],
+  read: (point: MetricPoint) => number,
+): GridValues => placeOnGrid(grid, points).map((point) => (point === undefined ? undefined : read(point)));
+
+export const latestValue = (values: readonly (number | undefined)[]): number | undefined =>
+  values.findLast((value) => value !== undefined);
+
+export const memoryUsedShare = (
+  available: readonly (MetricPoint | undefined)[],
+  total: readonly (MetricPoint | undefined)[],
+): GridValues =>
+  total.map((totalPoint, index) => {
+    const availablePoint = available[index];
+    if (availablePoint === undefined || totalPoint === undefined) return undefined;
+    return 1 - statOf(availablePoint, "Mean") / statOf(totalPoint, "Mean");
+  });
+
+export const memoryUsedMiB = (
+  available: readonly (MetricPoint | undefined)[],
+  total: readonly (MetricPoint | undefined)[],
+): GridValues =>
+  total.map((totalPoint, index) => {
+    const availablePoint = available[index];
+    if (availablePoint === undefined || totalPoint === undefined) return undefined;
+    return statOf(totalPoint, "Mean") - statOf(availablePoint, "Mean");
+  });
+
+export const SUCCESS_OUTCOMES: readonly string[] = ["Completed", "Withdrawn"];
+
+export const isFailure = (outcome: string): boolean => !SUCCESS_OUTCOMES.includes(outcome);
+
+export interface FailureShare {
+  failed: number;
+  total: number;
+  share: number;
+}
+
+export const failureShare = (set: MetricSeriesSet): FailureShare => {
+  let failed = 0;
+  let total = 0;
+  for (const series of set.series) {
+    const count = series.points.reduce((sum, point) => sum + point.count, 0);
+    total += count;
+    if (isFailure(series.group.outcome ?? "")) failed += count;
+  }
+  return { failed, total, share: total === 0 ? 0 : failed / total };
+};
+
+export const PHASES = ["Claim", "ImageFetch", "Restore", "Boot", "Clone", "FirstOutput"] as const;
+
+const PHASE_COLOR_ORDER: readonly string[] = ["ImageFetch", "FirstOutput", "Claim", "Restore", "Boot", "Clone"];
+
+export const CATEGORY_COLORS = 8;
+
+export const NEUTRAL_COLOR = "var(--chart-neutral)";
+export const CRITICAL_COLOR = "var(--chart-critical)";
+
+const colorAt = (index: number): string =>
+  index < 0 || index >= CATEGORY_COLORS ? NEUTRAL_COLOR : `var(--chart-${index + 1})`;
+
+export const entityColor = (dimension: string, value: string, facetValues: readonly string[]): string => {
+  if (value === OTHER_GROUP) return NEUTRAL_COLOR;
+  if (dimension === "phase") return colorAt(PHASE_COLOR_ORDER.indexOf(value));
+  if (dimension === "outcome") {
+    if (value === "Withdrawn") return NEUTRAL_COLOR;
+    return isFailure(value) ? CRITICAL_COLOR : colorAt(0);
+  }
+  return colorAt([...facetValues].sort().indexOf(value));
+};
+
+export const WATERFALL_DASHES: readonly (string | undefined)[] = [undefined, "6 3", "2 3", "10 3 2 3"];
+
+export const phaseWindow = (bucketStart: string, bucket: MetricBucket, maxStartupSeconds: number): MetricWindow => ({
+  from: zoned(Date.parse(bucketStart) - Math.ceil(maxStartupSeconds / 60) * MINUTE_MS, offsetMinutesOf(bucketStart)),
+  to: bucketEnd(bucketStart, bucket),
+});
+
+export interface PhaseBar {
+  phase: string;
+  startSeconds: number;
+  seconds: number;
+}
+
+export interface TurnWaterfall {
+  turnId: string;
+  startedAt: number;
+  startupSeconds: number | undefined;
+  totalSeconds: number;
+  bars: PhaseBar[];
+}
+
+export const waterfalls = (
+  phases: readonly MetricTurnPoint[],
+  startups: readonly MetricTurnPoint[],
+): TurnWaterfall[] => {
+  const byTurn = new Map<string, MetricTurnPoint[]>();
+  for (const point of phases) byTurn.set(point.turnId, [...(byTurn.get(point.turnId) ?? []), point]);
+  const startupOf = new Map(startups.map((point) => [point.turnId, point.value]));
+  return [...byTurn.entries()]
+    .map(([turnId, points]) => {
+      const spans = points.map((point) => ({
+        phase: point.dimensions.phase ?? "",
+        start: Date.parse(point.at) - point.value * 1000,
+        seconds: point.value,
+      }));
+      const startedAt = Math.min(...spans.map((span) => span.start));
+      const finishedAt = Math.max(...spans.map((span) => span.start + span.seconds * 1000));
+      return {
+        turnId,
+        startedAt,
+        startupSeconds: startupOf.get(turnId),
+        totalSeconds: (finishedAt - startedAt) / 1000,
+        bars: spans
+          .map((span) => ({ phase: span.phase, startSeconds: (span.start - startedAt) / 1000, seconds: span.seconds }))
+          .sort((left, right) => left.startSeconds - right.startSeconds),
+      };
+    })
+    .sort((left, right) => left.startedAt - right.startedAt);
+};
+
+const dayMonth = (epochMs: number, offsetMinutes: number): string => {
+  const local = new Date(epochMs + offsetMinutes * MINUTE_MS);
+  return `${pad(local.getUTCDate())}/${pad(local.getUTCMonth() + 1)}`;
+};
+
+export const clockLabel = (epochMs: number, offsetMinutes: number): string =>
+  zoned(epochMs, offsetMinutes).slice(11, 16);
+
+export const tickLabel = (epochMs: number, bucket: MetricBucket, spanMs: number, offsetMinutes: number): string => {
+  if (bucket === "Day") return dayMonth(epochMs, offsetMinutes);
+  if (spanMs >= 18 * HOUR_MS) return `${dayMonth(epochMs, offsetMinutes)} ${clockLabel(epochMs, offsetMinutes)}`;
+  return clockLabel(epochMs, offsetMinutes);
+};
+
+export const bucketSpanLabel = (epochMs: number, bucket: MetricBucket, offsetMinutes: number): string => {
+  if (bucket === "Day") return `${dayMonth(epochMs, offsetMinutes)}`;
+  const end = epochMs + BUCKET_MS[bucket];
+  return `${clockLabel(epochMs, offsetMinutes)} to ${clockLabel(end, offsetMinutes)}`;
+};
+
+export const percentLabel = (ratio: number): string => `${plain(ratio * 100, 0)}%`;
+
+export const sumByBucket = (grid: readonly number[], sets: readonly MetricSeries[], stat: MetricStat): GridValues =>
+  grid.map((start) => {
+    const points = sets.flatMap((series) => series.points.filter((point) => Date.parse(point.bucketStart) === start));
+    return points.length === 0 ? undefined : points.reduce((total, point) => total + statOf(point, stat), 0);
+  });
+
+export const latestBucket = (set: MetricSeriesSet): MetricPoint | undefined =>
+  latestByGroup(set)
+    .map(({ point }) => point)
+    .reduce<MetricPoint | undefined>(
+      (latest, point) =>
+        latest === undefined || Date.parse(point.bucketStart) > Date.parse(latest.bucketStart) ? point : latest,
+      undefined,
+    );
+
+export const metricMissing = (metrics: readonly { metric: string }[], metric: string): boolean =>
+  !metrics.some((entry) => entry.metric === metric);
+
+export const resultFor = <T>(present: readonly string[], results: readonly T[], metric: string): T | undefined => {
+  const index = present.indexOf(metric);
+  return index === -1 ? undefined : results[index];
+};
+
+export const bucketTitle = (epochMs: number, bucket: MetricBucket, offsetMinutes: number): string =>
+  bucket === "Day"
+    ? dayMonth(epochMs, offsetMinutes)
+    : `${dayMonth(epochMs, offsetMinutes)} ${bucketSpanLabel(epochMs, bucket, offsetMinutes)}`;
