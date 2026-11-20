@@ -417,7 +417,7 @@ export const useTemplatePullRequest = (tenantId: string, repository: string) => 
 export const triggerKeys = {
   list: (tenantId: string) => [tenantId, "triggers"] as const,
   trigger: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId] as const,
-  refused: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId, "refusedStarts"] as const,
+  refused: (tenantId: string, triggerId: string | null) => [tenantId, "refusedStarts", triggerId ?? "all"] as const,
 };
 
 export const useTriggers = (tenantId: string) => {
@@ -434,21 +434,11 @@ export const useTrigger = (tenantId: string, triggerId: string) => {
   });
 };
 
-export const useRefusedStarts = (tenantId: string, triggerId: string) => {
+export const useRefusedStarts = (tenantId: string, triggerId: string | null) => {
   const api = useTenantApi(tenantId);
   return useQuery({
     queryKey: triggerKeys.refused(tenantId, triggerId),
     queryFn: () => readRefusedStarts(api.listEvents, triggerId),
-  });
-};
-
-export const useRefusedStartsOf = (tenantId: string, triggerIds: readonly string[]) => {
-  const api = useTenantApi(tenantId);
-  return useQueries({
-    queries: triggerIds.map((triggerId) => ({
-      queryKey: triggerKeys.refused(tenantId, triggerId),
-      queryFn: () => readRefusedStarts(api.listEvents, triggerId),
-    })),
   });
 };
 
@@ -574,7 +564,7 @@ export const useSessionPoints = (
 };
 
 const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
-  if (isRefusal(event)) return [{ queryKey: triggerKeys.refused(tenantId, event.triggerId) }];
+  if (isRefusal(event)) return [{ queryKey: [tenantId, "refusedStarts"] }];
   if ("sessionId" in event) {
     return [
       { queryKey: keys.sessions(tenantId), exact: true },

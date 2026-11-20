@@ -8,8 +8,8 @@ import { TableSkeleton } from "../components/table-skeleton";
 import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime, personaName } from "../fleet";
-import { useOwner, usePersonas, useRefusedStartsOf, useSessions, useTriggers } from "../queries";
-import { filterSummary, runsOf } from "../triggers";
+import { useOwner, usePersonas, useRefusedStarts, useSessions, useTriggers } from "../queries";
+import { EXPIRED_NOTE, filterSummary, runsOf } from "../triggers";
 
 const LastRun = ({
   triggerId,
@@ -36,9 +36,8 @@ export const TriggersListScreen = () => {
   const triggers = useTriggers(tenantId);
   const personas = usePersonas(tenantId);
   const sessions = useSessions(tenantId);
-  const refused = useRefusedStartsOf(tenantId, triggers.data?.map((trigger) => trigger.triggerId) ?? []);
-  const refusals = refused.flatMap((query) => query.data ?? []);
-  const refusedFailure = refused.find((query) => query.isError);
+  const refused = useRefusedStarts(tenantId, null);
+  const refusalsOf = Map.groupBy(refused.data?.refused ?? [], (event) => event.triggerId);
   const create = owner ? (
     <Button asChild>
       <Link to="/t/$tenantId/triggers/new" params={{ tenantId }}>
@@ -66,9 +65,8 @@ export const TriggersListScreen = () => {
       <div className="grid gap-3">
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}
-        {refusedFailure !== undefined && (
-          <ProblemBlock error={refusedFailure.error} onRetry={() => void refusedFailure.refetch()} />
-        )}
+        {refused.isError && <ProblemBlock error={refused.error} onRetry={() => void refused.refetch()} />}
+        {refused.data?.expired && <p className="text-sm text-muted-foreground">{EXPIRED_NOTE}</p>}
         <Table>
           <TableHeader>
             <TableRow>
@@ -95,7 +93,11 @@ export const TriggersListScreen = () => {
                 <TableCell className="max-w-80 whitespace-normal">{filterSummary(trigger.source)}</TableCell>
                 <TableCell>{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
                 <TableCell>
-                  <LastRun triggerId={trigger.triggerId} sessions={sessions.data ?? []} refusals={refusals} />
+                  <LastRun
+                    triggerId={trigger.triggerId}
+                    sessions={sessions.data ?? []}
+                    refusals={refusalsOf.get(trigger.triggerId) ?? []}
+                  />
                 </TableCell>
               </TableRow>
             ))}

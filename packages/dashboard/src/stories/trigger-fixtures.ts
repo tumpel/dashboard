@@ -124,7 +124,10 @@ export const triggerFakes = (): Pick<TumpelApi, TriggerOperation> => ({
   deleteTrigger: async () => undefined,
   testTrigger: async () => TEST_RESULT,
   listEvents: async (query) => ({
-    events: (query.afterEventId ?? 0) < 41 ? REFUSALS.filter((event) => event.triggerId === query.triggerId) : [],
+    events:
+      (query.afterEventId ?? 0) < 41
+        ? REFUSALS.filter((event) => query.triggerId === undefined || event.triggerId === query.triggerId)
+        : [],
     lastEventId: 41,
   }),
 });

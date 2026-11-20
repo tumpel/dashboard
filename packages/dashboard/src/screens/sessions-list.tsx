@@ -130,10 +130,6 @@ export const SessionsListScreen = () => {
     const allPicked = selectable.length > 0 && selectable.every((sessionId) => selected.has(sessionId));
     return (
       <div className="grid gap-3">
-        {hosts.isError && <ProblemBlock error={hosts.error} onRetry={() => void hosts.refetch()} />}
-        {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
-        {members.isError && <ProblemBlock error={members.error} onRetry={() => void members.refetch()} />}
-        {triggers.isError && <ProblemBlock error={triggers.error} onRetry={() => void triggers.refetch()} />}
         {picked.length > 0 && (
           <div className="flex items-center justify-between gap-2 rounded-lg border bg-card p-2 pl-3">
             <p className="text-sm font-medium">{picked.length} selected</p>
@@ -288,7 +284,13 @@ export const SessionsListScreen = () => {
           </NativeSelect>
         </div>
       </div>
-      {body()}
+      <div className="grid gap-3">
+        {hosts.isError && <ProblemBlock error={hosts.error} onRetry={() => void hosts.refetch()} />}
+        {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
+        {members.isError && <ProblemBlock error={members.error} onRetry={() => void members.refetch()} />}
+        {triggers.isError && <ProblemBlock error={triggers.error} onRetry={() => void triggers.refetch()} />}
+        {body()}
+      </div>
     </>
   );
 };

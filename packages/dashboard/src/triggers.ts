@@ -98,38 +98,35 @@ const cursorExpired = (error: unknown): boolean =>
   error.failure.kind === "Problem" &&
   error.failure.problem.code === "EventCursorExpired";
 
+export interface RefusedStarts {
+  refused: TriggerStartRefused[];
+  expired: boolean;
+}
+
 export const readRefusedStarts = async (
   listEvents: TumpelApi["listEvents"],
-  triggerId: string,
-): Promise<TriggerStartRefused[]> => {
-  const read = (afterEventId?: number) =>
-    listEvents({ afterEventId, event: ["TriggerStartRefused"], triggerId, waitSeconds: 0 });
-  const kept = (afterEventId: number): Promise<boolean> =>
-    read(afterEventId)
-      .then(() => true)
-      .catch((error: unknown) => {
-        if (cursorExpired(error)) return false;
-        throw error;
-      });
-  let gone = -1;
-  let from = 0;
-  if (!(await kept(0))) {
-    gone = 0;
-    from = (await read()).lastEventId;
-  }
-  while (from - gone > 1) {
-    const middle = Math.floor((gone + from) / 2);
-    if (await kept(middle)) from = middle;
-    else gone = middle;
-  }
+  triggerId: string | null,
+): Promise<RefusedStarts> => {
   const refused: TriggerStartRefused[] = [];
+  let afterEventId = 0;
   for (;;) {
-    const page = await read(from);
-    if (page.events.length === 0) return refused;
+    const page = await listEvents({
+      afterEventId,
+      event: ["TriggerStartRefused"],
+      ...(triggerId === null ? {} : { triggerId }),
+      waitSeconds: 0,
+    }).catch((error: unknown) => {
+      if (cursorExpired(error)) return null;
+      throw error;
+    });
+    if (page === null) return { refused, expired: true };
+    if (page.events.length === 0) return { refused, expired: false };
     refused.push(...page.events.filter(isRefusal));
-    from = page.lastEventId;
+    afterEventId = page.lastEventId;
   }
 };
+
+export const EXPIRED_NOTE = "Some refused starts are not shown: the event log has dropped its oldest events.";
 
 export type Run<S = Session> =
   | { kind: "Session"; at: number; deliveryId: string; session: S }

@@ -8,7 +8,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime, personaName, repositoryLabel } from "../fleet";
 import { useOwner, usePersonas, useRefusedStarts, useSessions, useTrigger } from "../queries";
-import { filterSummary, runsOf, shortDelivery } from "../triggers";
+import { EXPIRED_NOTE, filterSummary, runsOf, shortDelivery } from "../triggers";
 
 const ROUTE = "/t/$tenantId/triggers/$triggerId";
 
@@ -43,7 +43,7 @@ export const TriggerScreen = () => {
   const data = trigger.data;
   const runs = () => {
     if (sessions.isPending || refused.isPending) return <TableSkeleton rows={3} />;
-    const rows = runsOf(triggerId, sessions.data ?? [], refused.data ?? []);
+    const rows = runsOf(triggerId, sessions.data ?? [], refused.data?.refused ?? []);
     if (rows.length === 0 && !sessions.isError && !refused.isError) {
       return (
         <p className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
@@ -123,6 +123,7 @@ export const TriggerScreen = () => {
       <div className="grid gap-3">
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}
         {refused.isError && <ProblemBlock error={refused.error} onRetry={() => void refused.refetch()} />}
+        {refused.data?.expired && <p className="text-sm text-muted-foreground">{EXPIRED_NOTE}</p>}
         {runs()}
         <p className="text-xs text-muted-foreground">Newest first. Refused starts show for 7 days.</p>
       </div>
