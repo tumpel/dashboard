@@ -11,6 +11,7 @@ import {
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
+  EventPageSchema,
   GitHubActionsConnectionLinkSchema,
   GitHubConnectionSchema,
   GitHubInstallationSchema,
@@ -53,6 +54,8 @@ import {
   StopFailureSchema,
   TenantEventSchema,
   TranscriptPageSchema,
+  TriggerSchema,
+  TriggerTestResultSchema,
   TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
@@ -590,6 +593,24 @@ export const createHttpApi = (
           params: { path: { connectorId }, query: { updatedAt } },
         }),
       ),
+    listEvents: (query) => settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } })),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
+    listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
+    getTrigger: (triggerId) =>
+      settle(
+        "Triggers_get",
+        TriggerSchema,
+        client.GET("/v1/triggers/{triggerId}", { params: { path: { triggerId } } }),
+      ),
+    createTrigger: (body) => settle("Triggers_create", TriggerSchema, client.POST("/v1/triggers", { body })),
+    updateTrigger: (triggerId, body) =>
+      settle(
+        "Triggers_update",
+        TriggerSchema,
+        client.PATCH("/v1/triggers/{triggerId}", { params: { path: { triggerId } }, body }),
+      ),
+    deleteTrigger: (triggerId) =>
+      settleEmpty("Triggers_delete", client.DELETE("/v1/triggers/{triggerId}", { params: { path: { triggerId } } })),
+    testTrigger: (body) => settle("Triggers_test", TriggerTestResultSchema, client.POST("/v1/triggers/test", { body })),
   };
 };

@@ -23,12 +23,14 @@ import {
   type PrebuildPreview,
   type PrebuildTemplateVersion,
   type TenantEvent,
+  type TriggerStartRefused,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from "./connectors";
 import { useTenantApi } from "./context";
 import { turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
+import { isRefusal } from "./triggers";
 
 export const keys = {
   whoami: (tenantId: string) => [tenantId, "whoami"] as const,
@@ -409,6 +411,43 @@ export const useTemplatePullRequest = (tenantId: string, repository: string) => 
   });
 };
 
+export const triggerKeys = {
+  list: (tenantId: string) => [tenantId, "triggers"] as const,
+  trigger: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId] as const,
+  refused: (tenantId: string) => [tenantId, "triggerStartRefusals"] as const,
+};
+
+export const useTriggers = (tenantId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({ queryKey: triggerKeys.list(tenantId), queryFn: () => api.listTriggers() });
+};
+
+export const useTrigger = (tenantId: string, triggerId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: triggerKeys.trigger(tenantId, triggerId),
+    queryFn: () => api.getTrigger(triggerId),
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useRefusedStarts = (tenantId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: triggerKeys.refused(tenantId),
+    queryFn: async () => {
+      const refused: TriggerStartRefused[] = [];
+      let afterEventId = 0;
+      for (;;) {
+        const page = await api.listEvents({ afterEventId, event: ["TriggerStartRefused"], waitSeconds: 0 });
+        if (page.events.length === 0) return refused;
+        refused.push(...page.events.filter(isRefusal));
+        afterEventId = page.lastEventId;
+      }
+    },
+  });
+};
+
 export const memberKeys = {
   tenants: (tenantId: string) => [tenantId, "tenants"] as const,
   members: (tenantId: string) => [tenantId, "members"] as const,
@@ -531,6 +570,7 @@ export const useSessionPoints = (
 };
 
 const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
+  if (isRefusal(event)) return [{ queryKey: triggerKeys.refused(tenantId) }];
   if ("sessionId" in event) {
     return [{ queryKey: keys.sessions(tenantId), exact: true }, { queryKey: keys.session(tenantId, event.sessionId) }];
   }

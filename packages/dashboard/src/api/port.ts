@@ -16,6 +16,8 @@ import type {
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
+  EventPageSchema,
+  EventQuerySchema,
   GitHubActionsConnectionLinkSchema,
   GitHubActionsConnectionStartSchema,
   GitHubConnectionSchema,
@@ -84,6 +86,12 @@ import type {
   TenantEventSchema,
   TranscriptPageSchema,
   TranscriptQuerySchema,
+  TriggerCreateSchema,
+  TriggerPatchSchema,
+  TriggerSchema,
+  TriggerStartRefusedEventSchema,
+  TriggerTestResultSchema,
+  TriggerTestSchema,
   TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
@@ -91,6 +99,16 @@ import type { z } from "zod";
 
 export type Host = z.infer<typeof HostSchema>;
 export type TenantEvent = z.infer<typeof TenantEventSchema>;
+export type EventQuery = z.infer<typeof EventQuerySchema>;
+export type EventPage = z.infer<typeof EventPageSchema>;
+export type Trigger = z.infer<typeof TriggerSchema>;
+export type TriggerCreate = z.infer<typeof TriggerCreateSchema>;
+export type TriggerPatch = z.infer<typeof TriggerPatchSchema>;
+export type TriggerEvent = Trigger["event"];
+export type TriggerCondition = Trigger["conditions"][number];
+export type TriggerTest = z.infer<typeof TriggerTestSchema>;
+export type TriggerTestResult = z.infer<typeof TriggerTestResultSchema>;
+export type TriggerStartRefused = z.infer<typeof TriggerStartRefusedEventSchema>;
 
 export interface EventListener {
   onEvent(event: TenantEvent): void;
@@ -335,7 +353,14 @@ export interface TumpelApi {
   setConnectorToken(connector: Connector, value: string): Promise<Connector>;
   clearConnectorCredential(connector: Connector): Promise<Connector>;
   authorizeConnector(connector: Connector): Promise<ConnectorAuthorization>;
+  listEvents(query: EventQuery): Promise<EventPage>;
   followEvents(listener: EventListener): () => void;
+  listTriggers(): Promise<Trigger[]>;
+  getTrigger(triggerId: string): Promise<Trigger>;
+  createTrigger(trigger: TriggerCreate): Promise<Trigger>;
+  updateTrigger(triggerId: string, patch: TriggerPatch): Promise<Trigger>;
+  deleteTrigger(triggerId: string): Promise<void>;
+  testTrigger(test: TriggerTest): Promise<TriggerTestResult>;
 }
 
 export interface SignedInTenant {

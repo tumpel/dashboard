@@ -5,6 +5,7 @@ import type { Session } from "../api/port";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock } from "../components/problem-block";
+import { StartedBy } from "../components/started-by";
 import { SessionStateBadge } from "../components/status-badge";
 import { Button } from "../components/ui/button";
 import { NativeSelect } from "../components/ui/input";
@@ -13,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { formatTime, hostName, personaName, repositoryLabel, SESSION_STATES } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
-import { useHosts, usePersonas, useSessions } from "../queries";
+import { useHosts, useMembers, usePersonas, useSessions, useTriggers } from "../queries";
 import {
   ARCHIVABLE,
   ArchiveSessionsDialog,
@@ -56,13 +57,16 @@ const pendingAction = (hash: string): { action: SessionAction; sessionId: string
 
 export const SessionsListScreen = () => {
   const { tenantId } = useParams({ from: ROUTE });
-  const { state: chosen, hostId: hostIds } = useSearch({ from: ROUTE });
+  const { state: chosen, hostId: hostIds, trigger: triggerIds } = useSearch({ from: ROUTE });
   const dialog = useHashDialog();
   const navigate = useNavigate({ from: ROUTE });
   const sessions = useSessions(tenantId);
   const hosts = useHosts(tenantId);
   const personas = usePersonas(tenantId);
+  const members = useMembers(tenantId);
+  const triggers = useTriggers(tenantId);
   const hostId = hostIds[0] ?? "";
+  const triggerId = triggerIds[0] ?? "";
   const pending = pendingAction(dialog.hash);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [archiving, setArchiving] = useState(false);
@@ -75,10 +79,11 @@ export const SessionsListScreen = () => {
       }
       return next;
     });
-  const setSearch = (state: Session["state"][], host: string) =>
-    void navigate({ search: { state, hostId: host === "" ? [] : [host] } });
+  const setSearch = (state: Session["state"][], host: string, trigger: string) =>
+    void navigate({ search: { state, hostId: host === "" ? [] : [host], trigger: trigger === "" ? [] : [trigger] } });
   const toggle = (state: Session["state"]) =>
-    setSearch(chosen.includes(state) ? chosen.filter((item) => item !== state) : [...chosen, state], hostId);
+    setSearch(chosen.includes(state) ? chosen.filter((item) => item !== state) : [...chosen, state], hostId, triggerId);
+  const triggerNameOf = (id: string): string => triggers.data?.find((trigger) => trigger.triggerId === id)?.name ?? id;
   const pick = (next: string) => void navigate({ search: (search) => search, hash: next });
   const start = (
     <Button asChild>
@@ -106,14 +111,19 @@ export const SessionsListScreen = () => {
     const rows = sessions.data
       .filter((session) => chosen.length === 0 || chosen.includes(session.state))
       .filter((session) => hostId === "" || session.hostId === hostId)
+      .filter(
+        (session) =>
+          triggerId === "" || (session.startedBy.kind === "Trigger" && session.startedBy.triggerId === triggerId),
+      )
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if (rows.length === 0) {
       return (
         <div className="grid justify-items-start gap-2 rounded-lg border bg-card p-6">
           <p className="font-medium">
             No {chosen.join(" or ")} sessions{hostId === "" ? "" : ` on ${hostName(hosts.data ?? [], hostId)}`}
+            {triggerId === "" ? "" : ` started by trigger ${triggerNameOf(triggerId)}`}
           </p>
-          <Button variant="outline" size="sm" onClick={() => setSearch([], "")}>
+          <Button variant="outline" size="sm" onClick={() => setSearch([], "", "")}>
             Clear filter
           </Button>
         </div>
@@ -148,6 +158,7 @@ export const SessionsListScreen = () => {
               </TableHead>
               <TableHead>Repository</TableHead>
               <TableHead>Persona</TableHead>
+              <TableHead>Started by</TableHead>
               <TableHead>State</TableHead>
               <TableHead>Host</TableHead>
               <TableHead>Updated</TableHead>
@@ -179,6 +190,14 @@ export const SessionsListScreen = () => {
                   </Link>
                 </TableCell>
                 <TableCell>{personaName(personas.data ?? [], session.personaId)}</TableCell>
+                <TableCell>
+                  <StartedBy
+                    tenantId={tenantId}
+                    startedBy={session.startedBy}
+                    members={members.data ?? []}
+                    triggers={triggers.data ?? []}
+                  />
+                </TableCell>
                 <TableCell>
                   <SessionStateBadge state={session.state} />
                 </TableCell>
@@ -242,19 +261,34 @@ export const SessionsListScreen = () => {
             );
           })}
         </fieldset>
-        <NativeSelect
-          aria-label="Filter by host"
-          className="w-44"
-          value={hostId}
-          onChange={(event) => setSearch(chosen, event.target.value)}
-        >
-          <option value="">Any host</option>
-          {(hosts.data ?? []).map((host) => (
-            <option key={host.hostId} value={host.hostId}>
-              {host.name}
-            </option>
-          ))}
-        </NativeSelect>
+        <div className="flex flex-wrap gap-2">
+          <NativeSelect
+            aria-label="Filter by host"
+            className="w-44"
+            value={hostId}
+            onChange={(event) => setSearch(chosen, event.target.value, triggerId)}
+          >
+            <option value="">Any host</option>
+            {(hosts.data ?? []).map((host) => (
+              <option key={host.hostId} value={host.hostId}>
+                {host.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Filter by trigger"
+            className="w-44"
+            value={triggerId}
+            onChange={(event) => setSearch(chosen, hostId, event.target.value)}
+          >
+            <option value="">Any trigger or none</option>
+            {(triggers.data ?? []).map((trigger) => (
+              <option key={trigger.triggerId} value={trigger.triggerId}>
+                {trigger.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
       </div>
       {body()}
     </>

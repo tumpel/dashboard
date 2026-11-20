@@ -57,6 +57,9 @@ import { SetupIndexScreen, SetupStepScreen } from "./screens/setup/wizard";
 import { CallbackScreen, SignInScreen } from "./screens/signin";
 import { START_SOURCES, StartSessionScreen } from "./screens/start-session";
 import { TenantHome } from "./screens/tenant-home";
+import { TriggerScreen } from "./screens/trigger-detail";
+import { EditTriggerScreen, NewTriggerScreen } from "./screens/trigger-form";
+import { TriggersListScreen } from "./screens/triggers-list";
 import { AppShell } from "./shell/app-shell";
 
 const parseSearch = (search: string): Record<string, string[]> => {
@@ -211,6 +214,7 @@ const hostRoute = createRoute({
 const SessionsSearchSchema = z.object({
   state: z.array(SessionStateSchema).catch([]),
   hostId: z.array(z.string()).catch([]),
+  trigger: z.array(z.string()).catch([]),
 });
 
 const sessionsRoute = createRoute({
@@ -279,6 +283,30 @@ const personaRoute = createRoute({
   path: "/personas/$personaId",
   validateSearch: z.object({ file: z.array(z.string()).catch([]) }),
   component: PersonaScreen,
+});
+
+const triggersRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/triggers",
+  component: TriggersListScreen,
+});
+
+const newTriggerRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/triggers/new",
+  component: NewTriggerScreen,
+});
+
+const triggerRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/triggers/$triggerId",
+  component: TriggerScreen,
+});
+
+const editTriggerRoute = createRoute({
+  getParentRoute: () => tenantRoute,
+  path: "/triggers/$triggerId/edit",
+  component: EditTriggerScreen,
 });
 
 const secretSetsRoute = createRoute({
@@ -449,6 +477,10 @@ const routeTree = rootRoute.addChildren([
     personasRoute,
     newPersonaRoute,
     personaRoute,
+    triggersRoute,
+    newTriggerRoute,
+    triggerRoute,
+    editTriggerRoute,
     secretSetsRoute,
     newSecretSetRoute,
     secretSetRoute,

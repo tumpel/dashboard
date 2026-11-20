@@ -37,6 +37,7 @@ const DEFAULT_PERSONA: Persona = {
   secretSetId: "sst_default",
   connectorIds: [],
   boxRetention: "Auto",
+  tumpelMcp: false,
   files: [],
   createdAt: CREATED,
   updatedAt: CREATED,

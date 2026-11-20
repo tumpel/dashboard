@@ -6,6 +6,7 @@ import type { Session, TranscriptText, Turn } from "../api/port";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
+import { TriggerOriginNote } from "../components/started-by";
 import { SessionStateBadge } from "../components/status-badge";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -26,6 +27,7 @@ import {
   useSession,
   useSnapshots,
   useStopFailures,
+  useTriggers,
   useTurns,
 } from "../queries";
 import { type TranscriptView, useTranscript } from "../transcript";
@@ -56,14 +58,19 @@ const turnLabel = (turns: readonly Turn[], turnId: string): string => {
 };
 
 const crumbFor = (tenantId: string) => (
-  <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [] }} className="hover:underline">
+  <Link
+    to="/t/$tenantId/sessions"
+    params={{ tenantId }}
+    search={{ state: [], hostId: [], trigger: [] }}
+    className="hover:underline"
+  >
     Sessions /
   </Link>
 );
 
 const SessionsLink = ({ tenantId }: { tenantId: string }) => (
   <Button size="sm" variant="outline" asChild>
-    <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [] }}>
+    <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [], trigger: [] }}>
       Open Sessions
     </Link>
   </Button>
@@ -598,6 +605,7 @@ export const SessionDetailScreen = () => {
   const personas = usePersonas(tenantId);
   const hosts = useHosts(tenantId);
   const catalog = useHarnessCatalog(tenantId);
+  const triggers = useTriggers(tenantId);
   const crumb = crumbFor(tenantId);
   if (session.isPending || turns.isPending || catalog.isPending) {
     return (
@@ -712,6 +720,7 @@ export const SessionDetailScreen = () => {
           {data.model} / {hostNameOf(data.hostId)}
         </span>
       </div>
+      <TriggerOriginNote tenantId={tenantId} startedBy={data.startedBy} triggers={triggers.data ?? []} />
       <BootNote session={data} />
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
