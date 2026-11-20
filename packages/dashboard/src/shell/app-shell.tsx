@@ -16,6 +16,7 @@ import {
   ServerIcon,
   TerminalIcon,
   UsersIcon,
+  ZapIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ const SESSIONS = { to: "/t/$tenantId/sessions", label: "Sessions", icon: Termina
 const HOSTS = { to: "/t/$tenantId/hosts", label: "Hosts", icon: ServerIcon } as const;
 const HARNESSES = { to: "/t/$tenantId/harnesses", label: "Harnesses", icon: LayersIcon } as const;
 const PERSONAS = { to: "/t/$tenantId/personas", label: "Personas", icon: BotIcon } as const;
+const TRIGGERS = { to: "/t/$tenantId/triggers", label: "Triggers", icon: ZapIcon } as const;
 const SECRETS = { to: "/t/$tenantId/secrets", label: "Secret sets", icon: KeyRoundIcon } as const;
 const CONNECTIONS = { to: "/t/$tenantId/connections", label: "Connections", icon: PlugIcon } as const;
 const CONNECTORS = { to: "/t/$tenantId/connectors", label: "Connectors", icon: BlocksIcon } as const;
@@ -59,6 +61,7 @@ const SECTIONS = [
   METRICS,
   HARNESSES,
   PERSONAS,
+  TRIGGERS,
   SECRETS,
   CONNECTIONS,
   CONNECTORS,
@@ -69,6 +72,7 @@ const MORE_SECTIONS = [
   METRICS,
   PREBUILDS,
   PERSONAS,
+  TRIGGERS,
   HARNESSES,
   SECRETS,
   CONNECTIONS,

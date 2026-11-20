@@ -144,7 +144,7 @@ const useStart = <B,>(tenantId: string, send: (body: B) => Promise<StartedSessio
 
 const SessionsLink = ({ tenantId, label }: { tenantId: string; label: string }) => (
   <Button size="sm" variant="outline" asChild>
-    <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [] }}>
+    <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [], trigger: [] }}>
       {label}
     </Link>
   </Button>
@@ -196,7 +196,7 @@ const SubmitRow = ({ tenantId, pending, ready }: { tenantId: string; pending: bo
     </div>
     {!pending && (
       <Button variant="outline" asChild>
-        <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [] }}>
+        <Link to="/t/$tenantId/sessions" params={{ tenantId }} search={{ state: [], hostId: [], trigger: [] }}>
           Cancel
         </Link>
       </Button>
@@ -466,7 +466,7 @@ export const StartSessionScreen = () => {
     <Link
       to="/t/$tenantId/sessions"
       params={{ tenantId }}
-      search={{ state: [], hostId: [] }}
+      search={{ state: [], hostId: [], trigger: [] }}
       className="hover:underline"
     >
       Sessions /

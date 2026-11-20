@@ -26,6 +26,7 @@ import { metricFakes } from "./metric-fixtures";
 import { openRouterFakes } from "./openrouter-fixtures";
 import { templateFakes } from "./prebuild-template-fixtures";
 import { sessionFakes } from "./session-fixtures";
+import { triggerFakes } from "./trigger-fixtures";
 
 const NOW = Date.parse("2026-11-15T14:02:11+01:00");
 export const TENANT_ID = "tnt_placeholder01";
@@ -155,6 +156,8 @@ const session = (
   personaId,
   repository,
   origin: { kind: "Prompt" },
+  startedBy: { kind: "Person", principalId: "prn_placeholder01" },
+  tags: [],
   harness,
   boxRetention: "Auto",
   harnessVersion: "2.1.4",
@@ -193,15 +196,18 @@ export const SESSIONS: Session[] = [
     "prs_placeholder02",
     NOW - 3 * MINUTE,
   ),
-  session(
-    "ses_3",
-    "hst_placeholder02",
-    "Idle",
-    "Codex",
-    "https://github.com/owner/docs-site",
-    "prs_placeholder03",
-    NOW - 22 * MINUTE,
-  ),
+  {
+    ...session(
+      "ses_3",
+      "hst_placeholder02",
+      "Idle",
+      "Codex",
+      "https://github.com/owner/docs-site",
+      "prs_placeholder03",
+      NOW - 22 * MINUTE,
+    ),
+    startedBy: { kind: "Trigger", triggerId: "trg_placeholder01", deliveryId: "d81f2c5e-4c10-11f1-8a2b-placeholder" },
+  },
   session("ses_4", "hst_placeholder01", "Idle", "ClaudeCode", undefined, undefined, NOW - 67 * MINUTE),
   session(
     "ses_5",
@@ -212,15 +218,18 @@ export const SESSIONS: Session[] = [
     "prs_placeholder02",
     NOW,
   ),
-  session(
-    "ses_6",
-    "hst_placeholder03",
-    "Stopped",
-    "Codex",
-    undefined,
-    "prs_placeholder03",
-    Date.parse("2026-11-14T18:20:00+01:00"),
-  ),
+  {
+    ...session(
+      "ses_6",
+      "hst_placeholder03",
+      "Stopped",
+      "Codex",
+      undefined,
+      "prs_placeholder03",
+      Date.parse("2026-11-14T18:20:00+01:00"),
+    ),
+    startedBy: { kind: "Turn", sessionId: "ses_1", turnId: "trn_ses_1" },
+  },
 ];
 
 export const never = <T,>(): Promise<T> => new Promise<T>(() => undefined);
@@ -506,6 +515,7 @@ const persona = (
   secretSetId,
   connectorIds: [],
   boxRetention: "Auto",
+  tumpelMcp: false,
   files,
   createdAt: NOW,
   updatedAt: NOW,
@@ -663,6 +673,7 @@ export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   ...openRouterFakes(),
   ...metricFakes(),
   ...templateFakes(),
+  ...triggerFakes(),
   getPushKey: async () => ({ applicationServerKey: "BPlaceholderApplicationServerKey" }),
   listPushSubscriptions: async () => [],
   createPushSubscription: async (created) => ({

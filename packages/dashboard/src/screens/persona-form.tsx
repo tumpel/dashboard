@@ -328,7 +328,7 @@ const PersonaEditor = ({
       setUpload(null);
       const fields = { name: name.trim(), secretSetId, connectorIds, files };
       if (persona === null) return api.createPersona({ ...fields, harness });
-      return api.updatePersona(persona.personaId, fields);
+      return api.updatePersona(persona.personaId, { ...fields, tumpelMcp: persona.tumpelMcp });
     },
     onSettled: () => setUpload(null),
     onSuccess: (saved) => {

@@ -16,6 +16,8 @@ import type {
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
+  EventPageSchema,
+  EventQuerySchema,
   GitHubActionsConnectionLinkSchema,
   GitHubActionsConnectionStartSchema,
   GitHubConnectionSchema,
@@ -69,6 +71,7 @@ import type {
   SecretSetCreateSchema,
   SecretSetSchema,
   SecretSetUpdateSchema,
+  SessionListQuerySchema,
   SessionSchema,
   SessionStartFromIssueSchema,
   SessionStartSchema,
@@ -84,6 +87,12 @@ import type {
   TenantEventSchema,
   TranscriptPageSchema,
   TranscriptQuerySchema,
+  TriggerCreateSchema,
+  TriggerPatchSchema,
+  TriggerSchema,
+  TriggerStartRefusedEventSchema,
+  TriggerTestResultSchema,
+  TriggerTestSchema,
   TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
@@ -91,6 +100,17 @@ import type { z } from "zod";
 
 export type Host = z.infer<typeof HostSchema>;
 export type TenantEvent = z.infer<typeof TenantEventSchema>;
+export type EventQuery = z.infer<typeof EventQuerySchema>;
+export type EventPage = z.infer<typeof EventPageSchema>;
+export type Trigger = z.infer<typeof TriggerSchema>;
+export type TriggerCreate = z.infer<typeof TriggerCreateSchema>;
+export type TriggerPatch = z.infer<typeof TriggerPatchSchema>;
+export type TriggerSource = Trigger["source"];
+export type TriggerEvent = TriggerSource["event"];
+export type TriggerCondition = TriggerSource["conditions"][number];
+export type TriggerTest = z.infer<typeof TriggerTestSchema>;
+export type TriggerTestResult = z.infer<typeof TriggerTestResultSchema>;
+export type TriggerStartRefused = z.infer<typeof TriggerStartRefusedEventSchema>;
 
 export interface EventListener {
   onEvent(event: TenantEvent): void;
@@ -98,6 +118,7 @@ export interface EventListener {
 }
 export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
 export type Session = z.infer<typeof SessionSchema>;
+export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
 export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
@@ -245,7 +266,7 @@ export interface TumpelApi {
   getHost(hostId: string): Promise<Host>;
   revokeHost(hostId: string): Promise<Host>;
   mintEnrolmentToken(expiresInSeconds: number): Promise<MintedEnrolmentToken>;
-  listSessions(): Promise<Session[]>;
+  listSessions(query: SessionListQuery): Promise<Session[]>;
   getSession(sessionId: string): Promise<Session>;
   startSession(body: SessionStart): Promise<StartedSession>;
   startSessionFromIssue(body: SessionStartFromIssue): Promise<StartedSessionFromIssue>;
@@ -335,7 +356,14 @@ export interface TumpelApi {
   setConnectorToken(connector: Connector, value: string): Promise<Connector>;
   clearConnectorCredential(connector: Connector): Promise<Connector>;
   authorizeConnector(connector: Connector): Promise<ConnectorAuthorization>;
+  listEvents(query: EventQuery): Promise<EventPage>;
   followEvents(listener: EventListener): () => void;
+  listTriggers(): Promise<Trigger[]>;
+  getTrigger(triggerId: string): Promise<Trigger>;
+  createTrigger(trigger: TriggerCreate): Promise<Trigger>;
+  updateTrigger(triggerId: string, patch: TriggerPatch): Promise<Trigger>;
+  deleteTrigger(triggerId: string): Promise<void>;
+  testTrigger(test: TriggerTest): Promise<TriggerTestResult>;
 }
 
 export interface SignedInTenant {

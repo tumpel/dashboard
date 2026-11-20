@@ -29,6 +29,7 @@ import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from 
 import { useTenantApi } from "./context";
 import { turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
+import { isRefusal, readRefusedStarts } from "./triggers";
 
 export const keys = {
   whoami: (tenantId: string) => [tenantId, "whoami"] as const,
@@ -36,6 +37,7 @@ export const keys = {
   host: (tenantId: string, hostId: string) => [tenantId, "hosts", hostId] as const,
   hostUsage: (tenantId: string) => [tenantId, "hostUsage"] as const,
   sessions: (tenantId: string) => [tenantId, "sessions"] as const,
+  triggerSessions: (tenantId: string, triggerId: string) => [tenantId, "triggerSessions", triggerId] as const,
   harnessCatalog: (tenantId: string) => [tenantId, "harnessCatalog"] as const,
   harnessPins: (tenantId: string) => [tenantId, "harnessPins"] as const,
   release: (tenantId: string) => [tenantId, "release"] as const,
@@ -154,9 +156,12 @@ export const useHostUsage = (tenantId: string) => {
   return useQuery({ queryKey: keys.hostUsage(tenantId), queryFn: () => api.listHostUsage() });
 };
 
-export const useSessions = (tenantId: string) => {
+export const useSessions = (tenantId: string, triggerId: string | null = null) => {
   const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: keys.sessions(tenantId), queryFn: () => api.listSessions() });
+  return useQuery({
+    queryKey: triggerId === null ? keys.sessions(tenantId) : keys.triggerSessions(tenantId, triggerId),
+    queryFn: () => api.listSessions(triggerId === null ? {} : { triggerId }),
+  });
 };
 
 export const useSession = (tenantId: string, sessionId: string) => {
@@ -409,6 +414,34 @@ export const useTemplatePullRequest = (tenantId: string, repository: string) => 
   });
 };
 
+export const triggerKeys = {
+  list: (tenantId: string) => [tenantId, "triggers"] as const,
+  trigger: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId] as const,
+  refused: (tenantId: string, triggerId: string | null) => [tenantId, "refusedStarts", triggerId ?? "all"] as const,
+};
+
+export const useTriggers = (tenantId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({ queryKey: triggerKeys.list(tenantId), queryFn: () => api.listTriggers() });
+};
+
+export const useTrigger = (tenantId: string, triggerId: string) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: triggerKeys.trigger(tenantId, triggerId),
+    queryFn: () => api.getTrigger(triggerId),
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useRefusedStarts = (tenantId: string, triggerId: string | null) => {
+  const api = useTenantApi(tenantId);
+  return useQuery({
+    queryKey: triggerKeys.refused(tenantId, triggerId),
+    queryFn: () => readRefusedStarts(api.listEvents, triggerId),
+  });
+};
+
 export const memberKeys = {
   tenants: (tenantId: string) => [tenantId, "tenants"] as const,
   members: (tenantId: string) => [tenantId, "members"] as const,
@@ -531,8 +564,13 @@ export const useSessionPoints = (
 };
 
 const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
+  if (isRefusal(event)) return [{ queryKey: [tenantId, "refusedStarts"] }];
   if ("sessionId" in event) {
-    return [{ queryKey: keys.sessions(tenantId), exact: true }, { queryKey: keys.session(tenantId, event.sessionId) }];
+    return [
+      { queryKey: keys.sessions(tenantId), exact: true },
+      { queryKey: [tenantId, "triggerSessions"] },
+      { queryKey: keys.session(tenantId, event.sessionId) },
+    ];
   }
   if ("hostId" in event) return [{ queryKey: keys.hosts(tenantId) }, { queryKey: keys.hostUsage(tenantId) }];
   return [{ queryKey: prebuildKeys.all(tenantId) }];
