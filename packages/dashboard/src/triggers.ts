@@ -93,20 +93,21 @@ export const filterSummary = (source: TriggerSource): string =>
 
 export const isRefusal = (event: TenantEvent): event is TriggerStartRefused => event.event === "TriggerStartRefused";
 
-const cursorExpired = (error: unknown): boolean =>
-  error instanceof ApiFailure &&
-  error.failure.kind === "Problem" &&
-  error.failure.problem.code === "EventCursorExpired";
+const OLDEST_KEPT = /older than the oldest event kept, (\d+);/;
 
-export interface RefusedStarts {
-  refused: TriggerStartRefused[];
-  expired: boolean;
-}
+const cursorKeptAfter = (error: unknown, afterEventId: number): number => {
+  if (!(error instanceof ApiFailure) || error.failure.kind !== "Problem") throw error;
+  if (error.failure.problem.code !== "EventCursorExpired") throw error;
+  const match = OLDEST_KEPT.exec(error.failure.problem.detail);
+  const kept = match === null ? Number.NaN : Number(match[1]) - 1;
+  if (!(kept > afterEventId)) throw error;
+  return kept;
+};
 
 export const readRefusedStarts = async (
   listEvents: TumpelApi["listEvents"],
   triggerId: string | null,
-): Promise<RefusedStarts> => {
+): Promise<TriggerStartRefused[]> => {
   const refused: TriggerStartRefused[] = [];
   let afterEventId = 0;
   for (;;) {
@@ -115,18 +116,16 @@ export const readRefusedStarts = async (
       event: ["TriggerStartRefused"],
       ...(triggerId === null ? {} : { triggerId }),
       waitSeconds: 0,
-    }).catch((error: unknown) => {
-      if (cursorExpired(error)) return null;
-      throw error;
-    });
-    if (page === null) return { refused, expired: true };
-    if (page.events.length === 0) return { refused, expired: false };
+    }).catch((error: unknown) => cursorKeptAfter(error, afterEventId));
+    if (typeof page === "number") {
+      afterEventId = page;
+      continue;
+    }
+    if (page.events.length === 0) return refused;
     refused.push(...page.events.filter(isRefusal));
     afterEventId = page.lastEventId;
   }
 };
-
-export const EXPIRED_NOTE = "Some refused starts are not shown: the event log has dropped its oldest events.";
 
 export type Run<S = Session> =
   | { kind: "Session"; at: number; deliveryId: string; session: S }

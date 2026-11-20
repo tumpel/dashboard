@@ -40,7 +40,7 @@ test("runs merge the trigger's sessions and refusals, newest first, and skip eve
   );
 });
 
-test("a refused-start read that meets an expired cursor keeps what it read and says the log moved on", async () => {
+test("on an aged log the refused-start read starts from the oldest event kept", async () => {
   const refused: TriggerStartRefused = {
     event: "TriggerStartRefused",
     eventId: 57,
@@ -51,14 +51,22 @@ test("a refused-start read that meets an expired cursor keeps what it read and s
     refusal: { code: "NoHostOnline", detail: "No host is online." },
   };
   const listEvents = async (query: EventQuery) => {
-    if (query.afterEventId === 0) return { events: [refused], lastEventId: 57 };
-    throw new ApiFailure({
-      kind: "Problem",
-      status: 410,
-      problem: { code: "EventCursorExpired", title: "Event cursor expired", detail: "gone", fix: "read on" },
-    });
+    if (query.afterEventId === 0) {
+      throw new ApiFailure({
+        kind: "Problem",
+        status: 410,
+        problem: {
+          code: "EventCursorExpired",
+          title: "Event cursor expired",
+          detail: "event 0 is older than the oldest event kept, 50; the log keeps 7 days",
+          fix: "Read the current state of what you follow, then read events again without afterEventId",
+        },
+      });
+    }
+    if (query.afterEventId === 49) return { events: [refused], lastEventId: 57 };
+    return { events: [], lastEventId: 57 };
   };
-  assert.deepEqual(await readRefusedStarts(listEvents, "trg_1"), { refused: [refused], expired: true });
+  assert.deepEqual(await readRefusedStarts(listEvents, "trg_1"), [refused]);
 });
 
 test("a pasted payload must be a JSON object", () => {

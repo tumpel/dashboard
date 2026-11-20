@@ -9,7 +9,7 @@ import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime, personaName } from "../fleet";
 import { useOwner, usePersonas, useRefusedStarts, useSessions, useTriggers } from "../queries";
-import { EXPIRED_NOTE, filterSummary, runsOf } from "../triggers";
+import { filterSummary, runsOf } from "../triggers";
 
 const LastRun = ({
   triggerId,
@@ -37,7 +37,7 @@ export const TriggersListScreen = () => {
   const personas = usePersonas(tenantId);
   const sessions = useSessions(tenantId);
   const refused = useRefusedStarts(tenantId, null);
-  const refusalsOf = Map.groupBy(refused.data?.refused ?? [], (event) => event.triggerId);
+  const refusalsOf = Map.groupBy(refused.data ?? [], (event) => event.triggerId);
   const create = owner ? (
     <Button asChild>
       <Link to="/t/$tenantId/triggers/new" params={{ tenantId }}>
@@ -66,7 +66,6 @@ export const TriggersListScreen = () => {
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}
         {refused.isError && <ProblemBlock error={refused.error} onRetry={() => void refused.refetch()} />}
-        {refused.data?.expired && <p className="text-sm text-muted-foreground">{EXPIRED_NOTE}</p>}
         <Table>
           <TableHeader>
             <TableRow>
