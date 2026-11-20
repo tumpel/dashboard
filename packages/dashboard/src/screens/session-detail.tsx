@@ -725,6 +725,9 @@ export const SessionDetailScreen = () => {
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
       )}
+      {triggers.isError && (
+        <ProblemBlock className="mb-4" error={triggers.error} onRetry={() => void triggers.refetch()} />
+      )}
       <SessionTabs
         tab={tab}
         onPick={(next) =>

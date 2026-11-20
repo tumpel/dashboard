@@ -17,7 +17,7 @@ export const TriggerScreen = () => {
   const owner = useOwner(tenantId);
   const trigger = useTrigger(tenantId, triggerId);
   const personas = usePersonas(tenantId);
-  const sessions = useSessions(tenantId);
+  const sessions = useSessions(tenantId, triggerId);
   const refused = useRefusedStarts(tenantId, triggerId);
   const crumb = (
     <Link to="/t/$tenantId/triggers" params={{ tenantId }} className="hover:underline">
@@ -116,6 +116,9 @@ export const TriggerScreen = () => {
         <span className="font-mono">{data.source.event}</span> · {filterSummary(data.source)} ·{" "}
         {personaName(personas.data ?? [], data.personaId)} · {data.model}
       </p>
+      {personas.isError && (
+        <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />
+      )}
       <h2 className="mb-2 font-semibold">Runs</h2>
       <div className="grid gap-3">
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}

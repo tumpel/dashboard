@@ -23,15 +23,13 @@ import {
   type PrebuildPreview,
   type PrebuildTemplateVersion,
   type TenantEvent,
-  type TriggerStartRefused,
-  type TumpelApi,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from "./connectors";
 import { useTenantApi } from "./context";
 import { turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
-import { isRefusal } from "./triggers";
+import { isRefusal, readRefusedStarts } from "./triggers";
 
 export const keys = {
   whoami: (tenantId: string) => [tenantId, "whoami"] as const,
@@ -39,6 +37,7 @@ export const keys = {
   host: (tenantId: string, hostId: string) => [tenantId, "hosts", hostId] as const,
   hostUsage: (tenantId: string) => [tenantId, "hostUsage"] as const,
   sessions: (tenantId: string) => [tenantId, "sessions"] as const,
+  triggerSessions: (tenantId: string, triggerId: string) => [tenantId, "triggerSessions", triggerId] as const,
   harnessCatalog: (tenantId: string) => [tenantId, "harnessCatalog"] as const,
   harnessPins: (tenantId: string) => [tenantId, "harnessPins"] as const,
   release: (tenantId: string) => [tenantId, "release"] as const,
@@ -157,9 +156,12 @@ export const useHostUsage = (tenantId: string) => {
   return useQuery({ queryKey: keys.hostUsage(tenantId), queryFn: () => api.listHostUsage() });
 };
 
-export const useSessions = (tenantId: string) => {
+export const useSessions = (tenantId: string, triggerId: string | null = null) => {
   const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: keys.sessions(tenantId), queryFn: () => api.listSessions() });
+  return useQuery({
+    queryKey: triggerId === null ? keys.sessions(tenantId) : keys.triggerSessions(tenantId, triggerId),
+    queryFn: () => api.listSessions(triggerId === null ? {} : { triggerId }),
+  });
 };
 
 export const useSession = (tenantId: string, sessionId: string) => {
@@ -432,22 +434,11 @@ export const useTrigger = (tenantId: string, triggerId: string) => {
   });
 };
 
-const readRefusedStarts = async (api: TumpelApi, triggerId: string): Promise<TriggerStartRefused[]> => {
-  const refused: TriggerStartRefused[] = [];
-  let afterEventId = 0;
-  for (;;) {
-    const page = await api.listEvents({ afterEventId, event: ["TriggerStartRefused"], triggerId, waitSeconds: 0 });
-    if (page.events.length === 0) return refused;
-    refused.push(...page.events.filter(isRefusal));
-    afterEventId = page.lastEventId;
-  }
-};
-
 export const useRefusedStarts = (tenantId: string, triggerId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({
     queryKey: triggerKeys.refused(tenantId, triggerId),
-    queryFn: () => readRefusedStarts(api, triggerId),
+    queryFn: () => readRefusedStarts(api.listEvents, triggerId),
   });
 };
 
@@ -456,7 +447,7 @@ export const useRefusedStartsOf = (tenantId: string, triggerIds: readonly string
   return useQueries({
     queries: triggerIds.map((triggerId) => ({
       queryKey: triggerKeys.refused(tenantId, triggerId),
-      queryFn: () => readRefusedStarts(api, triggerId),
+      queryFn: () => readRefusedStarts(api.listEvents, triggerId),
     })),
   });
 };
@@ -585,7 +576,11 @@ export const useSessionPoints = (
 const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
   if (isRefusal(event)) return [{ queryKey: triggerKeys.refused(tenantId, event.triggerId) }];
   if ("sessionId" in event) {
-    return [{ queryKey: keys.sessions(tenantId), exact: true }, { queryKey: keys.session(tenantId, event.sessionId) }];
+    return [
+      { queryKey: keys.sessions(tenantId), exact: true },
+      { queryKey: [tenantId, "triggerSessions"] },
+      { queryKey: keys.session(tenantId, event.sessionId) },
+    ];
   }
   if ("hostId" in event) return [{ queryKey: keys.hosts(tenantId) }, { queryKey: keys.hostUsage(tenantId) }];
   return [{ queryKey: prebuildKeys.all(tenantId) }];

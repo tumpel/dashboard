@@ -213,7 +213,8 @@ export const createHttpApi = (
         MintedEnrolmentTokenSchema,
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
-    listSessions: () => settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions")),
+    listSessions: (query) =>
+      settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions", { params: { query } })),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",

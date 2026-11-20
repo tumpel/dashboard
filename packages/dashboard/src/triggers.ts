@@ -1,12 +1,14 @@
-import { GitHubTriggerEventSchema } from "@tumpel/schemas";
-import type {
-  Session,
-  TenantEvent,
-  TriggerCondition,
-  TriggerEvent,
-  TriggerSource,
-  TriggerStartRefused,
-} from "./api/port";
+import { DraftTriggerTestSchema, GitHubTriggerEventSchema } from "@tumpel/schemas";
+import {
+  ApiFailure,
+  type Session,
+  type TenantEvent,
+  type TriggerCondition,
+  type TriggerEvent,
+  type TriggerSource,
+  type TriggerStartRefused,
+  type TumpelApi,
+} from "./api/port.ts";
 
 export const TRIGGER_EVENTS = GitHubTriggerEventSchema.options;
 
@@ -91,23 +93,61 @@ export const filterSummary = (source: TriggerSource): string =>
 
 export const isRefusal = (event: TenantEvent): event is TriggerStartRefused => event.event === "TriggerStartRefused";
 
-export type Run =
-  | { kind: "Session"; at: number; deliveryId: string; session: Session }
+const cursorExpired = (error: unknown): boolean =>
+  error instanceof ApiFailure &&
+  error.failure.kind === "Problem" &&
+  error.failure.problem.code === "EventCursorExpired";
+
+export const readRefusedStarts = async (
+  listEvents: TumpelApi["listEvents"],
+  triggerId: string,
+): Promise<TriggerStartRefused[]> => {
+  const read = (afterEventId?: number) =>
+    listEvents({ afterEventId, event: ["TriggerStartRefused"], triggerId, waitSeconds: 0 });
+  const kept = (afterEventId: number): Promise<boolean> =>
+    read(afterEventId)
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (cursorExpired(error)) return false;
+        throw error;
+      });
+  let gone = -1;
+  let from = 0;
+  if (!(await kept(0))) {
+    gone = 0;
+    from = (await read()).lastEventId;
+  }
+  while (from - gone > 1) {
+    const middle = Math.floor((gone + from) / 2);
+    if (await kept(middle)) from = middle;
+    else gone = middle;
+  }
+  const refused: TriggerStartRefused[] = [];
+  for (;;) {
+    const page = await read(from);
+    if (page.events.length === 0) return refused;
+    refused.push(...page.events.filter(isRefusal));
+    from = page.lastEventId;
+  }
+};
+
+export type Run<S = Session> =
+  | { kind: "Session"; at: number; deliveryId: string; session: S }
   | { kind: "Refused"; at: number; deliveryId: string; refused: TriggerStartRefused };
 
-export const runsOf = (
+export const runsOf = <S extends Pick<Session, "createdAt" | "startedBy">>(
   triggerId: string,
-  sessions: readonly Session[],
+  sessions: readonly S[],
   refusals: readonly TriggerStartRefused[],
-): Run[] => {
-  const started = sessions.flatMap((session): Run[] =>
+): Run<S>[] => {
+  const started = sessions.flatMap((session): Run<S>[] =>
     session.startedBy.kind === "Trigger" && session.startedBy.triggerId === triggerId
       ? [{ kind: "Session", at: session.createdAt, deliveryId: session.startedBy.deliveryId, session }]
       : [],
   );
   const refused = refusals
     .filter((event) => event.triggerId === triggerId)
-    .map((event): Run => ({ kind: "Refused", at: event.createdAt, deliveryId: event.deliveryId, refused: event }));
+    .map((event): Run<S> => ({ kind: "Refused", at: event.createdAt, deliveryId: event.deliveryId, refused: event }));
   return [...started, ...refused].sort((left, right) => right.at - left.at);
 };
 
@@ -116,9 +156,6 @@ export const shortDelivery = (deliveryId: string): string =>
 
 export type ParsedPayload = { ok: true; payload: Record<string, unknown> } | { ok: false; reason: string };
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 export const parsePayload = (text: string): ParsedPayload => {
   let value: unknown;
   try {
@@ -126,6 +163,7 @@ export const parsePayload = (text: string): ParsedPayload => {
   } catch (error) {
     return { ok: false, reason: `The payload is not JSON: ${error instanceof Error ? error.message : String(error)}.` };
   }
-  if (!isObject(value)) return { ok: false, reason: "The payload must be a JSON object, as GitHub sends it." };
-  return { ok: true, payload: value };
+  const payload = DraftTriggerTestSchema.shape.payload.safeParse(value);
+  if (!payload.success) return { ok: false, reason: "The payload must be a JSON object, as GitHub sends it." };
+  return { ok: true, payload: payload.data };
 };

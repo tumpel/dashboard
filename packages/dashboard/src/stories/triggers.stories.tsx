@@ -18,7 +18,7 @@ export const Loading: Story = {
   args: { path: tenantPath("/triggers"), api: fakeApi({ listTriggers: never }) },
 };
 
-export const RefusalsExpired: Story = {
+export const RefusalsFailed: Story = {
   args: {
     path: tenantPath("/triggers"),
     api: fakeApi({

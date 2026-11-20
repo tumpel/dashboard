@@ -71,6 +71,7 @@ import type {
   SecretSetCreateSchema,
   SecretSetSchema,
   SecretSetUpdateSchema,
+  SessionListQuerySchema,
   SessionSchema,
   SessionStartFromIssueSchema,
   SessionStartSchema,
@@ -117,6 +118,7 @@ export interface EventListener {
 }
 export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
 export type Session = z.infer<typeof SessionSchema>;
+export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
 export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
 export type Problem = z.infer<typeof ProblemSchema>;
@@ -264,7 +266,7 @@ export interface TumpelApi {
   getHost(hostId: string): Promise<Host>;
   revokeHost(hostId: string): Promise<Host>;
   mintEnrolmentToken(expiresInSeconds: number): Promise<MintedEnrolmentToken>;
-  listSessions(): Promise<Session[]>;
+  listSessions(query: SessionListQuery): Promise<Session[]>;
   getSession(sessionId: string): Promise<Session>;
   startSession(body: SessionStart): Promise<StartedSession>;
   startSessionFromIssue(body: SessionStartFromIssue): Promise<StartedSessionFromIssue>;
