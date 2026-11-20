@@ -57,9 +57,9 @@ const freshKey = (): number => {
 const freshValue = (text: string): Value => ({ key: freshKey(), text });
 
 const rowsOf = (trigger: Trigger | null): Row[] =>
-  (trigger?.conditions ?? []).map((condition) => ({
+  (trigger?.source.conditions ?? []).map((condition) => ({
     key: freshKey(),
-    custom: presetOf(trigger?.event ?? "pull_request", condition.field) === undefined,
+    custom: presetOf(trigger?.source.event ?? "pull_request", condition.field) === undefined,
     field: condition.field,
     values: condition.values.map(freshValue),
   }));
@@ -242,7 +242,7 @@ const TestPanel = ({ tenantId, draft }: { tenantId: string; draft: TriggerCreate
         </Button>
       </div>
       {test.isError && <ProblemBlock error={test.error} />}
-      {test.isSuccess && <TestResult event={draft.event} result={test.data} />}
+      {test.isSuccess && <TestResult event={draft.source.event} result={test.data} />}
     </section>
   );
 };
@@ -299,7 +299,7 @@ const TriggerEditor = ({
   const ids = { name: useId(), source: useId(), event: useId(), persona: useId(), model: useId(), prompt: useId() };
   const prompt = useRef<HTMLTextAreaElement>(null);
   const [name, setName] = useState(trigger?.name ?? "");
-  const [event, setEvent] = useState<TriggerEvent>(trigger?.event ?? "pull_request");
+  const [event, setEvent] = useState<TriggerEvent>(trigger?.source.event ?? "pull_request");
   const [rows, setRows] = useState<Row[]>(() => rowsOf(trigger));
   const [personaId, setPersonaId] = useState(trigger?.personaId ?? personas[0]?.personaId ?? "");
   const [model, setModel] = useState(trigger?.model ?? "");
@@ -309,19 +309,21 @@ const TriggerEditor = ({
 
   const draft: TriggerCreate = {
     name: name.trim(),
-    source: "GitHub",
-    event,
-    conditions: rows.map((row) => ({
-      field: row.field.trim(),
-      values: row.values.map((value) => value.text.trim()).filter((value) => value !== ""),
-    })),
+    source: {
+      kind: "GitHub",
+      event,
+      conditions: rows.map((row) => ({
+        field: row.field.trim(),
+        values: row.values.map((value) => value.text.trim()).filter((value) => value !== ""),
+      })),
+    },
     personaId,
     model: model.trim(),
     prompt: promptText,
   };
   const missing = [
     draft.name === "" ? "a name" : null,
-    draft.conditions.some((condition) => condition.field === "" || condition.values.length === 0)
+    draft.source.conditions.some((condition) => condition.field === "" || condition.values.length === 0)
       ? "a field and a value in every condition"
       : null,
     personaId === "" ? "a persona" : null,

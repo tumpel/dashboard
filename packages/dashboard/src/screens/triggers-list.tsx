@@ -8,7 +8,7 @@ import { TableSkeleton } from "../components/table-skeleton";
 import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime, personaName } from "../fleet";
-import { useOwner, usePersonas, useRefusedStarts, useSessions, useTriggers } from "../queries";
+import { useOwner, usePersonas, useRefusedStartsOf, useSessions, useTriggers } from "../queries";
 import { filterSummary, runsOf } from "../triggers";
 
 const LastRun = ({
@@ -36,7 +36,9 @@ export const TriggersListScreen = () => {
   const triggers = useTriggers(tenantId);
   const personas = usePersonas(tenantId);
   const sessions = useSessions(tenantId);
-  const refused = useRefusedStarts(tenantId);
+  const refused = useRefusedStartsOf(tenantId, triggers.data?.map((trigger) => trigger.triggerId) ?? []);
+  const refusals = refused.flatMap((query) => query.data ?? []);
+  const refusedFailure = refused.find((query) => query.isError);
   const create = owner ? (
     <Button asChild>
       <Link to="/t/$tenantId/triggers/new" params={{ tenantId }}>
@@ -64,7 +66,9 @@ export const TriggersListScreen = () => {
       <div className="grid gap-3">
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}
-        {refused.isError && <ProblemBlock error={refused.error} onRetry={() => void refused.refetch()} />}
+        {refusedFailure !== undefined && (
+          <ProblemBlock error={refusedFailure.error} onRetry={() => void refusedFailure.refetch()} />
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -87,11 +91,11 @@ export const TriggersListScreen = () => {
                     {trigger.name}
                   </Link>
                 </TableCell>
-                <TableCell className="font-mono text-xs">{trigger.event}</TableCell>
-                <TableCell className="max-w-80 whitespace-normal">{filterSummary(trigger)}</TableCell>
+                <TableCell className="font-mono text-xs">{trigger.source.event}</TableCell>
+                <TableCell className="max-w-80 whitespace-normal">{filterSummary(trigger.source)}</TableCell>
                 <TableCell>{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
                 <TableCell>
-                  <LastRun triggerId={trigger.triggerId} sessions={sessions.data ?? []} refusals={refused.data ?? []} />
+                  <LastRun triggerId={trigger.triggerId} sessions={sessions.data ?? []} refusals={refusals} />
                 </TableCell>
               </TableRow>
             ))}

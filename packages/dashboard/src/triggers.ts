@@ -1,7 +1,14 @@
-import { TriggerEventSchema } from "@tumpel/schemas";
-import type { Session, TenantEvent, Trigger, TriggerCondition, TriggerEvent, TriggerStartRefused } from "./api/port";
+import { GitHubTriggerEventSchema } from "@tumpel/schemas";
+import type {
+  Session,
+  TenantEvent,
+  TriggerCondition,
+  TriggerEvent,
+  TriggerSource,
+  TriggerStartRefused,
+} from "./api/port";
 
-export const TRIGGER_EVENTS = TriggerEventSchema.options;
+export const TRIGGER_EVENTS = GitHubTriggerEventSchema.options;
 
 export interface Preset {
   label: string;
@@ -77,10 +84,10 @@ const conditionText = (event: TriggerEvent, condition: TriggerCondition): string
   return `${conditionLabel(event, condition.field)} ${values}`;
 };
 
-export const filterSummary = (trigger: Pick<Trigger, "event" | "conditions">): string =>
-  trigger.conditions.length === 0
-    ? `Every ${trigger.event} event`
-    : trigger.conditions.map((condition) => conditionText(trigger.event, condition)).join(" · ");
+export const filterSummary = (source: TriggerSource): string =>
+  source.conditions.length === 0
+    ? `Every ${source.event} event`
+    : source.conditions.map((condition) => conditionText(source.event, condition)).join(" · ");
 
 export const isRefusal = (event: TenantEvent): event is TriggerStartRefused => event.event === "TriggerStartRefused";
 

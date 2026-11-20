@@ -1,4 +1,4 @@
-import type { Trigger, TriggerStartRefused, TriggerTestResult, TumpelApi } from "../api/port";
+import type { Trigger, TriggerSource, TriggerStartRefused, TriggerTestResult, TumpelApi } from "../api/port";
 
 export type TriggerOperation =
   | "listTriggers"
@@ -16,17 +16,15 @@ const NOW = Date.parse("2026-11-15T14:02:11+01:00");
 const trigger = (
   triggerId: string,
   name: string,
-  event: Trigger["event"],
-  conditions: Trigger["conditions"],
+  event: TriggerSource["event"],
+  conditions: TriggerSource["conditions"],
   personaId: string,
   prompt: string,
 ): Trigger => ({
   triggerId,
   tenantId: TENANT_ID,
   name,
-  source: "GitHub",
-  event,
-  conditions,
+  source: { kind: "GitHub", event, conditions },
   personaId,
   model: "claude-opus-5-5",
   prompt,
@@ -126,7 +124,7 @@ export const triggerFakes = (): Pick<TumpelApi, TriggerOperation> => ({
   deleteTrigger: async () => undefined,
   testTrigger: async () => TEST_RESULT,
   listEvents: async (query) => ({
-    events: (query.afterEventId ?? 0) < 41 ? REFUSALS : [],
+    events: (query.afterEventId ?? 0) < 41 ? REFUSALS.filter((event) => event.triggerId === query.triggerId) : [],
     lastEventId: 41,
   }),
 });

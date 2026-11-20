@@ -24,6 +24,7 @@ import {
   type PrebuildTemplateVersion,
   type TenantEvent,
   type TriggerStartRefused,
+  type TumpelApi,
 } from "./api/port";
 import { nextSetupReadIn } from "./claude-setup-reads";
 import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from "./connectors";
@@ -414,7 +415,7 @@ export const useTemplatePullRequest = (tenantId: string, repository: string) => 
 export const triggerKeys = {
   list: (tenantId: string) => [tenantId, "triggers"] as const,
   trigger: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId] as const,
-  refused: (tenantId: string) => [tenantId, "triggerStartRefusals"] as const,
+  refused: (tenantId: string, triggerId: string) => [tenantId, "triggers", triggerId, "refusedStarts"] as const,
 };
 
 export const useTriggers = (tenantId: string) => {
@@ -431,20 +432,32 @@ export const useTrigger = (tenantId: string, triggerId: string) => {
   });
 };
 
-export const useRefusedStarts = (tenantId: string) => {
+const readRefusedStarts = async (api: TumpelApi, triggerId: string): Promise<TriggerStartRefused[]> => {
+  const refused: TriggerStartRefused[] = [];
+  let afterEventId = 0;
+  for (;;) {
+    const page = await api.listEvents({ afterEventId, event: ["TriggerStartRefused"], triggerId, waitSeconds: 0 });
+    if (page.events.length === 0) return refused;
+    refused.push(...page.events.filter(isRefusal));
+    afterEventId = page.lastEventId;
+  }
+};
+
+export const useRefusedStarts = (tenantId: string, triggerId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({
-    queryKey: triggerKeys.refused(tenantId),
-    queryFn: async () => {
-      const refused: TriggerStartRefused[] = [];
-      let afterEventId = 0;
-      for (;;) {
-        const page = await api.listEvents({ afterEventId, event: ["TriggerStartRefused"], waitSeconds: 0 });
-        if (page.events.length === 0) return refused;
-        refused.push(...page.events.filter(isRefusal));
-        afterEventId = page.lastEventId;
-      }
-    },
+    queryKey: triggerKeys.refused(tenantId, triggerId),
+    queryFn: () => readRefusedStarts(api, triggerId),
+  });
+};
+
+export const useRefusedStartsOf = (tenantId: string, triggerIds: readonly string[]) => {
+  const api = useTenantApi(tenantId);
+  return useQueries({
+    queries: triggerIds.map((triggerId) => ({
+      queryKey: triggerKeys.refused(tenantId, triggerId),
+      queryFn: () => readRefusedStarts(api, triggerId),
+    })),
   });
 };
 
@@ -570,7 +583,7 @@ export const useSessionPoints = (
 };
 
 const staleQueriesOf = (tenantId: string, event: TenantEvent): InvalidateQueryFilters[] => {
-  if (isRefusal(event)) return [{ queryKey: triggerKeys.refused(tenantId) }];
+  if (isRefusal(event)) return [{ queryKey: triggerKeys.refused(tenantId, event.triggerId) }];
   if ("sessionId" in event) {
     return [{ queryKey: keys.sessions(tenantId), exact: true }, { queryKey: keys.session(tenantId, event.sessionId) }];
   }

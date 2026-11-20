@@ -18,7 +18,7 @@ export const TriggerScreen = () => {
   const trigger = useTrigger(tenantId, triggerId);
   const personas = usePersonas(tenantId);
   const sessions = useSessions(tenantId);
-  const refused = useRefusedStarts(tenantId);
+  const refused = useRefusedStarts(tenantId, triggerId);
   const crumb = (
     <Link to="/t/$tenantId/triggers" params={{ tenantId }} className="hover:underline">
       Triggers /
@@ -47,7 +47,7 @@ export const TriggerScreen = () => {
     if (rows.length === 0 && !sessions.isError && !refused.isError) {
       return (
         <p className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
-          No run yet. A run appears here when a matching {data.event} event arrives.
+          No run yet. A run appears here when a matching {data.source.event} event arrives.
         </p>
       );
     }
@@ -113,7 +113,7 @@ export const TriggerScreen = () => {
         }
       />
       <p className="mb-4 text-sm text-muted-foreground">
-        <span className="font-mono">{data.event}</span> · {filterSummary(data)} ·{" "}
+        <span className="font-mono">{data.source.event}</span> · {filterSummary(data.source)} ·{" "}
         {personaName(personas.data ?? [], data.personaId)} · {data.model}
       </p>
       <h2 className="mb-2 font-semibold">Runs</h2>
