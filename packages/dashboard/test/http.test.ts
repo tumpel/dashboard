@@ -102,7 +102,7 @@ test("an answer missing a field becomes a named out-of-step problem", async () =
 
 test("an expired event cursor keeps its oldest event id", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
-  const error = await api.listEvents({ afterEventId: 0, waitSeconds: 0 }).then(
+  const error = await api.listEvents({ afterEventId: 0 }).then(
     () => assert.fail("the expired cursor succeeded"),
     (rejection: unknown) => rejection,
   );

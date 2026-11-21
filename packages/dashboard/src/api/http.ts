@@ -190,7 +190,7 @@ const followEvents = (
   accessToken: (tenantId: string) => Promise<TokenLookup>,
   listener: EventListener,
 ): (() => void) => {
-  const url = new URL("/v1/events?waitSeconds=0", apiOrigin);
+  const url = new URL("/v1/events", apiOrigin);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   let socket: WebSocket | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
