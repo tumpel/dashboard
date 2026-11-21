@@ -58,8 +58,9 @@ test("on an aged log the refused-start read starts from the oldest event kept", 
         problem: {
           code: "EventCursorExpired",
           title: "Event cursor expired",
-          detail: "event 0 is older than the oldest event kept, 50; the log keeps 7 days",
+          detail: "The event cursor expired.",
           fix: "Read the current state of what you follow, then read events again without afterEventId",
+          oldestEventId: 50,
         },
       });
     }

@@ -17,6 +17,7 @@ import type {
   DeviceSchema,
   EffectiveHarnessVersionSchema,
   EventPageSchema,
+  EventProblemSchema,
   EventQuerySchema,
   GitHubActionsConnectionLinkSchema,
   GitHubActionsConnectionStartSchema,
@@ -62,7 +63,6 @@ import type {
   PrebuildTemplateSchema,
   PrebuildTemplateVersionSchema,
   PrincipalSchema,
-  ProblemSchema,
   PushKeySchema,
   PushSubscriptionCreateSchema,
   PushSubscriptionSchema,
@@ -121,7 +121,7 @@ export type Session = z.infer<typeof SessionSchema>;
 export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
 export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
-export type Problem = z.infer<typeof ProblemSchema>;
+export type Problem = z.infer<typeof EventProblemSchema>;
 export type Persona = z.infer<typeof PersonaSchema>;
 export type SessionStart = z.infer<typeof SessionStartSchema>;
 export type StartedSession = z.infer<typeof StartedSessionSchema>;
