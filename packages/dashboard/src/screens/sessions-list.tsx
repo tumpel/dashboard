@@ -130,6 +130,15 @@ export const SessionsListScreen = () => {
     const allPicked = selectable.length > 0 && selectable.every((sessionId) => selected.has(sessionId));
     return (
       <div className="grid gap-3">
+        <label className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm sm:hidden">
+          <input
+            type="checkbox"
+            checked={allPicked}
+            disabled={selectable.length === 0}
+            onChange={(event) => select(selectable, event.target.checked)}
+          />
+          Select all archivable sessions
+        </label>
         {picked.length > 0 && (
           <div className="flex items-center justify-between gap-2 rounded-lg border bg-card p-2 pl-3">
             <p className="text-sm font-medium">{picked.length} selected</p>
@@ -142,8 +151,10 @@ export const SessionsListScreen = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">
+                <span className="sr-only">Select</span>
                 <input
                   type="checkbox"
+                  className="max-sm:hidden"
                   aria-label="Select every session shown that can be archived"
                   checked={allPicked}
                   disabled={selectable.length === 0}
