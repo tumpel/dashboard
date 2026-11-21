@@ -10,7 +10,20 @@ let server: Server;
 let origin: string;
 
 before(async () => {
-  server = createServer((_request, response) => {
+  server = createServer((request, response) => {
+    if (request.url?.startsWith("/v1/events")) {
+      response.writeHead(410, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          code: "EventCursorExpired",
+          title: "Event cursor expired",
+          detail: "The event cursor expired.",
+          fix: "Read the current state, then read events from its event id.",
+          oldestEventId: 50,
+        }),
+      );
+      return;
+    }
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
@@ -37,4 +50,17 @@ test("an answer missing a field becomes a named out-of-step problem", async () =
     detail: "The GitHubActionsConnections_get answer does not match what this dashboard expects at tenantId.",
     fix: "Reload; if it stays, the deploy is still rolling.",
   });
+});
+
+test("an expired event cursor keeps its oldest event id", async () => {
+  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const error = await api.listEvents({ afterEventId: 0, waitSeconds: 0 }).then(
+    () => assert.fail("the expired cursor succeeded"),
+    (rejection: unknown) => rejection,
+  );
+  const failure = failureOf(error);
+  assert.equal(
+    failure.kind === "Problem" && "oldestEventId" in failure.problem ? failure.problem.oldestEventId : null,
+    50,
+  );
 });

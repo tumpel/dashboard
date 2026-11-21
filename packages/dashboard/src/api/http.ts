@@ -12,6 +12,7 @@ import {
   DeviceSchema,
   EffectiveHarnessVersionSchema,
   EventPageSchema,
+  EventProblemSchema,
   GitHubActionsConnectionLinkSchema,
   GitHubConnectionSchema,
   GitHubInstallationSchema,
@@ -62,7 +63,7 @@ import {
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
-import { ApiFailure, type EventListener, type PersonaFileUpload, type TumpelApi } from "./port.ts";
+import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
@@ -84,7 +85,12 @@ const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T =>
   });
 };
 
-const settle = async <T>(operation: string, schema: z.ZodType<T>, sent: Promise<Sent>): Promise<T> => {
+const settle = async <T>(
+  operation: string,
+  schema: z.ZodType<T>,
+  sent: Promise<Sent>,
+  problemSchema: z.ZodType<Problem> = ProblemSchema,
+): Promise<T> => {
   const answer = await sent.catch((error: unknown) => {
     if (error instanceof ApiFailure) throw error;
     if (timedOut(error)) {
@@ -96,7 +102,7 @@ const settle = async <T>(operation: string, schema: z.ZodType<T>, sent: Promise<
     throw new ApiFailure({ kind: "Unreachable", detail: `${operation} got no response from the control plane.` });
   });
   if (answer.response.ok) return parsed(operation, schema, answer.data);
-  const problem = ProblemSchema.safeParse(answer.error);
+  const problem = problemSchema.safeParse(answer.error);
   if (problem.success) {
     throw new ApiFailure({ kind: "Problem", status: answer.response.status, problem: problem.data });
   }
@@ -594,7 +600,8 @@ export const createHttpApi = (
           params: { path: { connectorId }, query: { updatedAt } },
         }),
       ),
-    listEvents: (query) => settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } })),
+    listEvents: (query) =>
+      settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
     listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
     getTrigger: (triggerId) =>
