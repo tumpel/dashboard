@@ -149,7 +149,7 @@ export const SecretSetDetailScreen = () => {
             openRouterAuthorizationId={openRouterAuthorizationId}
           />
         )}
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -162,17 +162,19 @@ export const SecretSetDetailScreen = () => {
           <TableBody>
             {set.keys.map((key) => (
               <TableRow key={key.name}>
-                <TableCell className="font-mono text-[13px]">{key.name}</TableCell>
-                <TableCell>{SECRET_KIND_NAMES[key.kind]}</TableCell>
-                <TableCell>{key.kind === "Variable" ? "" : key.provider}</TableCell>
-                <TableCell>
+                <TableCell mobile="primary" className="font-mono text-[13px]">
+                  {key.name}
+                </TableCell>
+                <TableCell label="Kind">{SECRET_KIND_NAMES[key.kind]}</TableCell>
+                <TableCell label="Provider">{key.kind === "Variable" ? "" : key.provider}</TableCell>
+                <TableCell mobile="summary">
                   {key.kind !== "SubscriptionToken" ? null : isExpired(key, now) ? (
                     <Badge variant="destructive">Expired {expiryDate(key.expiresAt)}</Badge>
                   ) : (
                     expiryDate(key.expiresAt)
                   )}
                 </TableCell>
-                <TableCell>{formatTime(key.updatedAt)}</TableCell>
+                <TableCell label="Updated">{formatTime(key.updatedAt)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

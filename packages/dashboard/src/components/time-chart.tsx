@@ -64,7 +64,7 @@ const MANY = 8;
 
 const SeriesTable = ({ grid, bucket, offsetMinutes, series, format }: TimeChartProps) => (
   <div className="max-h-80 overflow-auto">
-    <Table>
+    <Table mobile>
       <TableHeader>
         <TableRow>
           <TableHead>Time</TableHead>
@@ -80,7 +80,7 @@ const SeriesTable = ({ grid, bucket, offsetMinutes, series, format }: TimeChartP
           const at = grid[index] ?? 0;
           return (
             <TableRow key={at}>
-              <TableCell className="font-mono text-[13px] whitespace-nowrap">
+              <TableCell mobile="primary" className="font-mono text-[13px] whitespace-nowrap">
                 {bucketTitle(at, bucket, offsetMinutes)}
               </TableCell>
               {series.map((item) => {
@@ -93,7 +93,7 @@ const SeriesTable = ({ grid, bucket, offsetMinutes, series, format }: TimeChartP
                       ? `${format(value)} to ${format(upper)}`
                       : format(value);
                 return (
-                  <TableCell key={item.key} className="text-right tabular-nums">
+                  <TableCell key={item.key} label={item.label} className="text-right tabular-nums">
                     {text}
                   </TableCell>
                 );

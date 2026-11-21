@@ -451,7 +451,7 @@ const SnapshotsTab = ({ tenantId, sessionId, turns }: { tenantId: string; sessio
           No snapshots yet. A turn's box is snapshotted when the turn ends.
         </p>
       ) : (
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead>Seq</TableHead>
@@ -464,9 +464,9 @@ const SnapshotsTab = ({ tenantId, sessionId, turns }: { tenantId: string; sessio
           <TableBody>
             {rows.map((snapshot) => (
               <TableRow key={snapshot.snapshotId}>
-                <TableCell>{snapshot.snapshotSeq}</TableCell>
-                <TableCell>{turnLabel(turns, snapshot.turnId)}</TableCell>
-                <TableCell>
+                <TableCell label="Seq">{snapshot.snapshotSeq}</TableCell>
+                <TableCell mobile="primary">{turnLabel(turns, snapshot.turnId)}</TableCell>
+                <TableCell mobile="summary">
                   {snapshot.outcome.state === "Stored" ? (
                     <Badge variant="success">Stored</Badge>
                   ) : (
@@ -478,12 +478,12 @@ const SnapshotsTab = ({ tenantId, sessionId, turns }: { tenantId: string; sessio
                     </span>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell label="Uploaded">
                   {snapshot.outcome.state === "Stored"
                     ? formatMib(Math.round((snapshot.outcome.uploadedBytes / 1024 ** 2) * 10) / 10)
                     : ""}
                 </TableCell>
-                <TableCell>{formatTime(snapshot.createdAt)}</TableCell>
+                <TableCell label="When">{formatTime(snapshot.createdAt)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -512,7 +512,7 @@ const HandoversTab = ({
         <p className="text-sm text-muted-foreground">No credential handovers yet.</p>
       ) : (
         <div className="grid gap-2">
-          <Table>
+          <Table mobile>
             <TableHeader>
               <TableRow>
                 <TableHead>Turn</TableHead>
@@ -525,11 +525,13 @@ const HandoversTab = ({
             <TableBody>
               {rows.map((handover) => (
                 <TableRow key={handover.credentialHandoverId}>
-                  <TableCell>{turnLabel(turns, handover.turnId)}</TableCell>
-                  <TableCell className="font-mono text-[13px]">{handover.variableNames.join(", ")}</TableCell>
-                  <TableCell>{handover.repositoryCredentialSource}</TableCell>
-                  <TableCell>{hostNameOf(handover.hostId)}</TableCell>
-                  <TableCell>{formatTime(handover.createdAt)}</TableCell>
+                  <TableCell mobile="primary">{turnLabel(turns, handover.turnId)}</TableCell>
+                  <TableCell label="Variables handed over" className="font-mono text-[13px]">
+                    {handover.variableNames.join(", ")}
+                  </TableCell>
+                  <TableCell mobile="summary">{handover.repositoryCredentialSource}</TableCell>
+                  <TableCell label="Host">{hostNameOf(handover.hostId)}</TableCell>
+                  <TableCell label="When">{formatTime(handover.createdAt)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -550,7 +552,7 @@ const StopFailuresTab = ({ tenantId, sessionId }: { tenantId: string; sessionId:
         <p className="text-sm text-muted-foreground">No stop failures.</p>
       ) : (
         <div className="grid gap-2">
-          <Table>
+          <Table mobile>
             <TableHeader>
               <TableRow>
                 <TableHead>Reason</TableHead>
@@ -561,9 +563,11 @@ const StopFailuresTab = ({ tenantId, sessionId }: { tenantId: string; sessionId:
             <TableBody>
               {rows.map((failure) => (
                 <TableRow key={failure.stopFailureId}>
-                  <TableCell>{failure.reason}</TableCell>
-                  <TableCell className="whitespace-normal">{failure.detail}</TableCell>
-                  <TableCell>{failure.failedAt}</TableCell>
+                  <TableCell mobile="primary">{failure.reason}</TableCell>
+                  <TableCell label="Detail" className="whitespace-normal">
+                    {failure.detail}
+                  </TableCell>
+                  <TableCell mobile="summary">{failure.failedAt}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
