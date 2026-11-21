@@ -318,7 +318,7 @@ const PrebuildTable = ({
   selected: string | null;
   onSelect: (repository: string) => void;
 }) => (
-  <Table>
+  <Table mobile>
     <TableHeader>
       <TableRow>
         <TableHead>Repository</TableHead>
@@ -343,7 +343,7 @@ const PrebuildTable = ({
               prebuild.status.state === "Failed" && "border-l-4 border-l-destructive",
             )}
           >
-            <TableCell>
+            <TableCell mobile="primary">
               <button
                 type="button"
                 className="text-left font-medium hover:underline"
@@ -352,17 +352,21 @@ const PrebuildTable = ({
                 {repositoryName(prebuild.repository)}
               </button>
             </TableCell>
-            <TableCell>
+            <TableCell mobile="state">
               <StateCell prebuild={prebuild} />
             </TableCell>
-            <TableCell>{PROVIDER_NAMES[prebuild.provider]}</TableCell>
-            <TableCell>{mono(shortDigest(prebuild.inputDigest))}</TableCell>
-            <TableCell className="whitespace-nowrap">{shortTime(prebuild.startedAt)}</TableCell>
-            <TableCell className="whitespace-nowrap">{finishedAt === null ? "" : shortTime(finishedAt)}</TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell label="Provider">{PROVIDER_NAMES[prebuild.provider]}</TableCell>
+            <TableCell label="Input digest">{mono(shortDigest(prebuild.inputDigest))}</TableCell>
+            <TableCell label="Started" className="whitespace-nowrap">
+              {shortTime(prebuild.startedAt)}
+            </TableCell>
+            <TableCell label="Finished" className="whitespace-nowrap">
+              {finishedAt === null ? "" : shortTime(finishedAt)}
+            </TableCell>
+            <TableCell label="Layer" className="whitespace-nowrap">
               {prebuild.status.state === "Done" ? formatBytes(prebuild.status.layerSizeBytes) : ""}
             </TableCell>
-            <TableCell>
+            <TableCell mobile="action">
               <TableLogLink prebuild={prebuild} />
             </TableCell>
           </TableRow>

@@ -138,7 +138,7 @@ export const SessionsListScreen = () => {
             </Button>
           </div>
         )}
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead className="w-8">
@@ -164,7 +164,7 @@ export const SessionsListScreen = () => {
           <TableBody>
             {rows.map((session) => (
               <TableRow key={session.sessionId}>
-                <TableCell>
+                <TableCell label="Select">
                   {ARCHIVABLE.has(session.state) && (
                     <input
                       type="checkbox"
@@ -174,7 +174,7 @@ export const SessionsListScreen = () => {
                     />
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell mobile="primary">
                   <Link
                     to="/t/$tenantId/sessions/$sessionId"
                     params={{ tenantId, sessionId: session.sessionId }}
@@ -183,8 +183,8 @@ export const SessionsListScreen = () => {
                     {repositoryLabel(session.repository)}
                   </Link>
                 </TableCell>
-                <TableCell>{personaName(personas.data ?? [], session.personaId)}</TableCell>
-                <TableCell>
+                <TableCell label="Persona">{personaName(personas.data ?? [], session.personaId)}</TableCell>
+                <TableCell label="Started by">
                   <StartedBy
                     tenantId={tenantId}
                     startedBy={session.startedBy}
@@ -192,12 +192,12 @@ export const SessionsListScreen = () => {
                     triggers={triggers.data ?? []}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell mobile="state">
                   <SessionStateBadge state={session.state} />
                 </TableCell>
-                <TableCell>{hostName(hosts.data ?? [], session.hostId)}</TableCell>
-                <TableCell>{formatTime(session.updatedAt)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell label="Host">{hostName(hosts.data ?? [], session.hostId)}</TableCell>
+                <TableCell label="Updated">{formatTime(session.updatedAt)}</TableCell>
+                <TableCell mobile="action" className="text-right">
                   <RowActions session={session} onPick={pick} />
                 </TableCell>
               </TableRow>
