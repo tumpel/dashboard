@@ -585,7 +585,7 @@ const SessionTabs = ({ tab, onPick }: { tab: SessionTab; onPick: (tab: SessionTa
         aria-selected={tab === value}
         onClick={() => onPick(value)}
         className={cn(
-          "-mb-px min-h-11 border-b-2 px-1 py-2 text-sm whitespace-nowrap sm:px-3",
+          "-mb-px border-b-2 px-1 py-2 text-sm whitespace-nowrap sm:px-3",
           tab === value ? "border-primary font-semibold" : "border-transparent text-muted-foreground",
         )}
       >
