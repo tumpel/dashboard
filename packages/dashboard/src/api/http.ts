@@ -74,9 +74,51 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
+const UNKNOWN_VALUE = "unknown";
+
+const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
+  typeof value === "object" && value !== null;
+
+const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
+  path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
+
+const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
+  const parent = valueAt(root, path.slice(0, -1));
+  const key = path.at(-1);
+  if (isContainer(parent) && key !== undefined) parent[key] = value;
+};
+
+type EnumMiss = { path: PropertyKey[]; known: string };
+
+const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMiss[] =>
+  issues.flatMap((issue) => {
+    if (issue.code !== "invalid_value" || issue.values.length < 2) return [];
+    const [known] = issue.values;
+    if (typeof known !== "string" || typeof valueAt(data, issue.path) !== "string") return [];
+    return [{ path: issue.path, known }];
+  });
+
+// An enum value newer than this dashboard's schema becomes "unknown" on its own row instead of failing the whole answer.
+const toleratingUnknownEnums = <T>(
+  schema: z.ZodType<T>,
+  data: unknown,
+  misses: EnumMiss[],
+): { ok: true; value: T } | { ok: false } => {
+  if (misses.length === 0) return { ok: false };
+  const standIn = structuredClone(data);
+  for (const miss of misses) put(standIn, miss.path, miss.known);
+  const result = schema.safeParse(standIn);
+  if (!result.success) return { ok: false };
+  for (const miss of misses) put(result.data, miss.path, UNKNOWN_VALUE);
+  return { ok: true, value: result.data };
+};
+
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
   if (result.success) return result.data;
+  const misses = enumMisses(result.error.issues, data);
+  const tolerated = toleratingUnknownEnums(schema, data, misses);
+  if (tolerated.ok) return tolerated.value;
   const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
   throw new ApiFailure({
     kind: "OutOfStep",
