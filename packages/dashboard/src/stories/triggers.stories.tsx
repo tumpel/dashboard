@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { ApiFailure } from "../api/port";
 import { fakeApi, memberWhoami, never, problem, StoryApp, tenantPath } from "./harness";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Triggers", component: StoryApp };
@@ -24,13 +25,17 @@ export const RefusalsExpired: Story = {
     api: fakeApi({
       listEvents: () =>
         Promise.reject(
-          problem(
-            410,
-            "EventCursorExpired",
-            "Event cursor expired",
-            "event 0 is older than the oldest event kept, 1204; the log keeps 7 days",
-            "Read the current state of what you follow, then read events again without afterEventId",
-          ),
+          new ApiFailure({
+            kind: "Problem",
+            status: 410,
+            problem: {
+              code: "EventCursorExpired",
+              title: "Event cursor expired",
+              detail: "The event cursor expired.",
+              fix: "Read the current state of what you follow, then read events again without afterEventId",
+              oldestEventId: 1204,
+            },
+          }),
         ),
     }),
   },
