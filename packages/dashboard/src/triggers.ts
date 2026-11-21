@@ -113,7 +113,6 @@ export const readRefusedStarts = async (
       afterEventId,
       event: ["TriggerStartRefused"],
       ...(triggerId === null ? {} : { triggerId }),
-      waitSeconds: 0,
     }).catch((error: unknown) => cursorKeptAfter(error, afterEventId));
     if (typeof page === "number") {
       afterEventId = page;

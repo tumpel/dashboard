@@ -13,7 +13,13 @@ export type MemberOperation =
 const TENANT_ID = "tnt_placeholder01";
 const CREATED = Date.parse("2026-11-15T14:02:11+01:00");
 
-const tenant = (tenantId: string, name: string) => ({ tenantId, name, createdAt: CREATED, updatedAt: CREATED });
+const tenant = (tenantId: string, name: string) => ({
+  tenantId,
+  name,
+  tier: "Free" as const,
+  createdAt: CREATED,
+  updatedAt: CREATED,
+});
 
 export const MEMBERSHIPS: Membership[] = [
   { tenant: tenant(TENANT_ID, "Tenant name"), role: "Owner", createdAt: Date.parse("2026-10-02T09:00:00+02:00") },
