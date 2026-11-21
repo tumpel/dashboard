@@ -256,7 +256,6 @@ const ImportConfig = ({ tenantId }: { tenantId: string }) => {
   if (phase.kind === "Invalid") {
     return (
       <ProblemCard
-        className="min-w-0 wrap-anywhere"
         wording={{
           title: `${phase.fileName} is not a tenant config`,
           detail: phase.errors.join("; "),
