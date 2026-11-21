@@ -16,6 +16,7 @@
     "build": "npm run build --workspaces --if-present",
     "build-storybook": "npm run build-storybook -w @tumpel/dashboard",
     "screenshots:mobile": "npx playwright install --only-shell chromium && npm run build-storybook && node npm-scripts/mobile-screenshots.mjs",
+    "screenshots:mobile:check": "npx playwright install --with-deps --only-shell chromium && node npm-scripts/mobile-screenshots.mjs --check",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "comments:check": "node npm-scripts/comments-check.mjs",
     "secrets:check": "node npm-scripts/secrets-check.mjs",

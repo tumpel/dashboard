@@ -127,7 +127,7 @@ export const ChartCard = ({
     return children(sets);
   };
   return (
-    <Card className={className}>
+    <Card className={cn("min-w-0", className)}>
       <CardHeader>
         <CardTitle className="text-[15px]">{title}</CardTitle>
         {actions}
