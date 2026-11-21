@@ -60,7 +60,7 @@ export const SecretSetsListScreen = () => {
     return (
       <div className="grid gap-3">
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead>Secret set</TableHead>
@@ -76,7 +76,7 @@ export const SecretSetsListScreen = () => {
               const soonest = soonestExpiry(set);
               return (
                 <TableRow key={set.secretSetId}>
-                  <TableCell>
+                  <TableCell mobile="primary">
                     <Link
                       to="/t/$tenantId/secrets/$secretSetId"
                       params={{ tenantId, secretSetId: set.secretSetId }}
@@ -85,22 +85,22 @@ export const SecretSetsListScreen = () => {
                       {set.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{set.keys.length}</TableCell>
-                  <TableCell className="text-xs">
+                  <TableCell label="Members">{set.keys.length}</TableCell>
+                  <TableCell label="Credentials" className="text-xs">
                     {credentials.length === 0 ? (
                       <span className="text-muted-foreground">none</span>
                     ) : (
                       credentials.map(credentialLabel).join(", ")
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell mobile="summary">
                     {soonest === undefined ? null : Date.parse(soonest) <= now ? (
                       <Badge variant="destructive">Expired {expiryDate(soonest)}</Badge>
                     ) : (
                       expiryDate(soonest)
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell label="Used by">
                     <UsedBy personas={personas.data} secretSetId={set.secretSetId} />
                   </TableCell>
                 </TableRow>

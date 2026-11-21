@@ -91,7 +91,7 @@ const CatalogTable = ({
 }) => {
   const runs = new Map(versions.map((version) => [version.harness, version]));
   return (
-    <Table>
+    <Table mobile>
       <TableHeader>
         <TableRow>
           <TableHead>Harness</TableHead>
@@ -118,15 +118,19 @@ const CatalogTable = ({
           return (
             <Fragment key={`${entry.harness}-${entry.harnessVersion}`}>
               <TableRow className={cn(isPinned && "bg-accent/40")}>
-                <TableCell className="font-medium">{first ? HARNESS_LABELS[entry.harness] : ""}</TableCell>
-                <TableCell className="font-mono text-[13px]">{entry.harnessVersion}</TableCell>
-                <TableCell className="text-xs">
+                <TableCell mobile="primary" className="font-medium">
+                  <span className={cn(!first && "sm:hidden")}>{HARNESS_LABELS[entry.harness]}</span>
+                </TableCell>
+                <TableCell mobile="summary" className="font-mono text-[13px]">
+                  {entry.harnessVersion}
+                </TableCell>
+                <TableCell label="Credentials" className="text-xs">
                   {entry.credentials.map(({ kind, provider }) => `${provider} ${kind}`).join(", ")}
                 </TableCell>
-                <TableCell>
+                <TableCell label="Current release">
                   <ReleaseCell release={release} entry={entry} />
                 </TableCell>
-                <TableCell>
+                <TableCell mobile="action">
                   {isPinned ? (
                     <span className="flex items-center gap-2">
                       <Badge variant="primary">Pinned</Badge>
@@ -167,7 +171,7 @@ const CatalogTable = ({
               </TableRow>
               {refused && (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell mobile="full" colSpan={5}>
                     <ProblemBlock error={refusal.error} />
                   </TableCell>
                 </TableRow>

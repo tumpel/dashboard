@@ -89,3 +89,96 @@
     --chart-8: #e66767;
   }
 }
+
+@media (width < 40rem) {
+  [data-mobile-table="true"] {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  [data-mobile-table="true"] table,
+  [data-mobile-table="true"] tbody {
+    display: block;
+  }
+
+  [data-mobile-table="true"] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  [data-mobile-table="true"] tbody {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  [data-mobile-table="true"] tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+  }
+
+  [data-mobile-table="true"] tbody td {
+    display: flex;
+    grid-column: 1 / -1;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.375rem 0;
+    text-align: left;
+  }
+
+  [data-mobile-table="true"] tbody td::before {
+    flex: none;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    content: attr(data-label);
+  }
+
+  [data-mobile-table="true"] tbody td:empty {
+    display: none;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile] {
+    align-self: center;
+    padding-top: 0;
+    padding-bottom: 0.5rem;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile]::before {
+    content: none;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile="primary"] {
+    grid-column: 1;
+    order: -3;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile="summary"] {
+    grid-column: 2;
+    order: -2;
+    max-width: 11rem;
+    overflow-wrap: anywhere;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile="action"] {
+    grid-column: 2;
+    order: -1;
+  }
+
+  [data-mobile-table="true"] tbody td[data-mobile="full"] {
+    grid-column: 1 / -1;
+  }
+}

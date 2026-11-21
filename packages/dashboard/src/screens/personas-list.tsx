@@ -39,7 +39,7 @@ export const PersonasListScreen = () => {
     return (
       <div className="grid gap-3">
         {secretSets.isError && <ProblemBlock error={secretSets.error} onRetry={() => void secretSets.refetch()} />}
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead>Persona</TableHead>
@@ -51,7 +51,7 @@ export const PersonasListScreen = () => {
           <TableBody>
             {personas.data.map((persona) => (
               <TableRow key={persona.personaId}>
-                <TableCell>
+                <TableCell mobile="primary">
                   <Link
                     to="/t/$tenantId/personas/$personaId"
                     params={{ tenantId, personaId: persona.personaId }}
@@ -61,8 +61,8 @@ export const PersonasListScreen = () => {
                     {persona.name}
                   </Link>
                 </TableCell>
-                <TableCell>{HARNESS_LABELS[persona.harness]}</TableCell>
-                <TableCell>
+                <TableCell mobile="summary">{HARNESS_LABELS[persona.harness]}</TableCell>
+                <TableCell label="Secret set">
                   <Link
                     to="/t/$tenantId/secrets/$secretSetId"
                     params={{ tenantId, secretSetId: persona.secretSetId }}
@@ -71,7 +71,7 @@ export const PersonasListScreen = () => {
                     {secretSetName(persona.secretSetId)}
                   </Link>
                 </TableCell>
-                <TableCell>
+                <TableCell label="Files">
                   {persona.files.length}, {formatKib(persona.files.reduce((total, file) => total + file.sizeBytes, 0))}
                 </TableCell>
               </TableRow>
