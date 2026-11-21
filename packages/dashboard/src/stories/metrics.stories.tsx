@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { userEvent, within } from "storybook/test";
 import type { TumpelApi } from "../api/port";
 import { fakeApi, never, problem, StoryApp, signedOutFailure, tenantPath } from "./harness";
 import { CATALOG_WITHOUT_SPEND, metricFakes } from "./metric-fixtures";
@@ -16,10 +16,6 @@ export const Overview: Story = { args: { path: tenantPath("/metrics") } };
 export const OverviewOnAPhone: Story = {
   args: { path: tenantPath("/metrics") },
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  play: async () => {
-    await within(document.body).findByText("Turns ended by outcome");
-    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth);
-  },
 };
 
 export const OverviewLastWeek: Story = { args: { path: tenantPath("/metrics?range=7d") } };

@@ -6,6 +6,8 @@ import { chromium } from "playwright";
 
 const storybookDirectory = join(import.meta.dirname, "../packages/dashboard/dist-storybook");
 const outputDirectory = join(import.meta.dirname, "../.tmp/mobile-screenshots");
+const check = process.argv.includes("--check");
+const metricsPhoneStory = "dashboard-metrics-metrics--overview-on-a-phone";
 const viewports = [
   { name: "390x844", width: 390, height: 844 },
   { name: "360x800", width: 360, height: 800 },
@@ -22,7 +24,9 @@ const contentTypes = new Map([
 ]);
 
 const index = JSON.parse(await readFile(join(storybookDirectory, "index.json"), "utf8"));
-const stories = Object.values(index.entries).filter((entry) => entry.type === "story");
+const stories = Object.values(index.entries).filter(
+  (entry) => entry.type === "story" && (!check || entry.id === metricsPhoneStory),
+);
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
@@ -62,7 +66,19 @@ for (const viewport of viewports) {
       undefined,
       { timeout: 15_000 },
     );
-    await page.screenshot({ path: join(viewportDirectory, `${story.id}.png`), animations: "disabled" });
+    if (story.id === metricsPhoneStory) {
+      await page.getByText("Turns ended by outcome", { exact: true }).waitFor();
+      const widths = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        document: document.documentElement.scrollWidth,
+      }));
+      if (widths.document > widths.viewport) {
+        throw new Error(`${story.name} renders at ${widths.document}px in a ${widths.viewport}px viewport.`);
+      }
+    }
+    if (!check) {
+      await page.screenshot({ path: join(viewportDirectory, `${story.id}.png`), animations: "disabled" });
+    }
   }
 
   await context.close();
@@ -70,9 +86,15 @@ for (const viewport of viewports) {
 
 await browser.close();
 await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
-await writeFile(
-  join(outputDirectory, "manifest.json"),
-  `${JSON.stringify({ viewports, stories: stories.map(({ id, name, title }) => ({ id, name, title })) }, null, 2)}\n`,
-);
+if (!check) {
+  await writeFile(
+    join(outputDirectory, "manifest.json"),
+    `${JSON.stringify({ viewports, stories: stories.map(({ id, name, title }) => ({ id, name, title })) }, null, 2)}\n`,
+  );
+}
 
-console.log(`Captured ${stories.length * viewports.length} screenshots in ${outputDirectory}`);
+console.log(
+  check
+    ? `Checked ${stories.length * viewports.length} mobile metrics views`
+    : `Captured ${stories.length * viewports.length} screenshots in ${outputDirectory}`,
+);

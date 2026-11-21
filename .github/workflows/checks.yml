@@ -57,3 +57,6 @@ jobs:
 
       - if: steps.changes.outputs.code == 'true'
         run: npm run build-storybook
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run screenshots:mobile:check
