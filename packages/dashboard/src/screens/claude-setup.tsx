@@ -48,6 +48,10 @@ const FAILURES: Record<ClaudeSetupFailureReason, Omit<Wording, "detail">> = {
     title: "The host had no free box slot (NoHostOnline)",
     fix: "Wait for a session on the host to end, or add a host, then start a new setup.",
   },
+  RateLimited: {
+    title: "Claude Code is rate limited (RateLimited)",
+    fix: "Wait a few minutes, then start a new setup.",
+  },
 };
 
 const CODEX_FAILURES: Partial<Record<ClaudeSetupFailureReason, Omit<Wording, "detail">>> = {

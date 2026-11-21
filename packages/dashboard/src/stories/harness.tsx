@@ -52,6 +52,8 @@ const host = (
   architecture: "Amd64",
   cpuCount: 16,
   memoryBytes: 64 * 1024 ** 3,
+  health: "Healthy",
+  reportedHealth: "Healthy",
   publicKey: "placeholder-public-key",
   supervisorVersion: version,
   labels,
@@ -593,7 +595,7 @@ const findHost = (hostId: string): Host => {
 
 export const fakeApi = (overrides: Partial<TumpelApi> = {}): TumpelApi => ({
   whoami: async () => ({
-    tenant: { tenantId: TENANT_ID, name: "Tenant name", createdAt: NOW, updatedAt: NOW },
+    tenant: { tenantId: TENANT_ID, name: "Tenant name", tier: "Free", createdAt: NOW, updatedAt: NOW },
     principal: {
       principalId: "prn_placeholder01",
       tenantId: TENANT_ID,
