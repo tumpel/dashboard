@@ -9,6 +9,8 @@ const host = (hostId: string, state: Host["state"]): Host => ({
   tenantId: "tnt_a",
   name: hostId,
   state,
+  health: "Healthy",
+  reportedHealth: "Healthy",
   architecture: "Amd64",
   cpuCount: 4,
   memoryBytes: 8 * 1024 ** 3,
