@@ -15,6 +15,7 @@
     "fix": "biome check --write .",
     "build": "npm run build --workspaces --if-present",
     "build-storybook": "npm run build-storybook -w @tumpel/dashboard",
+    "screenshots:mobile": "npx playwright install --only-shell chromium && npm run build-storybook && node npm-scripts/mobile-screenshots.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "comments:check": "node npm-scripts/comments-check.mjs",
     "secrets:check": "node npm-scripts/secrets-check.mjs",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.0",
+    "playwright": "^1.65.1",
     "typescript": "^5.9.0"
   },
   "allowScripts": {
