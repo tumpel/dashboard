@@ -45,6 +45,23 @@
   body {
     @apply bg-background text-foreground font-sans text-[15px] leading-normal antialiased;
   }
+  @media (width < 40rem) {
+    button {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    a[href] {
+      display: inline-flex;
+      min-width: 44px;
+      min-height: 44px;
+      align-items: center;
+    }
+    input:not([type="checkbox"], [type="radio"]),
+    select,
+    textarea {
+      min-height: 44px;
+    }
+  }
 }
 
 :root {

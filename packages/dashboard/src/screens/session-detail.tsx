@@ -576,7 +576,7 @@ const StopFailuresTab = ({ tenantId, sessionId }: { tenantId: string; sessionId:
 };
 
 const SessionTabs = ({ tab, onPick }: { tab: SessionTab; onPick: (tab: SessionTab) => void }) => (
-  <div role="tablist" aria-label="Session" className="mb-4 flex gap-1 overflow-x-auto border-b">
+  <div role="tablist" aria-label="Session" className="mb-4 grid grid-cols-3 gap-1 border-b sm:flex">
     {TAB_LABELS.map(([value, label]) => (
       <button
         key={value}
@@ -585,7 +585,7 @@ const SessionTabs = ({ tab, onPick }: { tab: SessionTab; onPick: (tab: SessionTa
         aria-selected={tab === value}
         onClick={() => onPick(value)}
         className={cn(
-          "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
+          "-mb-px min-h-11 border-b-2 px-1 py-2 text-sm whitespace-nowrap sm:px-3",
           tab === value ? "border-primary font-semibold" : "border-transparent text-muted-foreground",
         )}
       >
