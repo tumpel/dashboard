@@ -36,7 +36,10 @@ export const ProblemCard = ({
 }: ProblemActions & { wording: Wording }) => {
   const { ports } = useDashboard();
   return (
-    <div role="alert" className={cn("rounded-lg border-2 border-destructive bg-card p-4", className)}>
+    <div
+      role="alert"
+      className={cn("min-w-0 wrap-anywhere rounded-lg border-2 border-destructive bg-card p-4", className)}
+    >
       <div className="flex items-start gap-3">
         <CircleAlertIcon className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
         <div className="grid gap-1">
