@@ -24,6 +24,54 @@ before(async () => {
       );
       return;
     }
+    if (request.url?.startsWith("/v1/sessions")) {
+      const session = (sessionId: string, lastTurn: Record<string, unknown>) => ({
+        sessionId,
+        tenantId: "tenant-a",
+        principalId: "prn_1",
+        hostId: "hst_1",
+        boxId: "box_1",
+        personaId: "per_1",
+        repository: "tumpel/dashboard",
+        origin: { kind: "Prompt" },
+        startedBy: { kind: "Person", principalId: "prn_1" },
+        tags: [],
+        harness: "ClaudeCode",
+        harnessVersion: "2.1.4",
+        model: "a-model",
+        state: "Idle",
+        lastTurnId: "trn_1",
+        lastTurnState: lastTurn.state,
+        lastTurnAt: "2026-11-21T12:00:00Z",
+        lastTurn: {
+          turnId: "trn_1",
+          tenantId: "tenant-a",
+          sessionId,
+          boxId: "box_1",
+          prompt: "Fix the bug.",
+          lineCount: 3,
+          createdAt: 1,
+          updatedAt: 2,
+          ...lastTurn,
+        },
+        boxRetention: "Auto",
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify([
+          session("ses_known", { state: "Completed" }),
+          session("ses_newer", {
+            state: "Failed",
+            reason: "ReasonFromANewerControlPlane",
+            detail: "The control plane knows a reason this dashboard does not.",
+            failedAt: "2026-11-21T12:00:00Z",
+          }),
+        ]),
+      );
+      return;
+    }
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
@@ -62,5 +110,20 @@ test("an expired event cursor keeps its oldest event id", async () => {
   assert.equal(
     failure.kind === "Problem" && "oldestEventId" in failure.problem ? failure.problem.oldestEventId : null,
     50,
+  );
+});
+
+test("a session list with a failure reason this dashboard does not know shows every row, that reason as unknown", async () => {
+  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const sessions = await api.listSessions({});
+  assert.deepEqual(
+    sessions.map((session) => [
+      session.sessionId,
+      session.lastTurn.state === "Failed" ? session.lastTurn.reason : session.lastTurn.state,
+    ]),
+    [
+      ["ses_known", "Completed"],
+      ["ses_newer", "unknown"],
+    ],
   );
 });

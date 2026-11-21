@@ -74,6 +74,46 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
+const UNKNOWN_VALUE = "unknown";
+
+const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
+  typeof value === "object" && value !== null;
+
+const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
+  path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
+
+const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
+  const parent = valueAt(root, path.slice(0, -1));
+  const key = path.at(-1);
+  if (isContainer(parent) && key !== undefined) parent[key] = value;
+};
+
+type EnumMiss = { path: PropertyKey[]; known: string };
+
+const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMiss[] =>
+  issues.flatMap((issue) => {
+    if (issue.code !== "invalid_value" || issue.values.length < 2) return [];
+    const [known] = issue.values;
+    if (typeof known !== "string" || typeof valueAt(data, issue.path) !== "string") return [];
+    return [{ path: issue.path, known }];
+  });
+
+const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
+  z.unknown().transform((data, context): T => {
+    const result = schema.safeParse(data);
+    if (result.success) return result.data;
+    const misses = enumMisses(result.error.issues, data);
+    const standIn = structuredClone(data);
+    for (const miss of misses) put(standIn, miss.path, miss.known);
+    const tolerated = misses.length > 0 ? schema.safeParse(standIn) : result;
+    if (!tolerated.success) {
+      for (const issue of result.error.issues) context.addIssue({ ...issue });
+      return z.NEVER;
+    }
+    for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
+    return tolerated.data;
+  });
+
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
   if (result.success) return result.data;
@@ -220,7 +260,11 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions", { params: { query } })),
+      settle(
+        "Sessions_list",
+        toleratingUnknownEnums(SessionSchema.array()),
+        client.GET("/v1/sessions", { params: { query } }),
+      ),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
