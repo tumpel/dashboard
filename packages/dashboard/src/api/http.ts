@@ -98,27 +98,25 @@ const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMis
     return [{ path: issue.path, known }];
   });
 
-// An enum value newer than this dashboard's schema becomes "unknown" on its own row instead of failing the whole answer.
-const toleratingUnknownEnums = <T>(
-  schema: z.ZodType<T>,
-  data: unknown,
-  misses: EnumMiss[],
-): { ok: true; value: T } | { ok: false } => {
-  if (misses.length === 0) return { ok: false };
-  const standIn = structuredClone(data);
-  for (const miss of misses) put(standIn, miss.path, miss.known);
-  const result = schema.safeParse(standIn);
-  if (!result.success) return { ok: false };
-  for (const miss of misses) put(result.data, miss.path, UNKNOWN_VALUE);
-  return { ok: true, value: result.data };
-};
+const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
+  z.unknown().transform((data, context): T => {
+    const result = schema.safeParse(data);
+    if (result.success) return result.data;
+    const misses = enumMisses(result.error.issues, data);
+    const standIn = structuredClone(data);
+    for (const miss of misses) put(standIn, miss.path, miss.known);
+    const tolerated = misses.length > 0 ? schema.safeParse(standIn) : result;
+    if (!tolerated.success) {
+      for (const issue of result.error.issues) context.addIssue({ ...issue });
+      return z.NEVER;
+    }
+    for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
+    return tolerated.data;
+  });
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
   if (result.success) return result.data;
-  const misses = enumMisses(result.error.issues, data);
-  const tolerated = toleratingUnknownEnums(schema, data, misses);
-  if (tolerated.ok) return tolerated.value;
   const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
   throw new ApiFailure({
     kind: "OutOfStep",
@@ -262,7 +260,11 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions", { params: { query } })),
+      settle(
+        "Sessions_list",
+        toleratingUnknownEnums(SessionSchema.array()),
+        client.GET("/v1/sessions", { params: { query } }),
+      ),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
