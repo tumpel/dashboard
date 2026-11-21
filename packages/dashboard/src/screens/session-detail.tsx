@@ -136,9 +136,7 @@ const TurnsColumn = ({
   compact: ("0" | "1")[];
 }) => (
   <nav aria-label="Turns" className="grid content-start gap-1 rounded-lg border bg-muted p-2">
-    <h2 className="px-2 pt-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase sm:text-[11px]">
-      Turns
-    </h2>
+    <h2 className="px-2 pt-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase">Turns</h2>
     {turns.map((turn, index) => (
       <Link
         key={turn.turnId}
@@ -153,10 +151,7 @@ const TurnsColumn = ({
       >
         <span>Turn {index + 1}</span>
         <span
-          className={cn(
-            "text-sm text-muted-foreground sm:text-xs",
-            turn.state === "Failed" && "font-semibold text-destructive",
-          )}
+          className={cn("text-sm text-muted-foreground", turn.state === "Failed" && "font-semibold text-destructive")}
         >
           {turn.state}, {turn.lineCount} lines
         </span>
@@ -166,9 +161,9 @@ const TurnsColumn = ({
 );
 
 const TranscriptLines = ({ prompt, lines }: { prompt: string; lines: TranscriptText[] }) => (
-  <ol className="grid gap-1.5 font-mono text-sm sm:text-[13px]">
+  <ol className="grid gap-1.5 font-mono text-sm">
     <li className="grid grid-cols-[4rem_1fr] gap-2">
-      <span className="text-sm text-muted-foreground sm:text-[11px]">prompt</span>
+      <span className="text-sm text-muted-foreground">prompt</span>
       <span className="font-semibold whitespace-pre-wrap">{prompt}</span>
     </li>
     {lines.map(({ lineSeq, text }) => (
