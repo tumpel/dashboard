@@ -166,7 +166,7 @@
     overflow-wrap: anywhere;
   }
 
-  [data-mobile-table="true"] tbody td[data-mobile="state"] {
+  [data-mobile-table="true"] tbody td[data-mobile="summary"] {
     grid-column: 2;
     order: -2;
     max-width: 11rem;

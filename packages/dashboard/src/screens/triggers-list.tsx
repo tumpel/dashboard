@@ -95,7 +95,7 @@ export const TriggersListScreen = () => {
                   {filterSummary(trigger.source)}
                 </TableCell>
                 <TableCell label="Persona">{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
-                <TableCell mobile="state">
+                <TableCell mobile="summary">
                   <LastRun
                     triggerId={trigger.triggerId}
                     sessions={sessions.data ?? []}

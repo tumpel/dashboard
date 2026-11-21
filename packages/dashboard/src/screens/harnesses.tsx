@@ -121,7 +121,7 @@ const CatalogTable = ({
                 <TableCell mobile="primary" className="font-medium">
                   <span className={cn(!first && "sm:hidden")}>{HARNESS_LABELS[entry.harness]}</span>
                 </TableCell>
-                <TableCell mobile="state" className="font-mono text-[13px]">
+                <TableCell mobile="summary" className="font-mono text-[13px]">
                   {entry.harnessVersion}
                 </TableCell>
                 <TableCell label="Credentials" className="text-xs">

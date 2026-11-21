@@ -203,7 +203,7 @@ export const SessionsListScreen = () => {
                     triggers={triggers.data ?? []}
                   />
                 </TableCell>
-                <TableCell mobile="state">
+                <TableCell mobile="summary">
                   <SessionStateBadge state={session.state} />
                 </TableCell>
                 <TableCell label="Host">{hostName(hosts.data ?? [], session.hostId)}</TableCell>

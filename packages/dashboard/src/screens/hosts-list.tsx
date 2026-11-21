@@ -97,7 +97,7 @@ const HostTable = ({ tenantId, rows, usageFailed }: { tenantId: string; rows: Ho
               <TableCell
                 key={cell.id}
                 label={typeof cell.column.columnDef.header === "string" ? cell.column.columnDef.header : undefined}
-                mobile={cell.column.id === "name" ? "primary" : cell.column.id === "state" ? "state" : undefined}
+                mobile={cell.column.id === "name" ? "primary" : cell.column.id === "state" ? "summary" : undefined}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </TableCell>

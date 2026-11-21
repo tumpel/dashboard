@@ -93,7 +93,7 @@ export const SecretSetsListScreen = () => {
                       credentials.map(credentialLabel).join(", ")
                     )}
                   </TableCell>
-                  <TableCell mobile="state">
+                  <TableCell mobile="summary">
                     {soonest === undefined ? null : Date.parse(soonest) <= now ? (
                       <Badge variant="destructive">Expired {expiryDate(soonest)}</Badge>
                     ) : (

@@ -352,7 +352,7 @@ const PrebuildTable = ({
                 {repositoryName(prebuild.repository)}
               </button>
             </TableCell>
-            <TableCell mobile="state">
+            <TableCell mobile="summary">
               <StateCell prebuild={prebuild} />
             </TableCell>
             <TableCell label="Provider">{PROVIDER_NAMES[prebuild.provider]}</TableCell>

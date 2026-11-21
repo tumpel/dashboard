@@ -5,7 +5,7 @@ type TableProps = ComponentProps<"table"> & { mobile?: boolean };
 
 type TableCellProps = ComponentProps<"td"> & {
   label?: string;
-  mobile?: "primary" | "state" | "action" | "full";
+  mobile?: "primary" | "summary" | "action" | "full";
 };
 
 export const Table = ({ className, mobile, ...props }: TableProps) => (

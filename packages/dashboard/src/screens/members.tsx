@@ -137,7 +137,7 @@ const MemberRows = ({
             {member.email}
             {member.principalId === yourId && <span className="text-muted-foreground"> (you)</span>}
           </TableCell>
-          <TableCell mobile="state">
+          <TableCell mobile="summary">
             <RoleBadge role={member.role} />
           </TableCell>
           {owner && (
@@ -178,7 +178,7 @@ const InvitationRows = ({
           <TableCell mobile="primary" className="font-medium">
             {invitation.email}
           </TableCell>
-          <TableCell mobile="state">
+          <TableCell mobile="summary">
             <RoleBadge role={invitation.role} />
           </TableCell>
           <TableCell label="Invited">{formatDate(invitation.createdAt)}</TableCell>

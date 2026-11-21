@@ -61,7 +61,7 @@ export const PersonasListScreen = () => {
                     {persona.name}
                   </Link>
                 </TableCell>
-                <TableCell mobile="state">{HARNESS_LABELS[persona.harness]}</TableCell>
+                <TableCell mobile="summary">{HARNESS_LABELS[persona.harness]}</TableCell>
                 <TableCell label="Secret set">
                   <Link
                     to="/t/$tenantId/secrets/$secretSetId"
