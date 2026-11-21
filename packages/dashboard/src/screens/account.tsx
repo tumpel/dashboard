@@ -56,7 +56,7 @@ const RevokeDeviceDialog = ({
 };
 
 const DeviceRows = ({ devices, onRevoke }: { devices: Device[]; onRevoke: (device: Device) => void }) => (
-  <Table>
+  <Table mobile>
     <TableHeader>
       <TableRow>
         <TableHead>Device</TableHead>
@@ -68,10 +68,12 @@ const DeviceRows = ({ devices, onRevoke }: { devices: Device[]; onRevoke: (devic
     <TableBody>
       {devices.map((device) => (
         <TableRow key={device.deviceId}>
-          <TableCell className="font-medium">{device.name}</TableCell>
-          <TableCell>{formatDate(device.createdAt)}</TableCell>
-          <TableCell>{formatTime(device.lastUsedAt)}</TableCell>
-          <TableCell className="text-right">
+          <TableCell mobile="primary" className="font-medium">
+            {device.name}
+          </TableCell>
+          <TableCell label="Signed in">{formatDate(device.createdAt)}</TableCell>
+          <TableCell label="Last used">{formatTime(device.lastUsedAt)}</TableCell>
+          <TableCell mobile="action" className="text-right">
             <Button size="sm" variant="outline" onClick={() => onRevoke(device)}>
               Revoke
             </Button>

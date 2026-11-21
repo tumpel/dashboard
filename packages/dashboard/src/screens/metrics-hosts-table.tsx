@@ -108,8 +108,8 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
             </button>
           </TableHead>
         );
-        const cell = (values: GridValues, text: string, color?: string) => (
-          <TableCell>
+        const cell = (label: string, values: GridValues, text: string, color?: string) => (
+          <TableCell label={label}>
             <div className="flex items-center gap-2">
               <div className="w-20 shrink-0">
                 <Sparkline values={values} height={28} {...(color === undefined ? {} : { color })} />
@@ -119,7 +119,7 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
           </TableCell>
         );
         return (
-          <Table>
+          <Table mobile>
             <TableHeader>
               <TableRow>
                 {header("name", "Host")}
@@ -136,7 +136,7 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
                 const latestLoad = latestValue(row.load);
                 return (
                   <TableRow key={row.hostId}>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell mobile="primary" className="whitespace-nowrap">
                       <Link
                         to="/t/$tenantId/metrics/hosts/$hostId"
                         params={{ tenantId: view.tenantId, hostId: row.hostId }}
@@ -146,10 +146,10 @@ export const HostsTable = ({ scope, title = "Hosts" }: { scope: CardScope; title
                         {row.name}
                       </Link>
                     </TableCell>
-                    {cell(row.cpu, latestCpu === undefined ? "-" : percentLabel(latestCpu))}
-                    {cell(row.memory, latestMemory === undefined ? "-" : percentLabel(latestMemory))}
-                    {cell(row.load, latestLoad === undefined ? "-" : formatValue(latestLoad, "1", "Mean"))}
-                    <TableCell className="whitespace-nowrap">
+                    {cell("CPU busy", row.cpu, latestCpu === undefined ? "-" : percentLabel(latestCpu))}
+                    {cell("Memory used", row.memory, latestMemory === undefined ? "-" : percentLabel(latestMemory))}
+                    {cell("Load 1m", row.load, latestLoad === undefined ? "-" : formatValue(latestLoad, "1", "Mean"))}
+                    <TableCell mobile="summary" className="whitespace-nowrap">
                       {roundedLatest(row.running)} running, {roundedLatest(row.warm)} warm
                     </TableCell>
                   </TableRow>

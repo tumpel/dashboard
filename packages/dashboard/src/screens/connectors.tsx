@@ -529,7 +529,7 @@ const ConnectorRows = ({
 }) => {
   const columns = owner ? 6 : 5;
   return (
-    <Table>
+    <Table mobile>
       <TableHeader>
         <TableRow>
           <TableHead>Connector</TableHead>
@@ -548,15 +548,21 @@ const ConnectorRows = ({
           return (
             <Fragment key={connector.connectorId}>
               <TableRow>
-                <TableCell className="font-medium">{connector.name}</TableCell>
-                <TableCell className="max-w-72 truncate font-mono text-[13px]" title={connector.url}>
+                <TableCell mobile="primary" className="font-medium">
+                  {connector.name}
+                </TableCell>
+                <TableCell
+                  label="Server address"
+                  className="font-mono text-[13px] sm:max-w-72 sm:truncate"
+                  title={connector.url}
+                >
                   {connector.url}
                 </TableCell>
-                <TableCell>{AUTH_LABELS[connector.auth]}</TableCell>
-                <TableCell>
+                <TableCell label="Sign-in">{AUTH_LABELS[connector.auth]}</TableCell>
+                <TableCell mobile="summary">
                   <StatusBadge status={status} waiting={waiting} />
                 </TableCell>
-                <TableCell>
+                <TableCell label="Used by">
                   {usedBy === undefined ? (
                     <span className="text-muted-foreground">unavailable</span>
                   ) : usedBy.length === 0 ? (
@@ -566,7 +572,7 @@ const ConnectorRows = ({
                   )}
                 </TableCell>
                 {owner && (
-                  <TableCell>
+                  <TableCell mobile="action">
                     <RowActions
                       connector={connector}
                       onAction={(kind) => onAction({ kind, connectorId: connector.connectorId })}
@@ -577,7 +583,7 @@ const ConnectorRows = ({
               </TableRow>
               {waiting && (
                 <TableRow>
-                  <TableCell colSpan={columns} className="text-sm">
+                  <TableCell mobile="full" colSpan={columns} className="text-sm">
                     Approve access on the provider's page in the other tab. This row updates once you do.{" "}
                     <a className="text-primary underline" href={pending.authorizeUrl} target="_blank" rel="noreferrer">
                       Open the provider's page again
@@ -587,7 +593,7 @@ const ConnectorRows = ({
               )}
               {!waiting && status.state === "AuthorizationFailed" && (
                 <TableRow>
-                  <TableCell colSpan={columns}>
+                  <TableCell mobile="full" colSpan={columns}>
                     <div role="alert" className="grid gap-0.5 text-sm">
                       <span className="font-semibold text-destructive">
                         {FAILURES[status.reason].title} {day(status.failedAt)}

@@ -119,7 +119,7 @@ const HostSlotsTable = ({
 }) => {
   const byHost = usageByHost(usage);
   return (
-    <Table>
+    <Table mobile>
       <TableHeader>
         <TableRow>
           <TableHead>Host</TableHead>
@@ -135,7 +135,7 @@ const HostSlotsTable = ({
           const row = byHost.get(host.hostId);
           return (
             <TableRow key={host.hostId}>
-              <TableCell>
+              <TableCell mobile="primary">
                 <Link
                   to="/t/$tenantId/hosts/$hostId"
                   params={{ tenantId, hostId: host.hostId }}
@@ -144,21 +144,21 @@ const HostSlotsTable = ({
                   {host.name}
                 </Link>
               </TableCell>
-              <TableCell>
+              <TableCell mobile="summary">
                 <HostStateBadge state={host.state} />
               </TableCell>
               {row === undefined ? (
-                <TableCell colSpan={4} className="text-muted-foreground">
+                <TableCell mobile="full" colSpan={4} className="text-muted-foreground">
                   {host.state === "Revoked" ? "" : "no report yet"}
                 </TableCell>
               ) : (
                 <>
-                  <TableCell className="font-mono text-[13px]">
+                  <TableCell label="Slots cap / run / warm / free" className="font-mono text-[13px]">
                     {row.boxCapacity} / {row.boxesRunning} / {row.boxesWarm} / {freeSlots(row)}
                   </TableCell>
-                  <TableCell>{row.loadAverage.toFixed(2)}</TableCell>
-                  <TableCell>{formatMib(row.memoryAvailableMib)}</TableCell>
-                  <TableCell>{formatTime(row.updatedAt)}</TableCell>
+                  <TableCell label="Load">{row.loadAverage.toFixed(2)}</TableCell>
+                  <TableCell label="Mem free">{formatMib(row.memoryAvailableMib)}</TableCell>
+                  <TableCell label="Last report">{formatTime(row.updatedAt)}</TableCell>
                 </>
               )}
             </TableRow>

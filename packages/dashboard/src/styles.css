@@ -136,6 +136,7 @@
     gap: 1rem;
     padding: 0.375rem 0;
     text-align: left;
+    overflow-wrap: anywhere;
   }
 
   [data-mobile-table="true"] tbody td::before {

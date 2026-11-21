@@ -52,7 +52,7 @@ export const TriggerScreen = () => {
       );
     }
     return (
-      <Table>
+      <Table mobile>
         <TableHeader>
           <TableRow>
             <TableHead>Started</TableHead>
@@ -64,11 +64,11 @@ export const TriggerScreen = () => {
         <TableBody>
           {rows.map((run) => (
             <TableRow key={`${run.kind}-${run.deliveryId}`}>
-              <TableCell>{formatTime(run.at)}</TableCell>
-              <TableCell className="font-mono text-xs" title={run.deliveryId}>
+              <TableCell label="Started">{formatTime(run.at)}</TableCell>
+              <TableCell label="Delivery" className="font-mono text-xs" title={run.deliveryId}>
                 {shortDelivery(run.deliveryId)}
               </TableCell>
-              <TableCell>
+              <TableCell mobile="primary">
                 {run.kind === "Session" ? (
                   <Link
                     to="/t/$tenantId/sessions/$sessionId"
@@ -81,7 +81,7 @@ export const TriggerScreen = () => {
                   <span className="text-muted-foreground">None</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell mobile="summary">
                 <RunState run={run} />
               </TableCell>
             </TableRow>

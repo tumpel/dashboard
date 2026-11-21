@@ -57,7 +57,7 @@ export const SessionCostTab = ({ tenantId, session, turns }: { tenantId: string;
         <Total label="Not billed" value={dollars(total.notBilled)} />
         <Total label="Cost not reported" value={`${unreported} of ${turns.length} turns`} />
       </div>
-      <Table>
+      <Table mobile>
         <TableHeader>
           <TableRow>
             <TableHead>Turn</TableHead>
@@ -68,7 +68,7 @@ export const SessionCostTab = ({ tenantId, session, turns }: { tenantId: string;
         <TableBody>
           {turns.map((turn, index) => (
             <TableRow key={turn.turnId}>
-              <TableCell>
+              <TableCell mobile="primary">
                 <Link
                   to="/t/$tenantId/sessions/$sessionId/turns/$turnId"
                   params={{ tenantId, sessionId: session.sessionId, turnId: turn.turnId }}
@@ -78,8 +78,8 @@ export const SessionCostTab = ({ tenantId, session, turns }: { tenantId: string;
                   Turn {index + 1}
                 </Link>
               </TableCell>
-              <TableCell>{turn.state}</TableCell>
-              <TableCell className="text-right">
+              <TableCell mobile="summary">{turn.state}</TableCell>
+              <TableCell label="Cost" className="text-right">
                 <CostText tally={byTurn.get(turn.turnId)} />
               </TableCell>
             </TableRow>

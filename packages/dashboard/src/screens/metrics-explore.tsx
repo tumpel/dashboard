@@ -76,7 +76,7 @@ const ResultTable = ({
   return (
     <div className="grid gap-2">
       {drillable && <p className="text-sm text-muted-foreground">Pick a value to list the turns behind it.</p>}
-      <Table>
+      <Table mobile>
         <TableHeader>
           <TableRow>
             <TableHead>Time</TableHead>
@@ -108,7 +108,7 @@ const ResultTable = ({
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.bucketStart}>
-              <TableCell className="font-mono text-[13px] whitespace-nowrap">
+              <TableCell mobile="primary" className="font-mono text-[13px] whitespace-nowrap">
                 {bucketLabel(row.bucketStart, result.bucket)}
               </TableCell>
               {row.cells.map((point, column) => {
@@ -116,7 +116,11 @@ const ResultTable = ({
                 const key = `${row.bucketStart}-${column}`;
                 if (point === undefined || series === undefined) {
                   return (
-                    <TableCell key={key} className="text-right text-muted-foreground">
+                    <TableCell
+                      key={key}
+                      label={series === undefined ? undefined : groupLabel(series.group)}
+                      className="text-right text-muted-foreground"
+                    >
                       -
                     </TableCell>
                   );
@@ -124,13 +128,13 @@ const ResultTable = ({
                 const text = formatValue(statOf(point, stat), result.unit, stat);
                 if (!drillable || narrowed[column] === null) {
                   return (
-                    <TableCell key={key} className="text-right tabular-nums">
+                    <TableCell key={key} label={groupLabel(series.group)} className="text-right tabular-nums">
                       {text}
                     </TableCell>
                   );
                 }
                 return (
-                  <TableCell key={key} className="text-right tabular-nums">
+                  <TableCell key={key} label={groupLabel(series.group)} className="text-right tabular-nums">
                     <button
                       type="button"
                       className="text-primary hover:underline"
