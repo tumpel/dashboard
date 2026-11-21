@@ -66,7 +66,7 @@ export const TriggersListScreen = () => {
         {personas.isError && <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />}
         {sessions.isError && <ProblemBlock error={sessions.error} onRetry={() => void sessions.refetch()} />}
         {refused.isError && <ProblemBlock error={refused.error} onRetry={() => void refused.refetch()} />}
-        <Table>
+        <Table mobile>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -79,7 +79,7 @@ export const TriggersListScreen = () => {
           <TableBody>
             {triggers.data.map((trigger) => (
               <TableRow key={trigger.triggerId}>
-                <TableCell>
+                <TableCell mobile="primary">
                   <Link
                     to="/t/$tenantId/triggers/$triggerId"
                     params={{ tenantId, triggerId: trigger.triggerId }}
@@ -88,10 +88,14 @@ export const TriggersListScreen = () => {
                     {trigger.name}
                   </Link>
                 </TableCell>
-                <TableCell className="font-mono text-xs">{trigger.source.event}</TableCell>
-                <TableCell className="max-w-80 whitespace-normal">{filterSummary(trigger.source)}</TableCell>
-                <TableCell>{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
-                <TableCell>
+                <TableCell label="Event" className="font-mono text-xs">
+                  {trigger.source.event}
+                </TableCell>
+                <TableCell label="Filter" className="max-w-80 whitespace-normal">
+                  {filterSummary(trigger.source)}
+                </TableCell>
+                <TableCell label="Persona">{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
+                <TableCell mobile="state">
                   <LastRun
                     triggerId={trigger.triggerId}
                     sessions={sessions.data ?? []}

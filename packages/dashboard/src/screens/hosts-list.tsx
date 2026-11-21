@@ -80,7 +80,7 @@ const HostTable = ({ tenantId, rows, usageFailed }: { tenantId: string; rows: Ho
   const columns = useMemo(() => columnsFor(tenantId, usageFailed), [tenantId, usageFailed]);
   const table = useReactTable({ data: rows, columns, getCoreRowModel: getCoreRowModel() });
   return (
-    <Table>
+    <Table mobile>
       <TableHeader>
         {table.getHeaderGroups().map((group) => (
           <TableRow key={group.id}>
@@ -94,7 +94,13 @@ const HostTable = ({ tenantId, rows, usageFailed }: { tenantId: string; rows: Ho
         {table.getRowModel().rows.map((row) => (
           <TableRow key={row.original.host.hostId}>
             {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+              <TableCell
+                key={cell.id}
+                label={typeof cell.column.columnDef.header === "string" ? cell.column.columnDef.header : undefined}
+                mobile={cell.column.id === "name" ? "primary" : cell.column.id === "state" ? "state" : undefined}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </TableCell>
             ))}
           </TableRow>
         ))}

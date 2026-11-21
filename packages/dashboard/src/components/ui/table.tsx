@@ -1,8 +1,15 @@
 import type { ComponentProps } from "react";
 import { cn } from "../../lib";
 
-export const Table = ({ className, ...props }: ComponentProps<"table">) => (
-  <div className="w-full overflow-x-auto rounded-lg border bg-card">
+type TableProps = ComponentProps<"table"> & { mobile?: boolean };
+
+type TableCellProps = ComponentProps<"td"> & {
+  label?: string;
+  mobile?: "primary" | "state" | "action" | "full";
+};
+
+export const Table = ({ className, mobile, ...props }: TableProps) => (
+  <div className="w-full overflow-x-auto rounded-lg border bg-card" data-mobile-table={mobile || undefined}>
     <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
   </div>
 );
@@ -22,6 +29,6 @@ export const TableHead = ({ className, ...props }: ComponentProps<"th">) => (
   />
 );
 
-export const TableCell = ({ className, ...props }: ComponentProps<"td">) => (
-  <td className={cn("px-3 py-2 align-middle", className)} {...props} />
+export const TableCell = ({ className, label, mobile, ...props }: TableCellProps) => (
+  <td className={cn("px-3 py-2 align-middle", className)} data-label={label} data-mobile={mobile} {...props} />
 );

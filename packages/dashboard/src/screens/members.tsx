@@ -122,7 +122,7 @@ const MemberRows = ({
   owner: boolean;
   onRemove: (member: Member) => void;
 }) => (
-  <Table>
+  <Table mobile>
     <TableHeader>
       <TableRow>
         <TableHead>Email</TableHead>
@@ -133,15 +133,15 @@ const MemberRows = ({
     <TableBody>
       {members.map((member) => (
         <TableRow key={member.principalId}>
-          <TableCell className="font-medium">
+          <TableCell mobile="primary" className="font-medium">
             {member.email}
             {member.principalId === yourId && <span className="text-muted-foreground"> (you)</span>}
           </TableCell>
-          <TableCell>
+          <TableCell mobile="state">
             <RoleBadge role={member.role} />
           </TableCell>
           {owner && (
-            <TableCell className="text-right">
+            <TableCell mobile="action" className="text-right">
               <Button size="sm" variant="outline" onClick={() => onRemove(member)}>
                 Remove
               </Button>
@@ -162,7 +162,7 @@ const InvitationRows = ({
   owner: boolean;
   onRevoke: (invitation: Invitation) => void;
 }) => (
-  <Table>
+  <Table mobile>
     <TableHeader>
       <TableRow>
         <TableHead>Invited email</TableHead>
@@ -175,14 +175,16 @@ const InvitationRows = ({
     <TableBody>
       {invitations.map((invitation) => (
         <TableRow key={invitation.invitationId}>
-          <TableCell className="font-medium">{invitation.email}</TableCell>
-          <TableCell>
+          <TableCell mobile="primary" className="font-medium">
+            {invitation.email}
+          </TableCell>
+          <TableCell mobile="state">
             <RoleBadge role={invitation.role} />
           </TableCell>
-          <TableCell>{formatDate(invitation.createdAt)}</TableCell>
-          <TableCell>{formatTime(Date.parse(invitation.expiresAt))}</TableCell>
+          <TableCell label="Invited">{formatDate(invitation.createdAt)}</TableCell>
+          <TableCell label="Expires">{formatTime(Date.parse(invitation.expiresAt))}</TableCell>
           {owner && (
-            <TableCell className="text-right">
+            <TableCell mobile="action" className="text-right">
               <Button size="sm" variant="outline" onClick={() => onRevoke(invitation)}>
                 Revoke
               </Button>
