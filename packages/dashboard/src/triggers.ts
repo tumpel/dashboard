@@ -93,13 +93,11 @@ export const filterSummary = (source: TriggerSource): string =>
 
 export const isRefusal = (event: TenantEvent): event is TriggerStartRefused => event.event === "TriggerStartRefused";
 
-const OLDEST_KEPT = /older than the oldest event kept, (\d+);/;
-
 const cursorKeptAfter = (error: unknown, afterEventId: number): number => {
   if (!(error instanceof ApiFailure) || error.failure.kind !== "Problem") throw error;
-  if (error.failure.problem.code !== "EventCursorExpired") throw error;
-  const match = OLDEST_KEPT.exec(error.failure.problem.detail);
-  const kept = match === null ? Number.NaN : Number(match[1]) - 1;
+  const problem = error.failure.problem;
+  if (problem.code !== "EventCursorExpired" || !("oldestEventId" in problem)) throw error;
+  const kept = problem.oldestEventId - 1;
   if (!(kept > afterEventId)) throw error;
   return kept;
 };
