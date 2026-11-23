@@ -113,7 +113,7 @@ test("an expired event cursor keeps its oldest event id", async () => {
   );
 });
 
-test("a session list with a failure reason this dashboard does not know shows every row, that reason as unknown", async () => {
+test("a session list with a failure reason this dashboard does not know keeps supported rows usable", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
   const sessions = await api.listSessions({});
   assert.deepEqual(
@@ -121,9 +121,6 @@ test("a session list with a failure reason this dashboard does not know shows ev
       session.sessionId,
       session.lastTurn.state === "Failed" ? session.lastTurn.reason : session.lastTurn.state,
     ]),
-    [
-      ["ses_known", "Completed"],
-      ["ses_newer", "unknown"],
-    ],
+    [["ses_known", "Completed"]],
   );
 });

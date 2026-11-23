@@ -1,8 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { dispatchRelease } from "./release-dispatch.mjs";
 import { githubApi } from "./release-github.mjs";
-import { planRelease, stampRelease } from "./release-plan.mjs";
+import { planRelease, releaseSource, stampRelease } from "./release-plan.mjs";
 import { publishRelease } from "./release-publish.mjs";
 
 const root = process.cwd();
@@ -23,10 +22,12 @@ const prepare = async () => {
       "The release event is not a main push from this repository. Use this repository's main checks event.",
     );
   const plan = await planRelease({
-    root,
-    sha: run?.head_sha ?? process.env.GITHUB_SHA,
-    ref: run ? "refs/heads/main" : process.env.GITHUB_REF,
-    repository: process.env.GITHUB_REPOSITORY,
+    ...releaseSource({
+      root,
+      sha: run?.head_sha ?? process.env.GITHUB_SHA,
+      ref: run ? "refs/heads/main" : process.env.GITHUB_REF,
+      repository: process.env.GITHUB_REPOSITORY,
+    }),
     github: githubApi(process.env.GH_TOKEN),
   });
   mkdirSync(state, { recursive: true });
@@ -40,5 +41,16 @@ const command = process.argv[2];
 if (command === "prepare") await prepare();
 else if (command === "publish")
   write("published", await publishRelease({ root, plan: read("plan"), github: githubApi(process.env.GH_TOKEN) }));
-else if (command === "dispatch") await dispatchRelease(read("published"), process.env.CONTROL_PLANE_DISPATCH_TOKEN);
-else throw new Error("Unknown release command. Run release:prepare, release:publish or release:dispatch.");
+else if (command === "dispatch") {
+  const token = process.env.CONTROL_PLANE_DISPATCH_TOKEN;
+  if (!token) {
+    console.log(
+      "::notice::CONTROL_PLANE_DISPATCH_TOKEN is empty; skipping component-released dispatch to control-plane.",
+    );
+  } else {
+    await githubApi(token)("/repos/tumpel/control-plane/dispatches", {
+      method: "POST",
+      body: JSON.stringify({ event_type: "component-released", client_payload: read("published") }),
+    });
+  }
+} else throw new Error("Unknown release command. Run release:prepare, release:publish or release:dispatch.");

@@ -7,7 +7,6 @@ import {
   ConfigPlanSchema,
   ConnectionSummarySchema,
   ConnectorAuthorizationSchema,
-  ConnectorSchema,
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
@@ -31,7 +30,6 @@ import {
   MintedEnrolmentTokenSchema,
   NamespaceConnectionLinkSchema,
   OAuthGrantSchema,
-  OpenRouterAuthorizationSchema,
   PersonaFileUploadSchema,
   PersonaSchema,
   PrebuildFailureSchema,
@@ -65,6 +63,7 @@ import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
 import { serviceUpdate } from "../service-update.ts";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
+import { ConnectorViewSchema, OpenRouterAuthorizationViewSchema, unknownValues } from "./responses";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
@@ -75,77 +74,33 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
-const UNKNOWN_VALUE = "unknown";
-
 const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
   typeof value === "object" && value !== null;
-
-const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
-  path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
 
 const hasExtraField = (input: unknown, output: unknown): boolean =>
   isContainer(input) &&
   isContainer(output) &&
   Object.keys(input).some((key) => !(key in output) || hasExtraField(input[key], output[key]));
 
-const unknownDiscriminators = (issues: readonly z.core.$ZodIssue[], data: unknown): boolean =>
-  issues.length > 0 &&
-  issues.every(
-    (issue) =>
-      issue.code === "invalid_union" && issue.errors.length === 0 && typeof valueAt(data, issue.path) === "string",
-  );
-
-const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
-  const parent = valueAt(root, path.slice(0, -1));
-  const key = path.at(-1);
-  if (isContainer(parent) && key !== undefined) parent[key] = value;
-};
-
-type EnumMiss = { path: PropertyKey[]; known: string };
-
-const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMiss[] =>
-  issues.flatMap((issue) => {
-    if (issue.code !== "invalid_value" || issue.values.length < 2) return [];
-    const [known] = issue.values;
-    if (typeof known !== "string" || typeof valueAt(data, issue.path) !== "string") return [];
-    return [{ path: issue.path, known }];
-  });
-
-const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
-  z.unknown().transform((data, context): T => {
-    const result = schema.safeParse(data);
-    if (result.success) {
-      if (hasExtraField(data, result.data)) serviceUpdate.report();
-      return result.data;
-    }
-    const misses = enumMisses(result.error.issues, data);
-    const standIn = structuredClone(data);
-    for (const miss of misses) put(standIn, miss.path, miss.known);
-    const tolerated = misses.length > 0 ? schema.safeParse(standIn) : result;
-    if (!tolerated.success) {
-      for (const issue of result.error.issues) context.addIssue({ ...issue });
-      return z.NEVER;
-    }
-    for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
-    serviceUpdate.report();
-    return tolerated.data;
-  });
-
-const eventPageSchema = EventPageSchema.extend({
-  events: z.preprocess((data) => {
+const supportedEntities = <T>(schema: z.ZodType<T>): z.ZodType<T[]> =>
+  z.preprocess((data) => {
     if (!Array.isArray(data)) return data;
-    return data.filter((event) => {
-      const result = TenantEventSchema.safeParse(event);
-      if (result.success || !unknownDiscriminators(result.error.issues, event)) return true;
+    return data.filter((entity) => {
+      const result = schema.safeParse(entity);
+      if (result.success || !unknownValues(result.error.issues, entity)) return true;
       serviceUpdate.report();
       return false;
     });
-  }, EventPageSchema.shape.events),
-});
+  }, schema.array());
+
+const eventPageSchema = EventPageSchema.extend({ events: supportedEntities(TenantEventSchema) });
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
-  const result = toleratingUnknownEnums(schema).safeParse(data);
-  if (result.success) return result.data;
+  const result = schema.safeParse(data);
+  if (result.success) {
+    if (hasExtraField(data, result.data)) serviceUpdate.report();
+    return result.data;
+  }
   const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
   throw new ApiFailure({
     kind: "OutOfStep",
@@ -242,7 +197,7 @@ const followEvents = (
       opened = true;
     };
     socket.onmessage = (message) => {
-      const event = toleratingUnknownEnums(TenantEventSchema).safeParse(JSON.parse(String(message.data)));
+      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
       if (event.success) listener.onEvent(event.data);
       else {
         serviceUpdate.report();
@@ -292,7 +247,7 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions", { params: { query } })),
+      settle("Sessions_list", supportedEntities(SessionSchema), client.GET("/v1/sessions", { params: { query } })),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
@@ -596,13 +551,13 @@ export const createHttpApi = (
     authorizeOpenRouter: (body) =>
       settle(
         "OpenRouterConnections_authorize",
-        OpenRouterAuthorizationSchema,
+        OpenRouterAuthorizationViewSchema,
         client.POST("/v1/openrouter-connection/authorize", { body }),
       ),
     getOpenRouterAuthorization: (openRouterAuthorizationId) =>
       settle(
         "OpenRouterConnections_getAuthorization",
-        OpenRouterAuthorizationSchema,
+        OpenRouterAuthorizationViewSchema,
         client.GET("/v1/openrouter-connection/authorizations/{openRouterAuthorizationId}", {
           params: { path: { openRouterAuthorizationId } },
         }),
@@ -631,15 +586,16 @@ export const createHttpApi = (
         "PushSubscriptions_delete",
         client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
       ),
-    listConnectors: () => settle("Connectors_list", ConnectorSchema.array(), client.GET("/v1/connectors")),
+    listConnectors: () =>
+      settle("Connectors_list", supportedEntities(ConnectorViewSchema), client.GET("/v1/connectors")),
     createConnector: (auth, body) =>
       auth === "Static"
-        ? settle("StaticConnectors_create", ConnectorSchema, client.POST("/v1/static-connectors", { body }))
-        : settle("OAuthConnectors_create", ConnectorSchema, client.POST("/v1/oauth-connectors", { body })),
+        ? settle("StaticConnectors_create", ConnectorViewSchema, client.POST("/v1/static-connectors", { body }))
+        : settle("OAuthConnectors_create", ConnectorViewSchema, client.POST("/v1/oauth-connectors", { body })),
     updateConnector: ({ connectorId, updatedAt }, body) =>
       settle(
         "Connectors_update",
-        ConnectorSchema,
+        ConnectorViewSchema,
         client.PUT("/v1/connectors/{connectorId}", { params: { path: { connectorId }, query: { updatedAt } }, body }),
       ),
     deleteConnector: ({ connectorId, updatedAt }) =>
@@ -650,7 +606,7 @@ export const createHttpApi = (
     setConnectorToken: ({ connectorId, updatedAt }, value) =>
       settle(
         "StaticConnectors_setToken",
-        ConnectorSchema,
+        ConnectorViewSchema,
         client.PUT("/v1/static-connectors/{connectorId}/token", {
           params: { path: { connectorId }, query: { updatedAt } },
           body: { value },
@@ -659,7 +615,7 @@ export const createHttpApi = (
     clearConnectorCredential: ({ connectorId, updatedAt }) =>
       settle(
         "Connectors_clearCredential",
-        ConnectorSchema,
+        ConnectorViewSchema,
         client.DELETE("/v1/connectors/{connectorId}/credential", {
           params: { path: { connectorId }, query: { updatedAt } },
         }),

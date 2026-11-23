@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, Fragment } from "react";
+import { jsx } from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createHttpApi } from "../src/api/http.ts";
 import { ServiceUpdateNotice } from "../src/components/service-update-notice.tsx";
 import { SessionStateBadge } from "../src/components/status-badge.tsx";
+import { createSignedOutStore, DashboardProvider } from "../src/context.tsx";
+import type {} from "../src/router.tsx";
+import { ConnectorRows } from "../src/screens/connectors.tsx";
+import { OpenRouterSection } from "../src/screens/openrouter-connect.tsx";
 import { serviceUpdate } from "../src/service-update.ts";
 
-test("unknown response values reach the real dashboard notice and status views without blocking known work", async () => {
+test("unknown connector and authorization responses render reload fallbacks and keep known work usable", async () => {
   const session = {
     sessionId: "ses_known",
     tenantId: "tenant-a",
@@ -61,24 +67,12 @@ test("unknown response values reach the real dashboard notice and status views w
   try {
     for (const future of [
       { ...session, sessionId: "ses_enum", state: "FutureState" },
-      {
-        ...session,
-        sessionId: "ses_failure",
-        lastTurnState: "Failed",
-        lastTurn: {
-          ...session.lastTurn,
-          state: "Failed",
-          reason: "FutureFailure",
-          detail: "A future failure",
-          failedAt: "2026-11-21T12:00:00Z",
-        },
-      },
       { ...session, sessionId: "ses_extra", futureField: { new: true } },
     ]) {
       payload = [session, future];
       const before = notifications;
       const rows = await api.listSessions({});
-      assert.equal(rows.length, 2);
+      assert.equal(rows.length, "futureField" in future ? 2 : 1);
       assert.equal(rows[0]?.state, "Idle");
       assert.ok(notifications > before);
       const html = renderToStaticMarkup(
@@ -93,6 +87,112 @@ test("unknown response values reach the real dashboard notice and status views w
       assert.match(html, /likely needs an update/);
       assert.match(html, /Idle/);
     }
+    payload = [
+      {
+        auth: "OAuth",
+        connectorId: "con_known",
+        tenantId: "tenant-a",
+        name: "Known connector",
+        url: "https://example.com/mcp",
+        status: { state: "Connected", connectedAt: "2026-11-21T12:00:00Z" },
+        createdAt: 1,
+        updatedAt: 2,
+      },
+      {
+        auth: "OAuth",
+        connectorId: "con_future",
+        tenantId: "tenant-a",
+        name: "Future connector",
+        url: "https://example.com/mcp",
+        status: {
+          state: "AuthorizationFailed",
+          reason: "FutureFailure",
+          detail: "A future failure",
+          failedAt: "2026-11-21T12:00:00Z",
+        },
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ];
+    const connectors = await api.listConnectors();
+    const connectorHtml = renderToStaticMarkup(
+      createElement(ConnectorRows, {
+        connectors,
+        personas: [],
+        owner: true,
+        pending: null,
+        onAction: () => assert.fail("render must not perform actions"),
+        onAuthorize: () => assert.fail("render must not authorize"),
+      }),
+    );
+    assert.match(connectorHtml, /This dashboard doesn&#x27;t recognise what the service sent/);
+    assert.match(connectorHtml, /Reload to update/);
+    assert.match(connectorHtml, /Known connector/);
+    assert.match(connectorHtml, /Authorize again/);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    for (const status of [
+      { state: "Failed", reason: "FutureFailure", detail: "Authorization failed", failedAt: "2026-11-21T12:00:00Z" },
+      { state: "Completed", keyLabel: "Known key", completedAt: "2026-11-21T12:00:00Z" },
+    ]) {
+      payload = {
+        openRouterAuthorizationId: "ora_1",
+        tenantId: "tenant-a",
+        principalId: "prn_1",
+        secretSetId: "sst_1",
+        status,
+        createdAt: 1,
+        updatedAt: 2,
+      };
+      client.setQueryData(
+        ["tenant-a", "openRouterAuthorizations", "ora_1"],
+        await api.getOpenRouterAuthorization("ora_1"),
+      );
+      const html = renderToStaticMarkup(
+        jsx(DashboardProvider, {
+          value: {
+            signedOut: createSignedOutStore(),
+            ports: {
+              apiFor: () => api,
+              apiOrigin: "https://example.com",
+              now: () => 0,
+              reportIssueUrl: "https://example.com/issues",
+              auth: {
+                signIn: async () => {
+                  throw new Error("unused");
+                },
+                finishSignIn: async () => {
+                  throw new Error("unused");
+                },
+                signedInTenants: () => [],
+                signOut: async () => null,
+              },
+            },
+          },
+          children: jsx(QueryClientProvider, {
+            client,
+            children: createElement(OpenRouterSection, {
+              tenantId: "tenant-a",
+              secretSet: {
+                secretSetId: "sst_1",
+                tenantId: "tenant-a",
+                name: "Keys",
+                keys: [],
+                createdAt: 1,
+                updatedAt: 2,
+              },
+              openRouterAuthorizationId: "ora_1",
+            }),
+          }),
+        }),
+      );
+      assert.match(
+        html,
+        status.state === "Failed"
+          ? /This dashboard doesn&#x27;t recognise what the service sent/
+          : /OpenRouter connected/,
+      );
+    }
+    client.clear();
     payload = {
       events: [
         {

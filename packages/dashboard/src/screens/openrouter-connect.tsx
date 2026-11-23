@@ -65,11 +65,13 @@ export const OpenRouterSection = ({
   const authorizing = authorize.isPending || authorize.isSuccess;
   const state = authorizing
     ? "Authorizing"
-    : status?.state === "Failed"
-      ? "Failed"
-      : connected
-        ? "Connected"
-        : "NotConnected";
+    : status?.state === "Unrecognised"
+      ? "Unrecognised"
+      : status?.state === "Failed"
+        ? "Failed"
+        : connected
+          ? "Connected"
+          : "NotConnected";
   const connect = () => authorize.mutate();
   const connectButton = (label: string, variant: "default" | "outline") => (
     <Button
@@ -84,6 +86,9 @@ export const OpenRouterSection = ({
   );
 
   const body = () => {
+    if (status?.state === "Unrecognised") {
+      return <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>;
+    }
     if (status?.state === "Failed" && !authorizing) {
       const wording = FAILURES[status.reason];
       return (

@@ -10,7 +10,6 @@ import type {
   ConfigPlanSchema,
   ConnectionSummarySchema,
   ConnectorAuthorizationSchema,
-  ConnectorSchema,
   ConnectorUpdateSchema,
   CostBasisSchema,
   CredentialHandoverSchema,
@@ -47,7 +46,6 @@ import type {
   NamespaceConnectionLinkSchema,
   NamespaceConnectionStartSchema,
   OAuthGrantSchema,
-  OpenRouterAuthorizationSchema,
   OpenRouterAuthorizationStartSchema,
   PersonaCreateSchema,
   PersonaFileUploadSchema,
@@ -97,6 +95,7 @@ import type {
   WhoamiSchema,
 } from "@tumpel/schemas";
 import type { z } from "zod";
+import type { ConnectorViewSchema, OpenRouterAuthorizationViewSchema } from "./responses";
 
 export type Host = z.infer<typeof HostSchema>;
 export type TenantEvent = z.infer<typeof TenantEventSchema>;
@@ -192,7 +191,7 @@ export type ClaudeSetup = z.infer<typeof ClaudeSetupSchema>;
 export type ClaudeSetupStatus = ClaudeSetup["status"];
 export type ClaudeSetupHarness = ClaudeSetup["harness"];
 export type ClaudeSetupFailureReason = Extract<ClaudeSetupStatus, { state: "Failed" }>["reason"];
-export type OpenRouterAuthorization = z.infer<typeof OpenRouterAuthorizationSchema>;
+export type OpenRouterAuthorization = z.infer<typeof OpenRouterAuthorizationViewSchema>;
 export type OpenRouterAuthorizationStart = z.infer<typeof OpenRouterAuthorizationStartSchema>;
 export type OpenRouterAuthorizationStatus = OpenRouterAuthorization["status"];
 export type OpenRouterAuthorizationFailureReason = Extract<
@@ -221,7 +220,7 @@ export type Invitation = z.infer<typeof InvitationSchema>;
 export type InvitationCreate = z.infer<typeof InvitationCreateSchema>;
 export type InvitationCreated = z.infer<typeof InvitationCreatedSchema>;
 export type Role = Member["role"];
-export type Connector = z.infer<typeof ConnectorSchema>;
+export type Connector = z.infer<typeof ConnectorViewSchema>;
 export type ConnectorStatus = Connector["status"];
 export type ConnectorCreate = z.infer<typeof StaticConnectorCreateSchema>;
 export type ConnectorUpdate = z.infer<typeof ConnectorUpdateSchema>;

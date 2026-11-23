@@ -71,6 +71,7 @@ const useRefreshConnectors = (tenantId: string) => {
 };
 
 const StatusBadge = ({ status, waiting }: { status: ConnectorStatus; waiting: boolean }) => {
+  if (status.state === "Unrecognised") return <Badge variant="outline">Unrecognised</Badge>;
   if (waiting) return <Badge variant="warning">Waiting for approval</Badge>;
   if (status.state === "Connected") return <Badge variant="success">Connected {day(status.connectedAt)}</Badge>;
   if (status.state === "Disconnected") return <Badge variant="grey">Disconnected {day(status.disconnectedAt)}</Badge>;
@@ -512,7 +513,7 @@ const RowActions = ({
   );
 };
 
-const ConnectorRows = ({
+export const ConnectorRows = ({
   connectors,
   personas,
   owner,
@@ -588,6 +589,13 @@ const ConnectorRows = ({
                     <a className="text-primary underline" href={pending.authorizeUrl} target="_blank" rel="noreferrer">
                       Open the provider's page again
                     </a>
+                  </TableCell>
+                </TableRow>
+              )}
+              {status.state === "Unrecognised" && (
+                <TableRow>
+                  <TableCell mobile="full" colSpan={columns}>
+                    <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>
                   </TableCell>
                 </TableRow>
               )}
