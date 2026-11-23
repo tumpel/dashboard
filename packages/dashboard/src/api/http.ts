@@ -63,6 +63,7 @@ import {
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
+import { serviceUpdate } from "../service-update.ts";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
@@ -81,6 +82,18 @@ const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
 
 const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
   path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
+
+const hasExtraField = (input: unknown, output: unknown): boolean =>
+  isContainer(input) &&
+  isContainer(output) &&
+  Object.keys(input).some((key) => !(key in output) || hasExtraField(input[key], output[key]));
+
+const unknownDiscriminators = (issues: readonly z.core.$ZodIssue[], data: unknown): boolean =>
+  issues.length > 0 &&
+  issues.every(
+    (issue) =>
+      issue.code === "invalid_union" && issue.errors.length === 0 && typeof valueAt(data, issue.path) === "string",
+  );
 
 const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
   const parent = valueAt(root, path.slice(0, -1));
@@ -101,7 +114,10 @@ const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMis
 const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
   z.unknown().transform((data, context): T => {
     const result = schema.safeParse(data);
-    if (result.success) return result.data;
+    if (result.success) {
+      if (hasExtraField(data, result.data)) serviceUpdate.report();
+      return result.data;
+    }
     const misses = enumMisses(result.error.issues, data);
     const standIn = structuredClone(data);
     for (const miss of misses) put(standIn, miss.path, miss.known);
@@ -111,11 +127,24 @@ const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
       return z.NEVER;
     }
     for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
+    serviceUpdate.report();
     return tolerated.data;
   });
 
+const eventPageSchema = EventPageSchema.extend({
+  events: z.preprocess((data) => {
+    if (!Array.isArray(data)) return data;
+    return data.filter((event) => {
+      const result = TenantEventSchema.safeParse(event);
+      if (result.success || !unknownDiscriminators(result.error.issues, event)) return true;
+      serviceUpdate.report();
+      return false;
+    });
+  }, EventPageSchema.shape.events),
+});
+
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
-  const result = schema.safeParse(data);
+  const result = toleratingUnknownEnums(schema).safeParse(data);
   if (result.success) return result.data;
   const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
   throw new ApiFailure({
@@ -213,9 +242,12 @@ const followEvents = (
       opened = true;
     };
     socket.onmessage = (message) => {
-      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
+      const event = toleratingUnknownEnums(TenantEventSchema).safeParse(JSON.parse(String(message.data)));
       if (event.success) listener.onEvent(event.data);
-      else listener.onGap();
+      else {
+        serviceUpdate.report();
+        listener.onGap();
+      }
     };
     socket.onclose = reconnect;
   };
@@ -260,11 +292,7 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle(
-        "Sessions_list",
-        toleratingUnknownEnums(SessionSchema.array()),
-        client.GET("/v1/sessions", { params: { query } }),
-      ),
+      settle("Sessions_list", SessionSchema.array(), client.GET("/v1/sessions", { params: { query } })),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
@@ -645,7 +673,7 @@ export const createHttpApi = (
         }),
       ),
     listEvents: (query) =>
-      settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
+      settle("Events_list", eventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
     listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
     getTrigger: (triggerId) =>

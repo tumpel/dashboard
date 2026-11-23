@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "storybook": "storybook dev --host 0.0.0.0 --port 6006 --no-open",
     "build-storybook": "storybook build --output-dir dist-storybook",
-    "test": "node --conditions=tumpel-source --test --test-timeout=30000 test/*.test.ts"
+    "test": "node --import tsx --conditions=tumpel-source --test --test-timeout=30000 test/*.test.ts"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -29,10 +29,10 @@
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-table": "^8.21.3",
-    "@tumpel/api": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.38/tumpel-api-1.0.0-rc.38.tgz",
-    "@tumpel/openapi": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.38/tumpel-openapi-1.0.0-rc.38.tgz",
+    "@tumpel/api": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.39/tumpel-api-1.0.0-rc.39.tgz",
+    "@tumpel/openapi": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.39/tumpel-openapi-1.0.0-rc.39.tgz",
     "@tumpel/pages": "*",
-    "@tumpel/schemas": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.38/tumpel-schemas-1.0.0-rc.38.tgz",
+    "@tumpel/schemas": "https://github.com/tumpel/protocol/releases/download/v1.0.0-rc.39/tumpel-schemas-1.0.0-rc.39.tgz",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.3.0",
@@ -48,6 +48,7 @@
     "storybook": "^10.6.7",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vite": "^8.3.8",
     "zod": "^4.6.7"

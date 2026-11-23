@@ -22,9 +22,12 @@
     "secrets:check": "node npm-scripts/secrets-check.mjs",
     "prose:check": "node npm-scripts/prose-check.mjs",
     "check": "npm run lint && npm run comments:check && npm run secrets:check && npm run prose:check && npm run typecheck",
-    "test": "npm test --workspaces --if-present",
+    "test": "node --test --test-timeout=120000 npm-scripts/*.test.mjs && npm test --workspaces --if-present",
     "pack": "npm run build && node npm-scripts/pack.mjs",
-    "pack:check": "node npm-scripts/pack-check.mjs"
+    "pack:check": "node npm-scripts/pack-check.mjs",
+    "release:prepare": "node npm-scripts/release.mjs prepare",
+    "release:publish": "node npm-scripts/release.mjs publish",
+    "release:dispatch": "node npm-scripts/release.mjs dispatch"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.0",

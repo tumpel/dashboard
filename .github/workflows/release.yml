@@ -1,6 +1,10 @@
 name: release
 
 on:
+  workflow_run:
+    workflows: [checks]
+    types: [completed]
+    branches: [main]
   push:
     tags: ["v*"]
 
@@ -10,37 +14,46 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
+    if: github.event_name == 'push' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
-      - name: Check that the tag matches the package versions
-        run: |
-          for package in packages/dashboard packages/pages; do
-            version=$(node -p "require('./$package/package.json').version")
-            if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-              echo "the tag is $GITHUB_REF_NAME but $package/package.json names version $version; set the version in every packages/*/package.json to match and tag again" >&2
-              exit 1
-            fi
-          done
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: convco@0.7.2
 
-      - run: npm ci --no-audit --no-fund
-
-      - name: Build and pack the dashboard and pages tarballs, then install and import them
-        run: |
-          npm run pack
-          npm run pack:check
-
-      - name: Create the GitHub release with the tarballs and their sha256
+      - id: plan
+        name: Require exact-source checks, plan and stamp the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+        run: npm run release:prepare
+
+      - if: steps.plan.outputs.version != ''
+        run: npm ci --no-audit --no-fund
+
+      - if: steps.plan.outputs.version != ''
+        name: Build, pack, import-check and publish both packages with checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm run release:publish
+
+      - if: steps.plan.outputs.version != ''
+        id: dispatch-control-plane
+        name: Dispatch component-released to control-plane
+        env:
+          CONTROL_PLANE_DISPATCH_TOKEN: ${{ secrets.CONTROL_PLANE_DISPATCH_TOKEN }}
+        run: npm run release:dispatch

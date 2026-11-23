@@ -39,6 +39,11 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
+      - if: steps.changes.outputs.code == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: convco@0.7.2
+
       - if: steps.changes.outputs.code == 'false'
         name: Run Biome and the comments, secrets and prose checks
         run: npm run lint && npm run comments:check && npm run secrets:check && npm run prose:check
