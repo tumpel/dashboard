@@ -7,7 +7,6 @@ export const PUSH_EVENTS: PushSubscriptionCreate["events"] = [
   "TurnFailed",
   "SessionFailed",
   "SubscriptionPaused",
-  "HostOffline",
   "PrebuildDone",
   "PrebuildFailed",
 ];
