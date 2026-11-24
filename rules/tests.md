@@ -10,3 +10,4 @@
 8. A unit test feeds its own small inputs. It never reads live config.
 9. Keep the input and the expected output visible in the test body. Repeat setup instead of hiding it in a helper. When fixture code is more than half the test, simplify the code under test.
 10. Never skip a test. Fix it or delete it. Delete a low-value test when it breaks.
+11. Script tests use `node:test` in `npm-scripts/*.test.mjs` and run with the root `npm test`.
