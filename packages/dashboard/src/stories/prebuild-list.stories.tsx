@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ApiFailure } from "../api/port";
-import { REPO, summaries } from "./connection-fixtures";
+import { REPO } from "./connection-fixtures";
 import { fakeApi, memberWhoami, never, StoryApp, signedOutFailure, tenantPath } from "./harness";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Prebuilds/PrebuildList", component: StoryApp };
@@ -13,21 +13,7 @@ const path = tenantPath("/prebuilds");
 export const Default: Story = { args: { path: tenantPath(`/prebuilds?repo=${encodeURIComponent(REPO)}`) } };
 
 export const Loading: Story = {
-  args: { path, api: fakeApi({ listConnections: never, listLatestPrebuilds: never }) },
-};
-
-export const NoProvider: Story = {
-  args: { path, api: fakeApi({ listConnections: async () => summaries("Connected", "NotConnected", "NotConnected") }) },
-};
-
-export const NoProviderMember: Story = {
-  args: {
-    path,
-    api: fakeApi({
-      whoami: memberWhoami,
-      listConnections: async () => summaries("Connected", "NotConnected", "NotConnected"),
-    }),
-  },
+  args: { path, api: fakeApi({ listLatestPrebuilds: never }) },
 };
 
 export const NoPrebuildYet: Story = { args: { path, api: fakeApi({ listLatestPrebuilds: async () => [] }) } };
@@ -59,5 +45,5 @@ const ListError: Story = {
 export { ListError as Error };
 
 export const SignedOut: Story = {
-  args: { path, api: fakeApi({ listConnections: () => Promise.reject(signedOutFailure) }) },
+  args: { path, api: fakeApi({ listLatestPrebuilds: () => Promise.reject(signedOutFailure) }) },
 };

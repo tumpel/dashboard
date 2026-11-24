@@ -45,12 +45,11 @@ const UsagePanel = ({ host, usage }: { host: Host; usage: ReportedHostUsage | un
   const slots: [string, number][] = [
     ["Capacity", usage.boxCapacity],
     ["Running", usage.boxesRunning],
-    ["Warm", usage.boxesWarm],
     ["Free", freeSlots(usage)],
   ];
   return (
     <div className="grid gap-4">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {slots.map(([label, value]) => (
           <div key={label} className="rounded-md border bg-muted p-2 text-center">
             <div className="text-lg font-semibold">{value}</div>
