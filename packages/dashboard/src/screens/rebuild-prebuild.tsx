@@ -12,7 +12,7 @@ import { NativeSelect } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { useTenantApi } from "../context";
 import { useHashDialog } from "../hash-dialog";
-import { type BuildProviderName, PROVIDER_NAMES, repositoryName } from "../prebuild-rows";
+import { repositoryName } from "../prebuild-rows";
 import { NO_WIZARD_SEARCH } from "../prebuild-wizard";
 import { prebuildKeys } from "../queries";
 
@@ -27,13 +27,11 @@ export const RebuildPrebuildDialog = ({
   tenantId,
   repository,
   latest,
-  providers,
   personas,
 }: {
   tenantId: string;
   repository: string;
   latest: Prebuild | null;
-  providers: readonly BuildProviderName[];
   personas: UseQueryResult<Persona[]>;
 }) => {
   const api = useTenantApi(tenantId);
@@ -41,11 +39,8 @@ export const RebuildPrebuildDialog = ({
   const navigate = useNavigate({ from: ROUTE });
   const dialog = useHashDialog();
   const open = dialog.isOpen("rebuild");
-  const [pickedProvider, setPickedProvider] = useState<BuildProviderName | null>(null);
   const [pickedPersona, setPickedPersona] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<string | null>(null);
-  const provider =
-    pickedProvider ?? (latest !== null && providers.includes(latest.provider) ? latest.provider : providers[0]) ?? null;
   const personaList = personas.data ?? [];
   const persona =
     pickedPersona ??
@@ -54,7 +49,6 @@ export const RebuildPrebuildDialog = ({
     null;
 
   const reset = () => {
-    setPickedProvider(null);
     setPickedPersona(null);
     setInvalid(null);
   };
@@ -63,9 +57,7 @@ export const RebuildPrebuildDialog = ({
     mutationFn: (body: PrebuildStart) => api.startPrebuild(body),
     onSuccess: (started) => {
       void queryClient.invalidateQueries({ queryKey: prebuildKeys.all(tenantId) });
-      toast(
-        `${repositoryName(started.repository)}: prebuild ${started.status.state} on ${PROVIDER_NAMES[started.provider]}.`,
-      );
+      toast(`${repositoryName(started.repository)}: prebuild ${started.status.state}.`);
       start.reset();
       reset();
       void navigate({ hash: "", search: (prev) => ({ ...prev, repo: started.repository }) });
@@ -80,9 +72,9 @@ export const RebuildPrebuildDialog = ({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const parsed = PrebuildStartSchema.safeParse({ repository, personaId: persona, provider, rebuild: true });
+    const parsed = PrebuildStartSchema.safeParse({ repository, personaId: persona, rebuild: true });
     if (!parsed.success) {
-      setInvalid("Pick a persona and a connected provider.");
+      setInvalid("Pick a persona.");
       return;
     }
     setInvalid(null);
@@ -126,24 +118,6 @@ export const RebuildPrebuildDialog = ({
             Starts a job even when a prebuild with the same inputs is stored. Tumpel reads the devcontainer files and
             lockfiles on the default branch.
           </DialogDescription>
-          <Field
-            id="prebuild-provider"
-            label="Provider"
-            error={null}
-            hint="The connected build provider that runs the job and bills it."
-          >
-            <NativeSelect
-              id="prebuild-provider"
-              value={provider ?? ""}
-              onChange={(event) => setPickedProvider(providers.find((item) => item === event.target.value) ?? null)}
-            >
-              {providers.map((item) => (
-                <option key={item} value={item}>
-                  {PROVIDER_NAMES[item]}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
           {personaField()}
           {invalid !== null && (
             <p role="alert" className="text-sm text-destructive">
@@ -154,26 +128,17 @@ export const RebuildPrebuildDialog = ({
             <ProblemBlock
               error={start.error}
               actions={
-                <>
-                  {problemCode(start.error) === "NoBuildProvider" && (
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
-                        Open Connections
-                      </Link>
-                    </Button>
-                  )}
-                  {problemCode(start.error) === "DevcontainerMissing" && (
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        to="/t/$tenantId/prebuilds/new/template"
-                        params={{ tenantId }}
-                        search={{ ...NO_WIZARD_SEARCH, repo: repositoryName(repository), persona }}
-                      >
-                        Pick a template
-                      </Link>
-                    </Button>
-                  )}
-                </>
+                problemCode(start.error) === "DevcontainerMissing" && (
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      to="/t/$tenantId/prebuilds/new/template"
+                      params={{ tenantId }}
+                      search={{ ...NO_WIZARD_SEARCH, repo: repositoryName(repository), persona }}
+                    >
+                      Pick a template
+                    </Link>
+                  </Button>
+                )
               }
             />
           )}

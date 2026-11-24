@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ExternalLinkIcon } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import {
   failureOf,
   type Persona,
@@ -20,7 +20,6 @@ import { NativeSelect } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { useTenantApi } from "../context";
 import { formatTime } from "../fleet";
-import { type BuildProviderName, connectedProviders, PROVIDER_NAMES } from "../prebuild-rows";
 import {
   commandText,
   LIFECYCLE_STEPS,
@@ -35,7 +34,6 @@ import {
 import {
   prebuildKeys,
   templateKeys,
-  useConnections,
   usePersonas,
   usePrebuildFailure,
   usePrebuilds,
@@ -85,7 +83,7 @@ const WizardFrame = ({
           <Link
             to="/t/$tenantId/prebuilds"
             params={{ tenantId }}
-            search={{ state: [], provider: null, repo: null }}
+            search={{ state: [], repo: null }}
             className="hover:underline"
           >
             Prebuilds /
@@ -118,7 +116,7 @@ const CancelLink = ({
     <Link
       to="/t/$tenantId/prebuilds"
       params={{ tenantId }}
-      search={{ state: [], provider: null, repo: repo === null ? null : repositoryUrlOf(repo) }}
+      search={{ state: [], repo: repo === null ? null : repositoryUrlOf(repo) }}
     >
       {label}
     </Link>
@@ -702,7 +700,7 @@ const BuildStatus = ({
   const line = () => {
     if (status.state === "Done") return `Done. Boxes for ${repo} now start from this prebuild.`;
     if (status.state === "Failed") return `Failed in ${status.phase}.`;
-    return `${status.state} on ${PROVIDER_NAMES[prebuild.provider]} since ${formatTime(Date.parse(prebuild.startedAt))}. This page reads it again when you return to this tab, or on Refresh.`;
+    return `${status.state} since ${formatTime(Date.parse(prebuild.startedAt))}. This page reads it again when you return to this tab, or on Refresh.`;
   };
   return (
     <section aria-labelledby="prebuild-status" className="grid gap-3 rounded-lg border bg-card p-4">
@@ -804,11 +802,7 @@ const BuildBody = ({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const repository = repositoryUrlOf(repo);
-  const connections = useConnections(tenantId);
   const prebuilds = usePrebuilds(tenantId, repository);
-  const [picked, setPicked] = useState<BuildProviderName | null>(null);
-  const providers = connectedProviders(connections.data ?? []);
-  const provider = picked ?? providers[0] ?? null;
   const ref = templateRefOf(search.template);
   const start = useMutation({
     mutationFn: (body: PrebuildStart) => api.startPrebuild(body),
@@ -821,20 +815,12 @@ const BuildBody = ({
       });
     },
   });
-  const build = (rebuild: boolean) => {
-    if (provider === null) return;
-    start.mutate({ repository, personaId: persona.personaId, provider, rebuild });
-  };
+  const build = (rebuild: boolean) => start.mutate({ repository, personaId: persona.personaId, rebuild });
   const current =
     search.prebuild === null
       ? undefined
       : (prebuilds.data?.find((item) => item.prebuildId === search.prebuild) ??
         (start.data?.prebuildId === search.prebuild ? start.data : undefined));
-
-  if (connections.isPending) return <Skeleton className="h-40 w-full" />;
-  if (connections.isError) {
-    return <ProblemBlock error={connections.error} onRetry={() => void connections.refetch()} />;
-  }
 
   const facts: [string, ReactNode][] = [
     ["Repository", repo],
@@ -866,67 +852,22 @@ const BuildBody = ({
   return (
     <>
       <Facts facts={facts} />
-      {providers.length > 1 && search.prebuild === null && (
-        <Field
-          id="prebuild-provider"
-          label="Provider"
-          error={null}
-          hint="The connected build provider that runs the job and bills it."
-        >
-          <NativeSelect
-            id="prebuild-provider"
-            value={provider ?? ""}
-            onChange={(event) => setPicked(providers.find((item) => item === event.target.value) ?? null)}
-          >
-            {providers.map((item) => (
-              <option key={item} value={item}>
-                {PROVIDER_NAMES[item]}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-      )}
       {search.prebuild === null && (
         <p className="text-sm text-muted-foreground">
           A prebuild runs the config once and stores the result. Boxes for this repository then start from it.
         </p>
       )}
-      {providers.length === 0 && (
-        <ProblemCard
-          wording={{
-            title: "No build provider connected",
-            detail: "Prebuilds run on the tenant's own GitHub Actions, CircleCI or Namespace account.",
-            fix: "Connect a provider on Connections, then come back and press Build now.",
-          }}
-          actions={
-            <Button asChild size="sm" variant="outline">
-              <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
-                Open Connections
-              </Link>
-            </Button>
-          }
-        />
-      )}
       {start.isError && (
         <ProblemBlock
           error={start.error}
           actions={
-            <>
-              {hasCode(start.error, ["NoBuildProvider"]) && (
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
-                    Open Connections
-                  </Link>
-                </Button>
-              )}
-              {hasCode(start.error, ["DevcontainerMissing"]) && (
-                <Button asChild size="sm" variant="outline">
-                  <Link to={STEP_ROUTES.template} params={{ tenantId }} search={changeConfigSearch(search)}>
-                    Pick a template
-                  </Link>
-                </Button>
-              )}
-            </>
+            hasCode(start.error, ["DevcontainerMissing"]) && (
+              <Button asChild size="sm" variant="outline">
+                <Link to={STEP_ROUTES.template} params={{ tenantId }} search={changeConfigSearch(search)}>
+                  Pick a template
+                </Link>
+              </Button>
+            )
           }
         />
       )}
@@ -936,7 +877,7 @@ const BuildBody = ({
           <>
             <Button
               className={button}
-              disabled={provider === null || start.isPending}
+              disabled={start.isPending}
               aria-busy={start.isPending}
               onClick={() => build(false)}
             >

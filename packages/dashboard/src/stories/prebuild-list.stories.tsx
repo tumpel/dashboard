@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { createHttpApi } from "../api/http";
 import { ApiFailure } from "../api/port";
-import { REPO, summaries } from "./connection-fixtures";
-import { fakeApi, memberWhoami, never, StoryApp, signedOutFailure, tenantPath } from "./harness";
+import { REPO } from "./connection-fixtures";
+import { fakeApi, memberWhoami, never, StoryApp, signedOutFailure, TENANT_ID, tenantPath } from "./harness";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Prebuilds/PrebuildList", component: StoryApp };
 export default meta;
@@ -12,22 +13,16 @@ const path = tenantPath("/prebuilds");
 
 export const Default: Story = { args: { path: tenantPath(`/prebuilds?repo=${encodeURIComponent(REPO)}`) } };
 
-export const Loading: Story = {
-  args: { path, api: fakeApi({ listConnections: never, listLatestPrebuilds: never }) },
-};
-
-export const NoProvider: Story = {
-  args: { path, api: fakeApi({ listConnections: async () => summaries("Connected", "NotConnected", "NotConnected") }) },
-};
-
-export const NoProviderMember: Story = {
-  args: {
-    path,
-    api: fakeApi({
-      whoami: memberWhoami,
-      listConnections: async () => summaries("Connected", "NotConnected", "NotConnected"),
-    }),
+export const ControlPlaneShaped: Story = {
+  args: { path },
+  render: (args) => {
+    const api = createHttpApi(window.location.origin, TENANT_ID, async () => ({ kind: "Token", token: "storybook" }));
+    return <StoryApp {...args} api={fakeApi({ listLatestPrebuilds: api.listLatestPrebuilds })} />;
   },
+};
+
+export const Loading: Story = {
+  args: { path, api: fakeApi({ listLatestPrebuilds: never }) },
 };
 
 export const NoPrebuildYet: Story = { args: { path, api: fakeApi({ listLatestPrebuilds: async () => [] }) } };
@@ -59,5 +54,5 @@ const ListError: Story = {
 export { ListError as Error };
 
 export const SignedOut: Story = {
-  args: { path, api: fakeApi({ listConnections: () => Promise.reject(signedOutFailure) }) },
+  args: { path, api: fakeApi({ listLatestPrebuilds: () => Promise.reject(signedOutFailure) }) },
 };

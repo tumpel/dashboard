@@ -1,21 +1,8 @@
-import { BuildProviderSchema, PrebuildStateSchema } from "@tumpel/schemas";
-import type { z } from "zod";
-import type { ConnectionSummary, Prebuild } from "./api/port";
+import { PrebuildStateSchema } from "@tumpel/schemas";
+import type { Prebuild } from "./api/port";
 
 export const PREBUILD_STATES = PrebuildStateSchema.options;
-export const BUILD_PROVIDERS = BuildProviderSchema.options;
-export type BuildProviderName = z.infer<typeof BuildProviderSchema>;
-
-export const PROVIDER_NAMES: Record<BuildProviderName, string> = {
-  GitHubActions: "GitHub Actions",
-  CircleCI: "CircleCI",
-  Namespace: "Namespace",
-};
-
 export const repositoryName = (repository: string): string => repository.replace(/^https:\/\/github\.com\//, "");
-
-export const connectedProviders = (connections: readonly ConnectionSummary[]): BuildProviderName[] =>
-  BUILD_PROVIDERS.filter((provider) => connections.some((row) => row.kind === provider && row.state === "Connected"));
 
 export const standingFailure = (prebuilds: readonly Prebuild[]): Prebuild | undefined => {
   for (const prebuild of prebuilds) {

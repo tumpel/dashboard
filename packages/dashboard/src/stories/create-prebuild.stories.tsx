@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
-import type { Prebuild } from "../api/port";
+import { expect, fn, userEvent, within } from "storybook/test";
+import type { Prebuild, TumpelApi } from "../api/port";
 import { DONE, FAILURE } from "./connection-fixtures";
 import { fakeApi, never, problem, StoryApp, signedOutFailure, tenantPath, unreachable } from "./harness";
 import { devcontainerMissing, PREVIEW, PREVIEW_FINDINGS, pullRequest, WIZARD_REPO } from "./prebuild-template-fixtures";
@@ -123,23 +123,21 @@ export const MergeClosed: Story = {
 
 export const BuildReady: Story = { args: { path: build } };
 
+const refusedStart = fn<TumpelApi["startPrebuild"]>(() => Promise.reject(devcontainerMissing));
+
 export const BuildRefused: Story = {
   args: {
     path: build,
-    api: fakeApi({
-      startPrebuild: () =>
-        Promise.reject(
-          problem(
-            409,
-            "NoBuildProvider",
-            "No build provider connected",
-            "The tenant has no GitHub Actions, CircleCI or Namespace connection.",
-            "Connect a provider on Connections, then press Build now.",
-          ),
-        ),
-    }),
+    api: fakeApi({ startPrebuild: refusedStart }),
   },
-  play: press("Build now"),
+  play: async () => {
+    await press("Build now")();
+    await expect(refusedStart).toHaveBeenCalledWith({
+      repository: `https://github.com/${WIZARD_REPO}`,
+      personaId: "prs_placeholder01",
+      rebuild: false,
+    });
+  },
 };
 
 export const BuildRunning: Story = { args: { path: built, api: runOf({ state: "Building" }) } };

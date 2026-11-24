@@ -276,10 +276,6 @@ export const useSecretSet = (tenantId: string, secretSetId: string) => {
 
 export const connectionKeys = {
   list: (tenantId: string) => [tenantId, "connections"] as const,
-  gitHubActions: (tenantId: string) => [tenantId, "connections", "GitHubActions"] as const,
-  circleCI: (tenantId: string) => [tenantId, "connections", "CircleCI"] as const,
-  circleCIProjects: (tenantId: string) => [tenantId, "connections", "CircleCI", "projects"] as const,
-  namespace: (tenantId: string) => [tenantId, "connections", "Namespace"] as const,
 };
 
 export const prebuildKeys = {
@@ -292,29 +288,6 @@ export const prebuildKeys = {
 export const useConnections = (tenantId: string) => {
   const api = useTenantApi(tenantId);
   return useQuery({ queryKey: connectionKeys.list(tenantId), queryFn: () => api.listConnections() });
-};
-
-export const useGitHubActionsConnection = (tenantId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({
-    queryKey: connectionKeys.gitHubActions(tenantId),
-    queryFn: () => api.getGitHubActionsConnection(),
-  });
-};
-
-export const useCircleCIConnection = (tenantId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: connectionKeys.circleCI(tenantId), queryFn: () => api.getCircleCIConnection() });
-};
-
-export const useCircleCIProjects = (tenantId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: connectionKeys.circleCIProjects(tenantId), queryFn: () => api.listCircleCIProjects() });
-};
-
-export const useNamespaceConnection = (tenantId: string) => {
-  const api = useTenantApi(tenantId);
-  return useQuery({ queryKey: connectionKeys.namespace(tenantId), queryFn: () => api.getNamespaceConnection() });
 };
 
 export const usePrebuildFailure = (tenantId: string, prebuildId: string) => {

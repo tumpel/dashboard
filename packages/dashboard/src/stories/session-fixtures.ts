@@ -73,8 +73,8 @@ const PROMPTS = [
 
 export const turnsFor = (
   session: Session,
-  last: Turn["state"] = session.state === "Running" ? "Running" : "Completed",
-) =>
+  last: Exclude<Turn["state"], "Unknown"> = session.state === "Running" ? "Running" : "Completed",
+): Turn[] =>
   PROMPTS.map((prompt, index): Turn => {
     const state = index === PROMPTS.length - 1 ? last : "Completed";
     const base = {

@@ -75,9 +75,7 @@ before(async () => {
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
-        link: { state: "NotConnected" },
-        reusableWorkflow: "tumpel/workflows/.github/workflows/prebuild.yml@v2",
-        callerWorkflowExample: "on: push",
+        app: { state: "Ready", appSlug: "example" },
       }),
     );
   });
@@ -89,13 +87,13 @@ after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
 test("an answer missing a field becomes a named out-of-step problem", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
-  const error = await api.getGitHubActionsConnection().then(
+  const error = await api.getGitHubConnection().then(
     () => assert.fail("the answer without tenantId parsed"),
     (rejection: unknown) => rejection,
   );
   assert.deepEqual(wordingOf(failureOf(error)), {
-    title: "The dashboard and the API are out of step on GitHubActionsConnections_get",
-    detail: "The GitHubActionsConnections_get answer does not match what this dashboard expects at tenantId.",
+    title: "The dashboard and the API are out of step on GitHubConnections_get",
+    detail: "The GitHubConnections_get answer does not match what this dashboard expects at tenantId.",
     fix: "Reload; if it stays, the deploy is still rolling.",
   });
 });

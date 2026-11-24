@@ -9,13 +9,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { TENANTLESS_DASHBOARD_PATHS } from "@tumpel/pages";
-import {
-  BuildProviderSchema,
-  HarnessSchema,
-  HostStateSchema,
-  PrebuildStateSchema,
-  SessionStateSchema,
-} from "@tumpel/schemas";
+import { HarnessSchema, HostStateSchema, PrebuildStateSchema, SessionStateSchema } from "@tumpel/schemas";
 import { useLayoutEffect } from "react";
 import { z } from "zod";
 import { EmptyState } from "./components/empty-state";
@@ -376,7 +370,6 @@ const PrebuildStatesSchema = z.array(PrebuildStateSchema).catch([]);
 
 const prebuildsSearch = (search: Record<string, unknown>) => ({
   state: PrebuildStatesSchema.parse(search.state),
-  provider: single(BuildProviderSchema, search.provider),
   repo: single(z.string().min(1), search.repo),
 });
 

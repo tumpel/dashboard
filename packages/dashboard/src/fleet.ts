@@ -7,8 +7,7 @@ export const activeHost = (hosts: readonly Host[]): Host | undefined => hosts.fi
 
 export const OPEN_SESSION_STATES: ReadonlySet<Session["state"]> = new Set(["Starting", "Idle", "Running", "Stopping"]);
 
-export const freeSlots = (usage: ReportedHostUsage): number =>
-  Math.max(0, usage.boxCapacity - usage.boxesRunning - usage.boxesWarm);
+export const freeSlots = (usage: ReportedHostUsage): number => Math.max(0, usage.boxCapacity - usage.boxesRunning);
 
 export const countBy = <T, K extends string>(items: readonly T[], keyOf: (item: T) => K): Map<K, number> => {
   const counts = new Map<K, number>();
@@ -19,7 +18,6 @@ export const countBy = <T, K extends string>(items: readonly T[], keyOf: (item: 
 export interface SlotTotals {
   capacity: number;
   running: number;
-  warm: number;
   free: number;
   reporting: number;
 }
@@ -29,11 +27,10 @@ export const slotTotals = (usage: readonly ReportedHostUsage[]): SlotTotals =>
     (totals, row) => ({
       capacity: totals.capacity + row.boxCapacity,
       running: totals.running + row.boxesRunning,
-      warm: totals.warm + row.boxesWarm,
       free: totals.free + freeSlots(row),
       reporting: totals.reporting + 1,
     }),
-    { capacity: 0, running: 0, warm: 0, free: 0, reporting: 0 },
+    { capacity: 0, running: 0, free: 0, reporting: 0 },
   );
 
 export const usageByHost = (usage: readonly ReportedHostUsage[]): Map<string, ReportedHostUsage> =>
