@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { useTenantApi } from "../context";
 
-const FAILURES: Record<Exclude<OpenRouterAuthorizationFailureReason, "Unrecognised">, Omit<Wording, "detail">> = {
+const FAILURES: Record<OpenRouterAuthorizationFailureReason, Omit<Wording, "detail">> = {
   AuthorizationTimedOut: {
     title: "OpenRouter did not send you back in time (AuthorizationTimedOut)",
     fix: "Connect OpenRouter again and approve on OpenRouter within 10 minutes.",
@@ -65,13 +65,11 @@ export const OpenRouterSection = ({
   const authorizing = authorize.isPending || authorize.isSuccess;
   const state = authorizing
     ? "Authorizing"
-    : status?.state === "Unrecognised"
-      ? "Unrecognised"
-      : status?.state === "Failed"
-        ? "Failed"
-        : connected
-          ? "Connected"
-          : "NotConnected";
+    : status?.state === "Failed"
+      ? "Failed"
+      : connected
+        ? "Connected"
+        : "NotConnected";
   const connect = () => authorize.mutate();
   const connectButton = (label: string, variant: "default" | "outline") => (
     <Button
@@ -86,9 +84,7 @@ export const OpenRouterSection = ({
   );
 
   const body = () => {
-    if (status?.state === "Unrecognised") return null;
     if (status?.state === "Failed" && !authorizing) {
-      if (status.reason === "Unrecognised") return <p className="text-sm">{status.detail}</p>;
       const wording = FAILURES[status.reason];
       return (
         <ProblemCard

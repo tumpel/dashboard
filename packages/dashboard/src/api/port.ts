@@ -4,11 +4,13 @@ import type {
   ConfigPlanSchema,
   ConnectionSummarySchema,
   ConnectorAuthorizationSchema,
+  ConnectorSchema,
   ConnectorUpdateSchema,
   CostBasisSchema,
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
+  EventPageSchema,
   EventProblemSchema,
   EventQuerySchema,
   GitHubConnectionSchema,
@@ -35,6 +37,7 @@ import type {
   MetricWindowSchema,
   MintedEnrolmentTokenSchema,
   OAuthGrantSchema,
+  OpenRouterAuthorizationSchema,
   OpenRouterAuthorizationStartSchema,
   PersonaCreateSchema,
   PersonaFileUploadSchema,
@@ -59,39 +62,36 @@ import type {
   SecretSetSchema,
   SecretSetUpdateSchema,
   SessionListQuerySchema,
+  SessionSchema,
   SessionStartFromIssueSchema,
   SessionStartSchema,
   SnapshotSchema,
+  StartedSessionFromIssueSchema,
+  StartedSessionSchema,
   StaticConnectorCreateSchema,
   SteerSchema,
   StopFailureSchema,
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
   TenantConfigSchema,
+  TenantEventSchema,
+  TranscriptPageSchema,
   TranscriptQuerySchema,
   TriggerCreateSchema,
   TriggerPatchSchema,
   TriggerSchema,
+  TriggerStartRefusedEventSchema,
   TriggerTestResultSchema,
   TriggerTestSchema,
+  TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
 import type { z } from "zod";
-import type {
-  ConnectorViewSchema,
-  EventPageViewSchema,
-  OpenRouterAuthorizationViewSchema,
-  SessionViewSchema,
-  StartedSessionFromIssueViewSchema,
-  StartedSessionViewSchema,
-  TranscriptPageViewSchema,
-  TurnViewSchema,
-} from "./responses";
 
 export type Host = z.infer<typeof HostSchema>;
-export type TenantEvent = EventPage["events"][number];
+export type TenantEvent = z.infer<typeof TenantEventSchema>;
 export type EventQuery = z.infer<typeof EventQuerySchema>;
-export type EventPage = z.infer<typeof EventPageViewSchema>;
+export type EventPage = z.infer<typeof EventPageSchema>;
 export type Trigger = z.infer<typeof TriggerSchema>;
 export type TriggerCreate = z.infer<typeof TriggerCreateSchema>;
 export type TriggerPatch = z.infer<typeof TriggerPatchSchema>;
@@ -100,30 +100,30 @@ export type TriggerEvent = TriggerSource["event"];
 export type TriggerCondition = TriggerSource["conditions"][number];
 export type TriggerTest = z.infer<typeof TriggerTestSchema>;
 export type TriggerTestResult = z.infer<typeof TriggerTestResultSchema>;
-export type TriggerStartRefused = Extract<TenantEvent, { event: "TriggerStartRefused" }>;
+export type TriggerStartRefused = z.infer<typeof TriggerStartRefusedEventSchema>;
 
 export interface EventListener {
   onEvent(event: TenantEvent): void;
   onGap(): void;
 }
 export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
-export type Session = z.infer<typeof SessionViewSchema>;
+export type Session = z.infer<typeof SessionSchema>;
 export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
 export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
 export type Problem = z.infer<typeof EventProblemSchema>;
 export type Persona = z.infer<typeof PersonaSchema>;
 export type SessionStart = z.infer<typeof SessionStartSchema>;
-export type StartedSession = z.infer<typeof StartedSessionViewSchema>;
+export type StartedSession = z.infer<typeof StartedSessionSchema>;
 export type SessionStartFromIssue = z.infer<typeof SessionStartFromIssueSchema>;
-export type StartedSessionFromIssue = z.infer<typeof StartedSessionFromIssueViewSchema>;
+export type StartedSessionFromIssue = z.infer<typeof StartedSessionFromIssueSchema>;
 export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>;
 export type GitHubRepositoryPath = z.infer<typeof GitHubRepositoryPathSchema>;
 export type GitHubIssue = z.infer<typeof GitHubIssueSchema>;
-export type Turn = z.infer<typeof TurnViewSchema>;
+export type Turn = z.infer<typeof TurnSchema>;
 export type Steer = z.infer<typeof SteerSchema>;
 export type TranscriptQuery = z.infer<typeof TranscriptQuerySchema>;
-export type TranscriptPage = z.infer<typeof TranscriptPageViewSchema>;
+export type TranscriptPage = z.infer<typeof TranscriptPageSchema>;
 export type TranscriptText = z.infer<typeof CompactTranscriptLineSchema>;
 export type Snapshot = z.infer<typeof SnapshotSchema>;
 export type CredentialHandover = z.infer<typeof CredentialHandoverSchema>;
@@ -170,7 +170,7 @@ export type ClaudeSetup = z.infer<typeof ClaudeSetupSchema>;
 export type ClaudeSetupStatus = ClaudeSetup["status"];
 export type ClaudeSetupHarness = ClaudeSetup["harness"];
 export type ClaudeSetupFailureReason = Extract<ClaudeSetupStatus, { state: "Failed" }>["reason"];
-export type OpenRouterAuthorization = z.infer<typeof OpenRouterAuthorizationViewSchema>;
+export type OpenRouterAuthorization = z.infer<typeof OpenRouterAuthorizationSchema>;
 export type OpenRouterAuthorizationStart = z.infer<typeof OpenRouterAuthorizationStartSchema>;
 export type OpenRouterAuthorizationStatus = OpenRouterAuthorization["status"];
 export type OpenRouterAuthorizationFailureReason = Extract<
@@ -199,7 +199,7 @@ export type Invitation = z.infer<typeof InvitationSchema>;
 export type InvitationCreate = z.infer<typeof InvitationCreateSchema>;
 export type InvitationCreated = z.infer<typeof InvitationCreatedSchema>;
 export type Role = Member["role"];
-export type Connector = z.infer<typeof ConnectorViewSchema>;
+export type Connector = z.infer<typeof ConnectorSchema>;
 export type ConnectorStatus = Connector["status"];
 export type ConnectorCreate = z.infer<typeof StaticConnectorCreateSchema>;
 export type ConnectorUpdate = z.infer<typeof ConnectorUpdateSchema>;

@@ -18,6 +18,7 @@ const SHIPPED = [
   "npm-scripts/pack-check.mjs",
 ];
 const PACKAGES = ["packages/dashboard", "packages/pages"];
+const RELEASE_TAG = /^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/;
 const read = (root, path) => JSON.parse(readFileSync(join(root, path), "utf8"));
 const write = (root, path, value) => writeFileSync(join(root, path), `${JSON.stringify(value, null, 2)}\n`);
 
@@ -28,21 +29,19 @@ export const requireReleaseSha = (root, sha) => {
     throw new Error("The checkout does not match the release source SHA. Check out the triggering SHA.");
 };
 
-export const remoteTagSha = (root, tag) => {
-  const ref = `refs/tags/${tag}`;
-  const peeled = `${ref}^{}`;
-  const refs = git(root, "ls-remote", "--tags", "origin", ref, peeled).split("\n");
-  const commits = new Map(
-    refs.map((line) => {
-      const [sha, name] = line.split("\t");
-      return [name, sha];
-    }),
-  );
-  return commits.get(peeled) ?? commits.get(ref);
+export const remoteTagShas = (root) => {
+  const refs = git(root, "ls-remote", "--tags", "origin", "refs/tags/v[0-9]*");
+  const commits = new Map();
+  for (const line of refs.split("\n").filter(Boolean)) {
+    const [sha, ref] = line.split("\t");
+    const tag = ref.slice("refs/tags/".length).replace(/\^\{\}$/, "");
+    if (!RELEASE_TAG.test(tag)) continue;
+    if (ref.endsWith("^{}") || !commits.has(tag)) commits.set(tag, sha);
+  }
+  return commits;
 };
 
-export const releaseSource = ({ root, sha, ref, repository }) => {
-  requireReleaseSha(root, sha);
+export const releaseSource = ({ root, sha, ref, repository, pendingTags = [] }) => {
   const source = { sha, ref, repository };
   if (ref.startsWith("refs/tags/"))
     return { ...source, versions: PACKAGES.map((path) => read(root, `${path}/package.json`).version) };
@@ -50,7 +49,15 @@ export const releaseSource = ({ root, sha, ref, repository }) => {
     execFileSync("convco", ["version", ...args], { cwd: root, encoding: "utf8", timeout: 30_000 }).trim();
   const stable = convco("--ignore-prereleases");
   const next = convco("--bump", "--ignore-prereleases", ...SHIPPED.flatMap((path) => ["-P", path]));
-  const nearest = git(root, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*");
+  const nearest = git(
+    root,
+    "describe",
+    "--tags",
+    "--abbrev=0",
+    "--match",
+    "v[0-9]*",
+    ...pendingTags.flatMap((tag) => ["--exclude", tag]),
+  );
   const diff = spawnSync("git", ["diff", "--quiet", nearest, "HEAD", "--", ...SHIPPED], { cwd: root, timeout: 30_000 });
   if (diff.error) throw diff.error;
   if (![0, 1].includes(diff.status))
@@ -75,12 +82,12 @@ export const releaseDecision = ({
   commitCount,
   shippedChanged,
 }) => {
-  if (!conclusion) throw new Error(`Checks are incomplete for ${sha}. Release only after this SHA passes checks.`);
-  if (conclusion !== "success") throw new Error(`Checks failed for ${sha}. Fix the checks before releasing this SHA.`);
   if (ref.startsWith("refs/tags/")) {
+    if (!conclusion) throw new Error(`Checks are incomplete for ${sha}. Release only after this SHA passes checks.`);
+    if (conclusion !== "success")
+      throw new Error(`Checks failed for ${sha}. Fix the checks before releasing this SHA.`);
     const tag = ref.slice("refs/tags/".length);
-    if (!/^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/.test(tag))
-      throw new Error("The release tag is not a version. Use vX.Y.Z or vX.Y.Z-rc.N.");
+    if (!RELEASE_TAG.test(tag)) throw new Error("The release tag is not a version. Use vX.Y.Z or vX.Y.Z-rc.N.");
     if (versions.some((version) => `v${version}` !== tag))
       throw new Error(`The package versions do not match ${tag}. Match both package versions before tagging.`);
     return { sha, tag, version: tag.slice(1), prerelease: tag.includes("-rc."), repository };

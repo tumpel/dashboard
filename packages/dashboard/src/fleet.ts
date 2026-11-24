@@ -65,7 +65,6 @@ export const HARNESS_NAMES: Record<Session["harness"], string> = {
   OpenCode: "OpenCode",
   PiDev: "Pi.dev",
   MistralAgent: "Mistral agent",
-  Unrecognised: "Unrecognised",
 };
 
 export const SECRET_KIND_NAMES: Record<SecretKey["kind"], string> = {

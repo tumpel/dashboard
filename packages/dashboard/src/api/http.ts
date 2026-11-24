@@ -4,9 +4,11 @@ import {
   ConfigPlanSchema,
   ConnectionSummarySchema,
   ConnectorAuthorizationSchema,
+  ConnectorSchema,
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
+  EventPageSchema,
   EventProblemSchema,
   GitHubConnectionSchema,
   GitHubInstallationSchema,
@@ -24,6 +26,7 @@ import {
   MetricTurnPageSchema,
   MintedEnrolmentTokenSchema,
   OAuthGrantSchema,
+  OpenRouterAuthorizationSchema,
   PersonaFileUploadSchema,
   PersonaSchema,
   PrebuildFailureSchema,
@@ -39,28 +42,23 @@ import {
   ReleaseManifestSchema,
   ReportedHostUsageSchema,
   SecretSetSchema,
+  SessionSchema,
   SnapshotSchema,
+  StartedSessionFromIssueSchema,
+  StartedSessionSchema,
   SteerSchema,
   StopFailureSchema,
+  TenantEventSchema,
+  TranscriptPageSchema,
   TriggerSchema,
   TriggerTestResultSchema,
+  TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
-import {
-  ConnectorViewSchema,
-  EventPageViewSchema,
-  EventViewSchema,
-  OpenRouterAuthorizationViewSchema,
-  SessionViewSchema,
-  StartedSessionFromIssueViewSchema,
-  StartedSessionViewSchema,
-  TranscriptPageViewSchema,
-  TurnViewSchema,
-} from "./responses.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
@@ -70,6 +68,46 @@ const RECONNECT_CAP_MS = 30_000;
 const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
+
+const UNKNOWN_VALUE = "unknown";
+
+const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
+  typeof value === "object" && value !== null;
+
+const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
+  path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
+
+const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
+  const parent = valueAt(root, path.slice(0, -1));
+  const key = path.at(-1);
+  if (isContainer(parent) && key !== undefined) parent[key] = value;
+};
+
+type EnumMiss = { path: PropertyKey[]; known: string };
+
+const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMiss[] =>
+  issues.flatMap((issue) => {
+    if (issue.code !== "invalid_value" || issue.values.length < 2) return [];
+    const [known] = issue.values;
+    if (typeof known !== "string" || typeof valueAt(data, issue.path) !== "string") return [];
+    return [{ path: issue.path, known }];
+  });
+
+const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
+  z.unknown().transform((data, context): T => {
+    const result = schema.safeParse(data);
+    if (result.success) return result.data;
+    const misses = enumMisses(result.error.issues, data);
+    const standIn = structuredClone(data);
+    for (const miss of misses) put(standIn, miss.path, miss.known);
+    const tolerated = misses.length > 0 ? schema.safeParse(standIn) : result;
+    if (!tolerated.success) {
+      for (const issue of result.error.issues) context.addIssue({ ...issue });
+      return z.NEVER;
+    }
+    for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
+    return tolerated.data;
+  });
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
@@ -170,8 +208,8 @@ const followEvents = (
       opened = true;
     };
     socket.onmessage = (message) => {
-      const event = EventViewSchema.safeParse(JSON.parse(String(message.data)));
-      if (event.success && event.data !== null) listener.onEvent(event.data);
+      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
+      if (event.success) listener.onEvent(event.data);
       else listener.onGap();
     };
     socket.onclose = reconnect;
@@ -217,24 +255,28 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle("Sessions_list", SessionViewSchema.array(), client.GET("/v1/sessions", { params: { query } })),
+      settle(
+        "Sessions_list",
+        toleratingUnknownEnums(SessionSchema.array()),
+        client.GET("/v1/sessions", { params: { query } }),
+      ),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
-        SessionViewSchema,
+        SessionSchema,
         client.GET("/v1/sessions/{sessionId}", { params: { path: { sessionId } } }),
       ),
-    startSession: (body) => settle("Sessions_start", StartedSessionViewSchema, client.POST("/v1/sessions", { body })),
+    startSession: (body) => settle("Sessions_start", StartedSessionSchema, client.POST("/v1/sessions", { body })),
     startSessionFromIssue: (body) =>
       settle(
         "Sessions_startFromIssue",
-        StartedSessionFromIssueViewSchema,
+        StartedSessionFromIssueSchema,
         client.POST("/v1/sessions/from-issue", { body }),
       ),
     stopSession: (sessionId, cancelTurn) =>
       settle(
         "Sessions_stop",
-        SessionViewSchema,
+        SessionSchema,
         client.POST("/v1/sessions/{sessionId}/stop", {
           params: { path: { sessionId }, query: cancelTurn ? { cancelTurn } : {} },
         }),
@@ -242,19 +284,19 @@ export const createHttpApi = (
     archiveSession: (sessionId) =>
       settle(
         "Sessions_archive",
-        SessionViewSchema,
+        SessionSchema,
         client.POST("/v1/sessions/{sessionId}/archive", { params: { path: { sessionId } } }),
       ),
     listTurns: (sessionId) =>
       settle(
         "Turns_list",
-        TurnViewSchema.array(),
+        TurnSchema.array(),
         client.GET("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } } }),
       ),
     sendTurn: (sessionId, prompt) =>
       settle(
         "Turns_send",
-        TurnViewSchema,
+        TurnSchema,
         client.POST("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } }, body: { prompt } }),
       ),
     steerTurn: (turnId, prompt) =>
@@ -266,7 +308,7 @@ export const createHttpApi = (
     readTranscript: (sessionId, query) =>
       settle(
         "Transcripts_read",
-        TranscriptPageViewSchema,
+        TranscriptPageSchema,
         client.GET("/v1/sessions/{sessionId}/transcript", { params: { path: { sessionId }, query } }),
       ),
     listSnapshots: (sessionId) =>
@@ -468,13 +510,13 @@ export const createHttpApi = (
     authorizeOpenRouter: (body) =>
       settle(
         "OpenRouterConnections_authorize",
-        OpenRouterAuthorizationViewSchema,
+        OpenRouterAuthorizationSchema,
         client.POST("/v1/openrouter-connection/authorize", { body }),
       ),
     getOpenRouterAuthorization: (openRouterAuthorizationId) =>
       settle(
         "OpenRouterConnections_getAuthorization",
-        OpenRouterAuthorizationViewSchema,
+        OpenRouterAuthorizationSchema,
         client.GET("/v1/openrouter-connection/authorizations/{openRouterAuthorizationId}", {
           params: { path: { openRouterAuthorizationId } },
         }),
@@ -503,15 +545,15 @@ export const createHttpApi = (
         "PushSubscriptions_delete",
         client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
       ),
-    listConnectors: () => settle("Connectors_list", ConnectorViewSchema.array(), client.GET("/v1/connectors")),
+    listConnectors: () => settle("Connectors_list", ConnectorSchema.array(), client.GET("/v1/connectors")),
     createConnector: (auth, body) =>
       auth === "Static"
-        ? settle("StaticConnectors_create", ConnectorViewSchema, client.POST("/v1/static-connectors", { body }))
-        : settle("OAuthConnectors_create", ConnectorViewSchema, client.POST("/v1/oauth-connectors", { body })),
+        ? settle("StaticConnectors_create", ConnectorSchema, client.POST("/v1/static-connectors", { body }))
+        : settle("OAuthConnectors_create", ConnectorSchema, client.POST("/v1/oauth-connectors", { body })),
     updateConnector: ({ connectorId, updatedAt }, body) =>
       settle(
         "Connectors_update",
-        ConnectorViewSchema,
+        ConnectorSchema,
         client.PUT("/v1/connectors/{connectorId}", { params: { path: { connectorId }, query: { updatedAt } }, body }),
       ),
     deleteConnector: ({ connectorId, updatedAt }) =>
@@ -522,7 +564,7 @@ export const createHttpApi = (
     setConnectorToken: ({ connectorId, updatedAt }, value) =>
       settle(
         "StaticConnectors_setToken",
-        ConnectorViewSchema,
+        ConnectorSchema,
         client.PUT("/v1/static-connectors/{connectorId}/token", {
           params: { path: { connectorId }, query: { updatedAt } },
           body: { value },
@@ -531,7 +573,7 @@ export const createHttpApi = (
     clearConnectorCredential: ({ connectorId, updatedAt }) =>
       settle(
         "Connectors_clearCredential",
-        ConnectorViewSchema,
+        ConnectorSchema,
         client.DELETE("/v1/connectors/{connectorId}/credential", {
           params: { path: { connectorId }, query: { updatedAt } },
         }),
@@ -545,7 +587,7 @@ export const createHttpApi = (
         }),
       ),
     listEvents: (query) =>
-      settle("Events_list", EventPageViewSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
+      settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
     listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
     getTrigger: (triggerId) =>
