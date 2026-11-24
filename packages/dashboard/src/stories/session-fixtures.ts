@@ -91,9 +91,9 @@ export const turnsFor = (
     return {
       ...base,
       state,
-      reason: "Undelivered",
+      reason: "HostDropped",
       detail:
-        "no host took the turn within 3600 seconds of its offer, so it never ran; host box is offline. Check that its supervisor runs and reads Online, then send the turn again",
+        "The host disconnected while the turn was running. Check that the host is online, then send the turn again.",
       failedAt: "2026-11-15T14:03:12+01:00",
     };
   });

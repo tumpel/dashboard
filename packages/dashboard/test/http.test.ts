@@ -62,6 +62,12 @@ before(async () => {
       response.end(
         JSON.stringify([
           session("ses_known", { state: "Completed" }),
+          session("ses_host_dropped", {
+            state: "Failed",
+            reason: "HostDropped",
+            detail: "The host disconnected while the turn was running.",
+            failedAt: "2026-11-21T12:00:00Z",
+          }),
           session("ses_newer", {
             state: "Failed",
             reason: "ReasonFromANewerControlPlane",
@@ -111,7 +117,7 @@ test("an expired event cursor keeps its oldest event id", async () => {
   );
 });
 
-test("a session list with a failure reason this dashboard does not know shows every row, that reason as unknown", async () => {
+test("a session list keeps HostDropped and reads an unrecognized failure reason as unknown", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
   const sessions = await api.listSessions({});
   assert.deepEqual(
@@ -121,6 +127,7 @@ test("a session list with a failure reason this dashboard does not know shows ev
     ]),
     [
       ["ses_known", "Completed"],
+      ["ses_host_dropped", "HostDropped"],
       ["ses_newer", "unknown"],
     ],
   );
