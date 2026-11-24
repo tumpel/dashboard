@@ -45,17 +45,13 @@ import {
   ReleaseManifestSchema,
   ReportedHostUsageSchema,
   SecretSetSchema,
-  SessionSchema,
   SnapshotSchema,
-  StartedSessionFromIssueSchema,
-  StartedSessionSchema,
   SteerSchema,
   StopFailureSchema,
   TenantEventSchema,
   TranscriptPageSchema,
   TriggerSchema,
   TriggerTestResultSchema,
-  TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
 import createClient from "openapi-fetch";
@@ -63,7 +59,14 @@ import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
 import { serviceUpdate } from "../service-update.ts";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
-import { ConnectorViewSchema, OpenRouterAuthorizationViewSchema, unknownValues } from "./responses";
+import {
+  ConnectorViewSchema,
+  OpenRouterAuthorizationViewSchema,
+  SessionViewSchema,
+  StartedSessionFromIssueViewSchema,
+  StartedSessionViewSchema,
+  TurnViewSchema,
+} from "./responses";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
@@ -74,33 +77,21 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
-const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
-  typeof value === "object" && value !== null;
-
-const hasExtraField = (input: unknown, output: unknown): boolean =>
-  isContainer(input) &&
-  isContainer(output) &&
-  Object.keys(input).some((key) => !(key in output) || hasExtraField(input[key], output[key]));
-
-const supportedEntities = <T>(schema: z.ZodType<T>): z.ZodType<T[]> =>
-  z.preprocess((data) => {
+const eventPageSchema = EventPageSchema.extend({
+  events: z.preprocess((data) => {
     if (!Array.isArray(data)) return data;
-    return data.filter((entity) => {
-      const result = schema.safeParse(entity);
-      if (result.success || !unknownValues(result.error.issues, entity)) return true;
+    return data.filter((event) => {
+      if (typeof event !== "object" || event === null || typeof event.event !== "string") return true;
+      if (TenantEventSchema.options.some((schema) => schema.shape.event.safeParse(event.event).success)) return true;
       serviceUpdate.report();
       return false;
     });
-  }, schema.array());
-
-const eventPageSchema = EventPageSchema.extend({ events: supportedEntities(TenantEventSchema) });
+  }, TenantEventSchema.array()),
+});
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
-  if (result.success) {
-    if (hasExtraField(data, result.data)) serviceUpdate.report();
-    return result.data;
-  }
+  if (result.success) return result.data;
   const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
   throw new ApiFailure({
     kind: "OutOfStep",
@@ -247,24 +238,24 @@ export const createHttpApi = (
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: (query) =>
-      settle("Sessions_list", supportedEntities(SessionSchema), client.GET("/v1/sessions", { params: { query } })),
+      settle("Sessions_list", SessionViewSchema.array(), client.GET("/v1/sessions", { params: { query } })),
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
-        SessionSchema,
+        SessionViewSchema,
         client.GET("/v1/sessions/{sessionId}", { params: { path: { sessionId } } }),
       ),
-    startSession: (body) => settle("Sessions_start", StartedSessionSchema, client.POST("/v1/sessions", { body })),
+    startSession: (body) => settle("Sessions_start", StartedSessionViewSchema, client.POST("/v1/sessions", { body })),
     startSessionFromIssue: (body) =>
       settle(
         "Sessions_startFromIssue",
-        StartedSessionFromIssueSchema,
+        StartedSessionFromIssueViewSchema,
         client.POST("/v1/sessions/from-issue", { body }),
       ),
     stopSession: (sessionId, cancelTurn) =>
       settle(
         "Sessions_stop",
-        SessionSchema,
+        SessionViewSchema,
         client.POST("/v1/sessions/{sessionId}/stop", {
           params: { path: { sessionId }, query: cancelTurn ? { cancelTurn } : {} },
         }),
@@ -272,19 +263,19 @@ export const createHttpApi = (
     archiveSession: (sessionId) =>
       settle(
         "Sessions_archive",
-        SessionSchema,
+        SessionViewSchema,
         client.POST("/v1/sessions/{sessionId}/archive", { params: { path: { sessionId } } }),
       ),
     listTurns: (sessionId) =>
       settle(
         "Turns_list",
-        TurnSchema.array(),
+        TurnViewSchema.array(),
         client.GET("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } } }),
       ),
     sendTurn: (sessionId, prompt) =>
       settle(
         "Turns_send",
-        TurnSchema,
+        TurnViewSchema,
         client.POST("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } }, body: { prompt } }),
       ),
     steerTurn: (turnId, prompt) =>
@@ -586,8 +577,7 @@ export const createHttpApi = (
         "PushSubscriptions_delete",
         client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
       ),
-    listConnectors: () =>
-      settle("Connectors_list", supportedEntities(ConnectorViewSchema), client.GET("/v1/connectors")),
+    listConnectors: () => settle("Connectors_list", ConnectorViewSchema.array(), client.GET("/v1/connectors")),
     createConnector: (auth, body) =>
       auth === "Static"
         ? settle("StaticConnectors_create", ConnectorViewSchema, client.POST("/v1/static-connectors", { body }))

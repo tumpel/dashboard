@@ -1,8 +1,8 @@
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { githubApi } from "./release-github.mjs";
 import { planRelease, releaseSource, stampRelease } from "./release-plan.mjs";
-import { publishRelease } from "./release-publish.mjs";
 
 const root = process.cwd();
 const state = join(root, ".tmp", "release");
@@ -28,6 +28,7 @@ const prepare = async () => {
       ref: run ? "refs/heads/main" : process.env.GITHUB_REF,
       repository: process.env.GITHUB_REPOSITORY,
     }),
+    run,
     github: githubApi(process.env.GH_TOKEN),
   });
   mkdirSync(state, { recursive: true });
@@ -39,9 +40,45 @@ const prepare = async () => {
 
 const command = process.argv[2];
 if (command === "prepare") await prepare();
-else if (command === "publish")
-  write("published", await publishRelease({ root, plan: read("plan"), github: githubApi(process.env.GH_TOKEN) }));
-else if (command === "dispatch") {
+else if (command === "publish") {
+  const plan = read("plan");
+  const github = githubApi(process.env.GH_TOKEN);
+  execFileSync("npm", ["run", "pack"], { cwd: root, stdio: "inherit", timeout: 600_000 });
+  execFileSync("npm", ["run", "pack:check"], { cwd: root, stdio: "inherit", timeout: 120_000 });
+  const release = await github(`/repos/${plan.repository}/releases`, {
+    method: "POST",
+    body: JSON.stringify({
+      tag_name: plan.tag,
+      target_commitish: plan.sha,
+      name: plan.tag,
+      draft: true,
+      prerelease: plan.prerelease,
+      generate_release_notes: true,
+    }),
+  });
+  for (const name of readdirSync(join(root, "release")).sort()) {
+    await github(`${release.upload_url.split("{")[0]}?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "content-type": "application/octet-stream" },
+      body: readFileSync(join(root, "release", name)),
+    });
+  }
+  const published = await github(`/repos/${plan.repository}/releases/${release.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      draft: false,
+      prerelease: plan.prerelease,
+      make_latest: plan.prerelease ? "false" : "true",
+    }),
+  });
+  write("published", {
+    component: "dashboard",
+    repository: plan.repository,
+    sha: plan.sha,
+    tag: plan.tag,
+    assets: published.assets.map((asset) => asset.browser_download_url),
+  });
+} else if (command === "dispatch") {
   const token = process.env.CONTROL_PLANE_DISPATCH_TOKEN;
   if (!token) {
     console.log(

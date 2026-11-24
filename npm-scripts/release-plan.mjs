@@ -1,7 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout } from "node:timers/promises";
 
 const SHIPPED = [
   "packages/dashboard/src",
@@ -51,7 +50,8 @@ export const releaseDecision = ({ sha, ref, repository, checks, versions, tags, 
   const [run] = checks
     .filter((run) => run.head_sha === sha && run.event === "push" && run.head_branch === "main")
     .sort((left, right) => right.id - left.id);
-  if (run?.status !== "completed") return undefined;
+  if (run?.status !== "completed")
+    throw new Error(`Checks are incomplete for ${sha}. Release only after this SHA passes checks.`);
   if (run.conclusion !== "success")
     throw new Error(`Checks failed for ${sha}. Fix the checks before releasing this SHA.`);
   if (ref.startsWith("refs/tags/")) {
@@ -67,19 +67,12 @@ export const releaseDecision = ({ sha, ref, repository, checks, versions, tags, 
   return { sha, tag: `v${version}`, version, prerelease: true, repository };
 };
 
-export const planRelease = async ({ github, clock = { sleep: setTimeout }, ...source }) => {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const result = await github(
-      `/repos/${source.repository}/actions/workflows/checks.yml/runs?head_sha=${source.sha}&event=push&per_page=100`,
-    );
-    const plan = releaseDecision({ ...source, checks: result.workflow_runs });
-    if (plan !== undefined) return plan;
-    if (attempt === 9)
-      throw new Error(
-        "Release readiness timed out after 10 observations. Check the exact source SHA's checks and retry.",
-      );
-    await clock.sleep(1000 * 2 ** attempt);
-  }
+export const planRelease = async ({ github, run, ...source }) => {
+  if (run) return releaseDecision({ ...source, checks: [run] });
+  const result = await github(
+    `/repos/${source.repository}/actions/workflows/checks.yml/runs?head_sha=${source.sha}&event=push&per_page=100`,
+  );
+  return releaseDecision({ ...source, checks: result.workflow_runs });
 };
 
 export const stampRelease = (root, plan) => {

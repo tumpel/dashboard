@@ -70,12 +70,9 @@ import type {
   SecretSetSchema,
   SecretSetUpdateSchema,
   SessionListQuerySchema,
-  SessionSchema,
   SessionStartFromIssueSchema,
   SessionStartSchema,
   SnapshotSchema,
-  StartedSessionFromIssueSchema,
-  StartedSessionSchema,
   StaticConnectorCreateSchema,
   SteerSchema,
   StopFailureSchema,
@@ -91,11 +88,17 @@ import type {
   TriggerStartRefusedEventSchema,
   TriggerTestResultSchema,
   TriggerTestSchema,
-  TurnSchema,
   WhoamiSchema,
 } from "@tumpel/schemas";
 import type { z } from "zod";
-import type { ConnectorViewSchema, OpenRouterAuthorizationViewSchema } from "./responses";
+import type {
+  ConnectorViewSchema,
+  OpenRouterAuthorizationViewSchema,
+  SessionViewSchema,
+  StartedSessionFromIssueViewSchema,
+  StartedSessionViewSchema,
+  TurnViewSchema,
+} from "./responses";
 
 export type Host = z.infer<typeof HostSchema>;
 export type TenantEvent = z.infer<typeof TenantEventSchema>;
@@ -116,20 +119,20 @@ export interface EventListener {
   onGap(): void;
 }
 export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
-export type Session = z.infer<typeof SessionSchema>;
+export type Session = z.infer<typeof SessionViewSchema>;
 export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = z.infer<typeof WhoamiSchema>;
 export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
 export type Problem = z.infer<typeof EventProblemSchema>;
 export type Persona = z.infer<typeof PersonaSchema>;
 export type SessionStart = z.infer<typeof SessionStartSchema>;
-export type StartedSession = z.infer<typeof StartedSessionSchema>;
+export type StartedSession = z.infer<typeof StartedSessionViewSchema>;
 export type SessionStartFromIssue = z.infer<typeof SessionStartFromIssueSchema>;
-export type StartedSessionFromIssue = z.infer<typeof StartedSessionFromIssueSchema>;
+export type StartedSessionFromIssue = z.infer<typeof StartedSessionFromIssueViewSchema>;
 export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>;
 export type GitHubRepositoryPath = z.infer<typeof GitHubRepositoryPathSchema>;
 export type GitHubIssue = z.infer<typeof GitHubIssueSchema>;
-export type Turn = z.infer<typeof TurnSchema>;
+export type Turn = z.infer<typeof TurnViewSchema>;
 export type Steer = z.infer<typeof SteerSchema>;
 export type TranscriptQuery = z.infer<typeof TranscriptQuerySchema>;
 export type TranscriptPage = z.infer<typeof TranscriptPageSchema>;

@@ -1,7 +1,14 @@
 import {
+  CompletedTurnSchema,
   ConnectorStatusSchema,
+  FailedTurnSchema,
   OAuthConnectorSchema,
+  OfferedTurnSchema,
   OpenRouterAuthorizationSchema,
+  RunningTurnSchema,
+  SessionSchema,
+  StartedSessionFromIssueSchema,
+  StartedSessionSchema,
   StaticConnectorSchema,
 } from "@tumpel/schemas";
 import { z } from "zod";
@@ -40,4 +47,29 @@ export const ConnectorViewSchema = z.discriminatedUnion("auth", [
 ]);
 export const OpenRouterAuthorizationViewSchema = OpenRouterAuthorizationSchema.extend({
   status: statusView(OpenRouterAuthorizationSchema.shape.status),
+});
+
+export const TurnViewSchema = z.discriminatedUnion("state", [
+  OfferedTurnSchema,
+  RunningTurnSchema,
+  CompletedTurnSchema,
+  FailedTurnSchema.extend({
+    reason: z.union([
+      FailedTurnSchema.shape.reason,
+      z.string().transform(() => {
+        serviceUpdate.report();
+        return "Unrecognised" as const;
+      }),
+    ]),
+  }),
+]);
+export const SessionViewSchema = SessionSchema.extend({ lastTurn: TurnViewSchema });
+
+export const StartedSessionViewSchema = StartedSessionSchema.extend({
+  session: SessionViewSchema,
+  turn: TurnViewSchema,
+});
+export const StartedSessionFromIssueViewSchema = StartedSessionFromIssueSchema.extend({
+  session: SessionViewSchema,
+  turn: TurnViewSchema,
 });

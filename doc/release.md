@@ -1,6 +1,6 @@
 # Dashboard releases
 
-Successful main checks trigger release planning for that exact source SHA. The planner verifies the newest push check run for the SHA and never substitutes a historical successful commit. Pending checks allow ten observations, separated by 1, 2, 4, 8, 16, 32, 64, 128 and 256 seconds; failed checks and API errors stop immediately.
+Successful main checks trigger release planning for that exact source SHA. The planner uses the completed source run and its conclusion directly. Tagged releases query the newest exact-SHA main push check once; missing, incomplete or failed checks and API errors stop immediately.
 
 The planner uses convco 0.7.2 and the conventional commit rules shared by the other components. Shipped changes determine the next stable version; the number of commits since the stable tag determines its `-rc.N` suffix. A release changes both package versions and their workspace lockfile entries only in the build checkout. A `vX.Y.Z` tag keeps its manifest-matching release path.
 

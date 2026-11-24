@@ -5,9 +5,10 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Session, TranscriptText, Turn } from "../api/port";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ProblemBlock, ProblemCard } from "../components/problem-block";
+import { ProblemBlock } from "../components/problem-block";
 import { TriggerOriginNote } from "../components/started-by";
 import { SessionStateBadge } from "../components/status-badge";
+import { TurnFailureBlock } from "../components/turn-failure";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/input";
@@ -173,16 +174,6 @@ const TranscriptLines = ({ prompt, lines }: { prompt: string; lines: TranscriptT
       </li>
     ))}
   </ol>
-);
-
-const TurnFailureBlock = ({ label, turn }: { label: string; turn: Extract<Turn, { state: "Failed" }> }) => (
-  <ProblemCard
-    wording={{
-      title: `${label} failed: ${turn.reason}`,
-      detail: turn.detail,
-      fix: "Fix what the detail names, then send the next prompt to start a new turn.",
-    }}
-  />
 );
 
 const TranscriptPanel = ({
