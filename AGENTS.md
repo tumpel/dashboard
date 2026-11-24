@@ -11,8 +11,8 @@ Always follow `rules/errors.md` and `rules/coding-standards.md`.
 
 - `npm install` installs dependencies.
 - `npm run check` runs every check. `npm run fix` formats.
-- `npm test` runs the TypeScript tests.
+- `npm test` runs the tests and requires [convco](https://github.com/convco/convco).
 - `npm run build` builds the dashboard into `packages/dashboard/dist/`.
 - `npm run build-storybook` builds the Storybook.
-- `npm run pack` builds the release tarballs into `release/`. See [Dashboard releases](doc/release.md).
+- `npm run pack` builds the release tarballs into `release/`. See [Releases](README.md#releases).
 - The types, schemas and clients come from the `tumpel/protocol` release tarballs. To change one, change the TypeSpec in `tumpel/protocol`, release it, and bump the tarball URLs here.

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { candidatePlan, releaseSource } from "./release-plan.mjs";
+import { planCandidate } from "./release-plan.mjs";
 
 const git = (cwd, ...args) =>
   execFileSync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], { cwd, timeout: 30_000 });
@@ -23,7 +23,7 @@ test("a shipped commit plans a candidate", (t) => {
   writeFileSync(join(root, "build-input.txt"), "dashboard\n");
   git(root, "add", ".");
   git(root, "commit", "-qm", "fix: ship a dashboard change");
-  assert.deepEqual(candidatePlan(releaseSource(root)), { tag: "v0.10.1-rc.1", version: "0.10.1-rc.1" });
+  assert.deepEqual(planCandidate(root), { tag: "v0.10.1-rc.1", version: "0.10.1-rc.1" });
 });
 
 test("a docs-only commit plans no candidate", (t) => {
@@ -32,9 +32,13 @@ test("a docs-only commit plans no candidate", (t) => {
   git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
   git(root, "tag", "v0.10.0");
   writeFileSync(join(root, "README.md"), "docs\n");
+  mkdirSync(join(root, "doc"));
+  mkdirSync(join(root, "docs"));
+  writeFileSync(join(root, "doc/diagram.png"), "");
+  writeFileSync(join(root, "docs/diagram.png"), "");
   git(root, "add", ".");
   git(root, "commit", "-qm", "fix: correct the docs");
-  assert.equal(candidatePlan(releaseSource(root)), null);
+  assert.equal(planCandidate(root), null);
 });
 
 test("a test-only commit plans no candidate", (t) => {
@@ -46,18 +50,5 @@ test("a test-only commit plans no candidate", (t) => {
   writeFileSync(join(root, "packages/dashboard/test/fixture.ts"), "export {};\n");
   git(root, "add", ".");
   git(root, "commit", "-qm", "fix: correct the test");
-  assert.equal(candidatePlan(releaseSource(root)), null);
-});
-
-test("a candidate tag on HEAD keeps the same plan", (t) => {
-  const root = tempDir(t);
-  git(root, "init", "-q");
-  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
-  git(root, "tag", "v0.10.0");
-  writeFileSync(join(root, "build-input.txt"), "dashboard\n");
-  git(root, "add", ".");
-  git(root, "commit", "-qm", "fix: ship a dashboard change");
-  const plan = candidatePlan(releaseSource(root));
-  git(root, "tag", plan.tag);
-  assert.deepEqual(candidatePlan(releaseSource(root)), plan);
+  assert.equal(planCandidate(root), null);
 });

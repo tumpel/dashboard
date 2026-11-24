@@ -23,8 +23,6 @@ jobs:
       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      tag: ${{ steps.publish.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -40,24 +38,5 @@ jobs:
         with: { tool: convco@0.7.2 }
       - run: npm ci --no-audit --no-fund
       - run: node npm-scripts/release.mjs
-        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
-
-  dispatch:
-    needs: release
-    if: needs.release.outputs.tag != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - id: dispatch-control-plane
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CONTROL_PLANE_DISPATCH_TOKEN: ${{ secrets.CONTROL_PLANE_DISPATCH_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag }}
-          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: node npm-scripts/dispatch.mjs "$RELEASE_TAG"

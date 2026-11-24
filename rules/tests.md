@@ -1,6 +1,6 @@
 # Tests
 
-1. TypeScript tests use `node:test` in each package's `test/*.test.ts` and run with `npm test`.
+1. `npm test` runs TypeScript tests in each package's `test/*.test.ts` and script tests in `npm-scripts/*.test.mjs`. Both use `node:test`.
 2. CI runs the full suite on every pull request.
 3. A test proves behaviour that is hard to get right without it: a parser, a limit, an ordering, a state machine.
 4. Every bug fix ships with a regression test that fails before the fix and passes after it.
@@ -10,4 +10,3 @@
 8. A unit test feeds its own small inputs. It never reads live config.
 9. Keep the input and the expected output visible in the test body. Repeat setup instead of hiding it in a helper. When fixture code is more than half the test, simplify the code under test.
 10. Never skip a test. Fix it or delete it. Delete a low-value test when it breaks.
-11. Script tests use `node:test` in `npm-scripts/*.test.mjs` and run with the root `npm test`.
