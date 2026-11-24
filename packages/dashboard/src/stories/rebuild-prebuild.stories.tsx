@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import type { TumpelApi } from "../api/port";
 import { REPO } from "./connection-fixtures";
-import { fakeApi, problem, StoryApp, tenantPath } from "./harness";
+import { fakeApi, StoryApp, tenantPath } from "./harness";
+import { devcontainerMissing } from "./prebuild-template-fixtures";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Prebuilds/RebuildPrebuild", component: StoryApp };
 export default meta;
@@ -10,66 +12,24 @@ type Story = StoryObj<typeof StoryApp>;
 
 const at = (hash: string) => tenantPath(`/prebuilds?repo=${encodeURIComponent(REPO)}#${hash}`);
 
-const submit = (name: string) => async () => {
-  const dialog = within(await within(document.body).findByRole("dialog"));
-  await userEvent.click(await dialog.findByRole("button", { name }));
-};
-
 export const Open: Story = { args: { path: at("rebuild") } };
+
+const refusedStart = fn<TumpelApi["startPrebuild"]>(() => Promise.reject(devcontainerMissing));
 
 export const DevcontainerMissing: Story = {
   args: {
     path: at("rebuild"),
-    api: fakeApi({
-      startPrebuild: () =>
-        Promise.reject(
-          problem(
-            409,
-            "DevcontainerMissing",
-            "The repository has no devcontainer.json",
-            "owner/repo-name holds neither .devcontainer/devcontainer.json nor .devcontainer.json on its default branch.",
-            "Pick a template to add one in a pull request, or commit your own.",
-          ),
-        ),
-    }),
+    api: fakeApi({ startPrebuild: refusedStart }),
   },
-  play: submit("Rebuild"),
-};
-
-export const BuildProviderUnavailable: Story = {
-  args: {
-    path: at("rebuild"),
-    api: fakeApi({
-      startPrebuild: () =>
-        Promise.reject(
-          problem(
-            503,
-            "BuildProviderUnavailable",
-            "GitHub Actions cannot take prebuilds yet",
-            "This control plane cannot dispatch to GitHub Actions.",
-            "Pick another connected provider, or ask the stage operator when GitHub Actions dispatch lands.",
-          ),
-        ),
-    }),
+  play: async () => {
+    const dialog = within(await within(document.body).findByRole("dialog"));
+    const rebuild = dialog.getByRole("button", { name: "Rebuild" });
+    await waitFor(() => expect(rebuild).toBeEnabled());
+    await userEvent.click(rebuild);
+    await expect(refusedStart).toHaveBeenCalledWith({
+      repository: REPO,
+      personaId: "prs_placeholder01",
+      rebuild: true,
+    });
   },
-  play: submit("Rebuild"),
-};
-
-export const NoBuildProvider: Story = {
-  args: {
-    path: at("rebuild"),
-    api: fakeApi({
-      startPrebuild: () =>
-        Promise.reject(
-          problem(
-            409,
-            "NoBuildProvider",
-            "GitHub Actions is not connected",
-            "The tenant has no GitHub Actions connection.",
-            "Connect GitHub Actions on Connections, then rebuild.",
-          ),
-        ),
-    }),
-  },
-  play: submit("Rebuild"),
 };

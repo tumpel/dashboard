@@ -407,21 +407,24 @@ const Composer = ({
   );
 };
 
-const layerText = (layer: NonNullable<Session["prebuildLayer"]>): string =>
-  layer.layer === "Prebuild"
+const layerText = (layer: Session["prebuildLayer"]): string | undefined => {
+  if (!layer || layer.layer === "Unrecognised") return;
+  return layer.layer === "Prebuild"
     ? `The session's files start from prebuild layer ${shortDigest(layer.layerDigest)}.`
     : `The session's files start without a prebuild: ${layer.detail}.`;
+};
 
-const imageText = (image: NonNullable<Session["lastTurnImage"]>): string =>
-  image.kind === "Full"
+const imageText = (image: Session["lastTurnImage"]): string | undefined => {
+  if (!image || image.kind === "Unrecognised") return;
+  return image.kind === "Full"
     ? `The latest turn boots guest image ${shortDigest(image.guestImageDigest)}.`
     : `The latest turn boots base image ${shortDigest(image.baseImageDigest)} with harness layer ${shortDigest(image.harnessLayerDigest)}.`;
+};
 
 const BootNote = ({ session }: { session: Session }) => {
-  const lines = [
-    session.prebuildLayer && layerText(session.prebuildLayer),
-    session.lastTurnImage && imageText(session.lastTurnImage),
-  ].filter((line) => line !== undefined);
+  const lines = [layerText(session.prebuildLayer), imageText(session.lastTurnImage)].filter(
+    (line) => line !== undefined,
+  );
   if (lines.length === 0) return null;
   return <p className="mb-4 text-sm text-muted-foreground">{lines.join(" ")}</p>;
 };

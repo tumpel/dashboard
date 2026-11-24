@@ -50,28 +50,33 @@ export const releaseSource = ({ root, sha, ref, repository }) => {
     execFileSync("convco", ["version", ...args], { cwd: root, encoding: "utf8", timeout: 30_000 }).trim();
   const stable = convco("--ignore-prereleases");
   const next = convco("--bump", "--ignore-prereleases", ...SHIPPED.flatMap((path) => ["-P", path]));
-  const nearest = git(root, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "v*-main.*");
+  const nearest = git(root, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*");
   const diff = spawnSync("git", ["diff", "--quiet", nearest, "HEAD", "--", ...SHIPPED], { cwd: root, timeout: 30_000 });
   if (diff.error) throw diff.error;
   if (![0, 1].includes(diff.status))
     throw new Error("The shipped-file comparison failed. Fetch the release tags and retry.");
   return {
     ...source,
-    tags: { stable: `v${stable}`, nearest },
+    stable,
     next,
-    commits: git(root, "rev-list", `v${stable}..HEAD`).split("\n").filter(Boolean),
+    commitCount: Number(git(root, "rev-list", "--count", `v${stable}..HEAD`)),
     shippedChanged: diff.status === 1,
   };
 };
 
-export const releaseDecision = ({ sha, ref, repository, checks, versions, tags, next, commits, shippedChanged }) => {
-  const [run] = checks
-    .filter((run) => run.head_sha === sha && run.event === "push" && run.head_branch === "main")
-    .sort((left, right) => right.id - left.id);
-  if (run?.status !== "completed")
-    throw new Error(`Checks are incomplete for ${sha}. Release only after this SHA passes checks.`);
-  if (run.conclusion !== "success")
-    throw new Error(`Checks failed for ${sha}. Fix the checks before releasing this SHA.`);
+export const releaseDecision = ({
+  sha,
+  ref,
+  repository,
+  conclusion,
+  versions,
+  stable,
+  next,
+  commitCount,
+  shippedChanged,
+}) => {
+  if (!conclusion) throw new Error(`Checks are incomplete for ${sha}. Release only after this SHA passes checks.`);
+  if (conclusion !== "success") throw new Error(`Checks failed for ${sha}. Fix the checks before releasing this SHA.`);
   if (ref.startsWith("refs/tags/")) {
     const tag = ref.slice("refs/tags/".length);
     if (!/^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/.test(tag))
@@ -80,8 +85,8 @@ export const releaseDecision = ({ sha, ref, repository, checks, versions, tags, 
       throw new Error(`The package versions do not match ${tag}. Match both package versions before tagging.`);
     return { sha, tag, version: tag.slice(1), prerelease: tag.includes("-rc."), repository };
   }
-  if (`v${next}` === tags.stable || !shippedChanged) return null;
-  const version = `${next}-rc.${commits.length}`;
+  if (next === stable || !shippedChanged) return null;
+  const version = `${next}-rc.${commitCount}`;
   return { sha, tag: `v${version}`, version, prerelease: true, repository };
 };
 

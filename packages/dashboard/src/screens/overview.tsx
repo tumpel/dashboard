@@ -84,7 +84,7 @@ const SlotsTile = ({ tenantId, usage }: { tenantId: string; usage: ReportedHostU
         {totals.free} free
       </Link>
       <span className="text-[13px] text-muted-foreground">
-        of {totals.capacity}, {totals.running} running, {totals.warm} warm
+        of {totals.capacity}, {totals.running} running
       </span>
       <span className="text-[13px] text-muted-foreground">over {totals.reporting} reporting hosts</span>
     </>
@@ -124,7 +124,7 @@ const HostSlotsTable = ({
         <TableRow>
           <TableHead>Host</TableHead>
           <TableHead>State</TableHead>
-          <TableHead>Slots cap / run / warm / free</TableHead>
+          <TableHead>Slots cap / run / free</TableHead>
           <TableHead>Load</TableHead>
           <TableHead>Mem free</TableHead>
           <TableHead>Last report</TableHead>
@@ -153,8 +153,8 @@ const HostSlotsTable = ({
                 </TableCell>
               ) : (
                 <>
-                  <TableCell label="Slots cap / run / warm / free" className="font-mono text-[13px]">
-                    {row.boxCapacity} / {row.boxesRunning} / {row.boxesWarm} / {freeSlots(row)}
+                  <TableCell label="Slots cap / run / free" className="font-mono text-[13px]">
+                    {row.boxCapacity} / {row.boxesRunning} / {freeSlots(row)}
                   </TableCell>
                   <TableCell label="Load">{row.loadAverage.toFixed(2)}</TableCell>
                   <TableCell label="Mem free">{formatMib(row.memoryAvailableMib)}</TableCell>

@@ -7,32 +7,21 @@ import { PageHeader } from "../components/page-header";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { NativeSelect } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime } from "../fleet";
 import { cn } from "../lib";
 import {
-  BUILD_PROVIDERS,
-  connectedProviders,
   finishedAtOf,
   formatBytes,
   PREBUILD_STATES,
-  PROVIDER_NAMES,
   repositoryName,
   sessionIdOfLogUrl,
   shortDigest,
   standingFailure,
 } from "../prebuild-rows";
 import { NO_WIZARD_SEARCH } from "../prebuild-wizard";
-import {
-  useConnections,
-  useLatestPrebuilds,
-  useOwner,
-  usePersonas,
-  usePrebuildFailure,
-  usePrebuilds,
-} from "../queries";
+import { useLatestPrebuilds, usePersonas, usePrebuildFailure, usePrebuilds } from "../queries";
 import { RebuildPrebuildDialog } from "./rebuild-prebuild";
 
 const ROUTE = "/t/$tenantId/prebuilds";
@@ -56,7 +45,7 @@ export const LogLink = ({ tenantId, prebuild }: { tenantId: string; prebuild: Pr
     <Button asChild variant="outline" size="sm">
       {sessionId === undefined ? (
         <a href={prebuild.logUrl} target="_blank" rel="noreferrer">
-          Open provider log
+          Open log
           <ExternalLinkIcon aria-hidden />
         </a>
       ) : (
@@ -138,15 +127,7 @@ const Facts = ({ facts }: { facts: ReadonlyArray<readonly [string, ReactNode]> }
 
 const mono = (text: string) => <span className="font-mono text-[13px]">{text}</span>;
 
-const FailurePanel = ({
-  tenantId,
-  prebuild,
-  canRebuild,
-}: {
-  tenantId: string;
-  prebuild: Prebuild;
-  canRebuild: boolean;
-}) => {
+const FailurePanel = ({ tenantId, prebuild }: { tenantId: string; prebuild: Prebuild }) => {
   const failure = usePrebuildFailure(tenantId, prebuild.prebuildId);
   if (failure.isPending) return <Skeleton className="h-32 w-full" />;
   if (failure.isError) return <ProblemBlock error={failure.error} onRetry={() => void failure.refetch()} />;
@@ -161,7 +142,7 @@ const FailurePanel = ({
         }}
         actions={
           <>
-            {canRebuild && <RebuildLink />}
+            <RebuildLink />
             <LogLink tenantId={tenantId} prebuild={prebuild} />
           </>
         }
@@ -169,7 +150,6 @@ const FailurePanel = ({
       <Facts
         facts={[
           ["Phase", `${failure.data.phase} (of Dispatch, Build, Upload, Conversion)`],
-          ["Provider", PROVIDER_NAMES[prebuild.provider]],
           ["Input digest", mono(shortDigest(prebuild.inputDigest))],
           ["Started", formatTime(Date.parse(prebuild.startedAt))],
           ["Finished", finishedAt === null ? "" : formatTime(Date.parse(finishedAt))],
@@ -182,12 +162,10 @@ const FailurePanel = ({
 const LatestPanel = ({
   tenantId,
   prebuild,
-  canRebuild,
   onRefresh,
 }: {
   tenantId: string;
   prebuild: Prebuild;
-  canRebuild: boolean;
   onRefresh: () => void;
 }) => {
   const status = prebuild.status;
@@ -200,14 +178,14 @@ const LatestPanel = ({
           <h2 className="font-semibold">{repositoryName(prebuild.repository)}</h2>
           <PrebuildStateBadge state="Done" />
           <span className="flex-1" />
-          {canRebuild && <RebuildLink />}
+          <RebuildLink />
           <LogLink tenantId={tenantId} prebuild={prebuild} />
         </div>
         <Facts
           facts={[
             ["Input digest", mono(prebuild.inputDigest)],
             ["Layer", `${formatBytes(status.layerSizeBytes)}, ${shortDigest(status.layerDigest)}`],
-            ["Ran", `${PROVIDER_NAMES[prebuild.provider]}, ${started} to ${formatTime(Date.parse(status.finishedAt))}`],
+            ["Ran", `${started} to ${formatTime(Date.parse(status.finishedAt))}`],
             ["Guest image", mono(shortDigest(prebuild.guestImageDigest))],
             ["Used by", "Sessions on this repository whose inputs match this digest"],
           ]}
@@ -227,8 +205,7 @@ const LatestPanel = ({
         <LogLink tenantId={tenantId} prebuild={prebuild} />
       </div>
       <p role="status" className="text-sm text-muted-foreground">
-        {status.state} on {PROVIDER_NAMES[prebuild.provider]} since {started}. The row re-reads on window focus and on
-        Refresh.
+        {status.state} since {started}. The row re-reads on window focus and on Refresh.
       </p>
       <Facts facts={[["Input digest", mono(prebuild.inputDigest)]]} />
     </div>
@@ -249,15 +226,7 @@ const DefaultConfigNote = ({ tenantId, prebuild }: { tenantId: string; prebuild:
   </div>
 );
 
-const SelectedPanel = ({
-  tenantId,
-  repository,
-  canRebuild,
-}: {
-  tenantId: string;
-  repository: string;
-  canRebuild: boolean;
-}) => {
+const SelectedPanel = ({ tenantId, repository }: { tenantId: string; repository: string }) => {
   const list = usePrebuilds(tenantId, repository);
   const latest = list.data?.[0];
   const failed = standingFailure(list.data ?? []);
@@ -271,22 +240,15 @@ const SelectedPanel = ({
           <p className="text-sm text-muted-foreground">
             No prebuild yet. Boxes start from the image alone until a prebuild is Done.
           </p>
-          {canRebuild && (
-            <TemplateStepLink tenantId={tenantId} repository={repository} personaId={null} label="Set up a prebuild" />
-          )}
+          <TemplateStepLink tenantId={tenantId} repository={repository} personaId={null} label="Set up a prebuild" />
         </div>
       );
     }
     return (
       <div className="grid gap-4">
         {latest.configSource === "Default" && <DefaultConfigNote tenantId={tenantId} prebuild={latest} />}
-        {failed !== undefined && <FailurePanel tenantId={tenantId} prebuild={failed} canRebuild={canRebuild} />}
-        <LatestPanel
-          tenantId={tenantId}
-          prebuild={latest}
-          canRebuild={canRebuild}
-          onRefresh={() => void list.refetch()}
-        />
+        {failed !== undefined && <FailurePanel tenantId={tenantId} prebuild={failed} />}
+        <LatestPanel tenantId={tenantId} prebuild={latest} onRefresh={() => void list.refetch()} />
       </div>
     );
   };
@@ -323,7 +285,6 @@ const PrebuildTable = ({
       <TableRow>
         <TableHead>Repository</TableHead>
         <TableHead>State</TableHead>
-        <TableHead>Provider</TableHead>
         <TableHead>Input digest</TableHead>
         <TableHead>Started</TableHead>
         <TableHead>Finished</TableHead>
@@ -355,7 +316,6 @@ const PrebuildTable = ({
             <TableCell mobile="summary">
               <StateCell prebuild={prebuild} />
             </TableCell>
-            <TableCell label="Provider">{PROVIDER_NAMES[prebuild.provider]}</TableCell>
             <TableCell label="Input digest">{mono(shortDigest(prebuild.inputDigest))}</TableCell>
             <TableCell label="Started" className="whitespace-nowrap">
               {shortTime(prebuild.startedAt)}
@@ -388,14 +348,10 @@ export const PrebuildsScreen = () => {
   const { tenantId } = useParams({ from: ROUTE });
   const search = useSearch({ from: ROUTE });
   const navigate = useNavigate({ from: ROUTE });
-  const connections = useConnections(tenantId);
   const latest = useLatestPrebuilds(tenantId);
   const personas = usePersonas(tenantId);
-  const owner = useOwner(tenantId);
   const selected = search.repo;
   const prebuilds = latest.data ?? [];
-  const providers = connectedProviders(connections.data ?? []);
-  const canBuild = providers.length > 0;
 
   const toggleState = (state: Prebuild["status"]["state"]) =>
     void navigate({
@@ -404,43 +360,15 @@ export const PrebuildsScreen = () => {
         state: prev.state.includes(state) ? prev.state.filter((item) => item !== state) : [...prev.state, state],
       }),
     });
-  const pickProvider = (value: string) =>
-    void navigate({
-      search: (prev) => ({ ...prev, provider: BUILD_PROVIDERS.find((provider) => provider === value) ?? null }),
-    });
   const select = (repository: string) => void navigate({ search: (prev) => ({ ...prev, repo: repository }) });
 
   const visible = prebuilds.filter(
-    (prebuild) =>
-      (search.state.length === 0 || search.state.includes(prebuild.status.state)) &&
-      (search.provider === null || search.provider === prebuild.provider),
+    (prebuild) => search.state.length === 0 || search.state.includes(prebuild.status.state),
   );
 
   const body = () => {
-    if (connections.isPending || latest.isPending) return <TableSkeleton />;
-    if (connections.isError) {
-      return <ProblemBlock error={connections.error} onRetry={() => void connections.refetch()} />;
-    }
+    if (latest.isPending) return <TableSkeleton />;
     if (latest.isError) return <ProblemBlock error={latest.error} onRetry={() => void latest.refetch()} />;
-    if (providers.length === 0) {
-      return (
-        <EmptyState
-          title="No build provider connected"
-          detail={
-            owner
-              ? "Prebuilds run on your own GitHub Actions or Namespace account. Connect one to build."
-              : "Prebuilds run on the tenant's own GitHub Actions or Namespace account. Ask an Owner to connect a provider."
-          }
-          action={
-            <Button asChild>
-              <Link to="/t/$tenantId/connections" params={{ tenantId }} hash="providers">
-                {owner ? "Connect a provider" : "Open Connections"}
-              </Link>
-            </Button>
-          }
-        />
-      );
-    }
     if (prebuilds.length === 0) {
       return (
         <EmptyState
@@ -457,7 +385,7 @@ export const PrebuildsScreen = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => void navigate({ search: (prev) => ({ ...prev, state: [], provider: null }) })}
+            onClick={() => void navigate({ search: (prev) => ({ ...prev, state: [] }) })}
           >
             Clear filter
           </Button>
@@ -467,14 +395,14 @@ export const PrebuildsScreen = () => {
     return (
       <>
         <PrebuildTable prebuilds={visible} selected={selected} onSelect={select} />
-        {selected !== null && <SelectedPanel tenantId={tenantId} repository={selected} canRebuild={canBuild} />}
+        {selected !== null && <SelectedPanel tenantId={tenantId} repository={selected} />}
       </>
     );
   };
 
   return (
     <>
-      <PageHeader title="Prebuilds" actions={canBuild ? <NewPrebuildLink tenantId={tenantId} /> : undefined} />
+      <PageHeader title="Prebuilds" actions={<NewPrebuildLink tenantId={tenantId} />} />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">Filter by state</legend>
@@ -497,31 +425,13 @@ export const PrebuildsScreen = () => {
             );
           })}
         </fieldset>
-        <span className="flex-1" />
-        <label className="sr-only" htmlFor="provider-filter">
-          Provider
-        </label>
-        <NativeSelect
-          id="provider-filter"
-          className="w-44"
-          value={search.provider ?? ""}
-          onChange={(event) => pickProvider(event.target.value)}
-        >
-          <option value="">Any provider</option>
-          {BUILD_PROVIDERS.map((provider) => (
-            <option key={provider} value={provider}>
-              {PROVIDER_NAMES[provider]}
-            </option>
-          ))}
-        </NativeSelect>
       </div>
       {body()}
-      {canBuild && selected !== null && (
+      {selected !== null && (
         <RebuildPrebuildDialog
           tenantId={tenantId}
           repository={selected}
           latest={prebuilds.find((prebuild) => prebuild.repository === selected) ?? null}
-          providers={providers}
           personas={personas}
         />
       )}

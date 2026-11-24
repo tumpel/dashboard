@@ -1,8 +1,5 @@
 import type { paths } from "@tumpel/openapi/paths";
 import {
-  CircleCIAuthorizationSchema,
-  CircleCIConnectionLinkSchema,
-  CircleCIProjectSchema,
   ClaudeSetupSchema,
   ConfigPlanSchema,
   ConnectionSummarySchema,
@@ -11,7 +8,6 @@ import {
   DeviceSchema,
   EffectiveHarnessVersionSchema,
   EventProblemSchema,
-  GitHubActionsConnectionLinkSchema,
   GitHubConnectionSchema,
   GitHubInstallationSchema,
   GitHubInstallStartSchema,
@@ -27,7 +23,6 @@ import {
   MetricSeriesSetSchema,
   MetricTurnPageSchema,
   MintedEnrolmentTokenSchema,
-  NamespaceConnectionLinkSchema,
   OAuthGrantSchema,
   PersonaFileUploadSchema,
   PersonaSchema,
@@ -54,7 +49,6 @@ import {
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
-import { serviceUpdate } from "../service-update.ts";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
 import {
   ConnectorViewSchema,
@@ -177,7 +171,6 @@ const followEvents = (
     };
     socket.onmessage = (message) => {
       const event = EventViewSchema.safeParse(JSON.parse(String(message.data)));
-      if (!event.success) serviceUpdate.report();
       if (event.success && event.data !== null) listener.onEvent(event.data);
       else listener.onGap();
     };
@@ -384,64 +377,11 @@ export const createHttpApi = (
         }),
       ),
     listConnections: () => settle("Connections_list", ConnectionSummarySchema.array(), client.GET("/v1/connections")),
-    getGitHubActionsConnection: () =>
-      settle(
-        "GitHubActionsConnections_get",
-        GitHubActionsConnectionLinkSchema,
-        client.GET("/v1/github-actions-connection"),
-      ),
-    startGitHubActionsConnection: (body) =>
-      settle(
-        "GitHubActionsConnections_start",
-        GitHubActionsConnectionLinkSchema,
-        client.POST("/v1/github-actions-connection/start", { body }),
-      ),
     deleteGitHubConnection: (installationId) =>
       settleEmpty(
         "GitHubConnections_delete",
         client.DELETE("/v1/github-connection/installations/{installationId}", { params: { path: { installationId } } }),
       ),
-    deleteGitHubActionsConnection: () =>
-      settleEmpty("GitHubActionsConnections_delete", client.DELETE("/v1/github-actions-connection")),
-    getCircleCIConnection: () =>
-      settle("CircleCIConnections_get", CircleCIConnectionLinkSchema, client.GET("/v1/circleci-connection")),
-    startCircleCIConnection: (body) =>
-      settle(
-        "CircleCIConnections_start",
-        CircleCIConnectionLinkSchema,
-        client.POST("/v1/circleci-connection/start", { body }),
-      ),
-    deleteCircleCIConnection: () => settleEmpty("CircleCIConnections_delete", client.DELETE("/v1/circleci-connection")),
-    authorizeCircleCIConnection: () =>
-      settle(
-        "CircleCIConnections_authorize",
-        CircleCIAuthorizationSchema,
-        client.POST("/v1/circleci-connection/authorize"),
-      ),
-    completeCircleCIConnection: (body) =>
-      settle(
-        "CircleCIConnections_complete",
-        CircleCIAuthorizationSchema,
-        client.POST("/v1/circleci-connection/complete", { body }),
-      ),
-    chooseCircleCIOrganization: (body) =>
-      settle(
-        "CircleCIConnections_choose",
-        CircleCIAuthorizationSchema,
-        client.POST("/v1/circleci-connection/choose", { body }),
-      ),
-    listCircleCIProjects: () =>
-      settle("CircleCIProjects_list", CircleCIProjectSchema.array(), client.GET("/v1/circleci-projects")),
-    getNamespaceConnection: () =>
-      settle("NamespaceConnections_get", NamespaceConnectionLinkSchema, client.GET("/v1/namespace-connection")),
-    startNamespaceConnection: (body) =>
-      settle(
-        "NamespaceConnections_start",
-        NamespaceConnectionLinkSchema,
-        client.POST("/v1/namespace-connection/start", { body }),
-      ),
-    deleteNamespaceConnection: () =>
-      settleEmpty("NamespaceConnections_delete", client.DELETE("/v1/namespace-connection")),
     listPrebuilds: (repository) =>
       settle(
         "Prebuilds_list",

@@ -1,19 +1,21 @@
 import {
   CompactTranscriptPageSchema,
-  CompletedTurnSchema,
   ConnectorAuthorizationFailedSchema,
   ConnectorStatusSchema,
   EventPageSchema,
   FailedTurnSchema,
-  HostHealthChangedEventSchema,
   OAuthConnectorSchema,
-  OfferedTurnSchema,
   OpenRouterAuthorizationFailedSchema,
   OpenRouterAuthorizationSchema,
   PrebuildFailedEventSchema,
   RawTranscriptPageSchema,
-  RunningTurnSchema,
+  SessionBaseSchema,
+  SessionOriginSchema,
+  SessionPrebuildLayerAbsentSchema,
+  SessionPrebuildLayerSchema,
   SessionSchema,
+  SessionStartedBySchema,
+  SessionStateSchema,
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
   StaticConnectorSchema,
@@ -24,6 +26,8 @@ import {
   TriggerStartRefusedEventSchema,
   TurnBaseSchema,
   TurnFailedEventSchema,
+  TurnImageSchema,
+  TurnSchema,
   TurnStateSchema,
   UsageLimitReachedEventSchema,
   UsageNearLimitEventSchema,
@@ -39,35 +43,31 @@ const unrecognised = (): "Unrecognised" => {
 const enumView = <T extends string>(schema: z.ZodType<T>): z.ZodType<T | "Unrecognised"> =>
   z.union([schema, z.string().transform(unrecognised)]);
 
-const variantView = <T, F>(schema: z.ZodType<T>, fallback: (data: unknown) => F | undefined): z.ZodType<T | F> =>
-  z.unknown().transform((data, context) => {
-    const result = schema.safeParse(data);
+const variantView = <K extends string, T, F>(
+  schema: z.ZodType<T> & { options: readonly { shape: Record<K, { value: string }> }[] },
+  key: K,
+  fallback: z.ZodType<F>,
+): z.ZodType<T | F> => {
+  const known = new Set(schema.options.map((option) => option.shape[key].value));
+  return z.unknown().transform((data, context) => {
+    const name: unknown = typeof data === "object" && data !== null ? Reflect.get(data, key) : undefined;
+    const chosen = typeof name === "string" && !known.has(name) ? fallback : schema;
+    const result = chosen.safeParse(data);
     if (result.success) return result.data;
-    const [issue] = result.error.issues;
-    const key = issue?.path[0];
-    if (
-      result.error.issues.length === 1 &&
-      issue?.code === "invalid_union" &&
-      issue.errors.length === 0 &&
-      issue.path.length === 1 &&
-      key !== undefined &&
-      typeof data === "object" &&
-      data !== null &&
-      typeof Reflect.get(data, key) === "string"
-    ) {
-      const replacement = fallback(data);
-      if (replacement !== undefined) return replacement;
-    }
     for (const issue of result.error.issues) context.addIssue({ ...issue });
     return z.NEVER;
   });
+};
 
+const unknownState = z.object({ state: z.string().transform(unrecognised) });
+const unknownKind = z.object({ kind: z.string().transform(unrecognised) });
 const connectorStatus = variantView(
   z.discriminatedUnion("state", [
     ConnectorAuthorizationFailedSchema.extend({ reason: enumView(ConnectorAuthorizationFailedSchema.shape.reason) }),
     ...ConnectorStatusSchema.options.filter((schema) => schema !== ConnectorAuthorizationFailedSchema),
   ]),
-  () => ({ state: unrecognised() }),
+  "state",
+  unknownState,
 );
 export const ConnectorViewSchema = z.discriminatedUnion("auth", [
   StaticConnectorSchema.extend({ status: connectorStatus }),
@@ -83,33 +83,52 @@ export const OpenRouterAuthorizationViewSchema = OpenRouterAuthorizationSchema.e
         (schema) => schema !== OpenRouterAuthorizationFailedSchema,
       ),
     ]),
-    () => ({ state: unrecognised() }),
+    "state",
+    unknownState,
   ),
 });
 
-export const TurnViewSchema = z.preprocess(
-  (data) =>
-    typeof data === "object" &&
-    data !== null &&
-    "state" in data &&
-    typeof data.state === "string" &&
-    !TurnStateSchema.safeParse(data.state).success
-      ? { ...data, state: unrecognised() }
-      : data,
+const turnImage = variantView(TurnImageSchema, "kind", unknownKind).optional();
+const failedTurn = FailedTurnSchema.extend({ reason: enumView(FailedTurnSchema.shape.reason), image: turnImage });
+export const TurnViewSchema = variantView(
   z.discriminatedUnion("state", [
-    OfferedTurnSchema,
-    RunningTurnSchema,
-    CompletedTurnSchema,
-    FailedTurnSchema.extend({ reason: enumView(FailedTurnSchema.shape.reason) }),
-    TurnBaseSchema.extend({ state: z.literal("Unrecognised") }),
+    failedTurn,
+    ...TurnSchema.options
+      .filter((schema) => schema !== FailedTurnSchema)
+      .map((schema) => schema.extend({ image: turnImage })),
   ]),
+  "state",
+  TurnBaseSchema.extend({ state: unknownState.shape.state, image: turnImage }),
 );
-const sessionState = enumView(SessionSchema.shape.state);
-export const SessionViewSchema = SessionSchema.extend({
-  state: sessionState,
+
+const sessionState = enumView(SessionStateSchema);
+const prebuildLayer = variantView(
+  z.discriminatedUnion("layer", [
+    SessionPrebuildLayerAbsentSchema.extend({ reason: enumView(SessionPrebuildLayerAbsentSchema.shape.reason) }),
+    ...SessionPrebuildLayerSchema.options.filter((schema) => schema !== SessionPrebuildLayerAbsentSchema),
+  ]),
+  "layer",
+  z.object({ layer: z.string().transform(unrecognised) }),
+).optional();
+const sessionFields = {
+  harness: enumView(SessionBaseSchema.shape.harness),
+  boxRetention: enumView(SessionBaseSchema.shape.boxRetention),
+  origin: variantView(SessionOriginSchema, "kind", unknownKind),
+  startedBy: variantView(SessionStartedBySchema, "kind", unknownKind),
   lastTurnState: enumView(TurnStateSchema),
   lastTurn: TurnViewSchema,
-});
+  lastTurnImage: turnImage,
+  prebuildLayer,
+};
+const [firstSessionState, ...otherSessionStates] = SessionSchema.options;
+export const SessionViewSchema = variantView(
+  z.discriminatedUnion("state", [
+    firstSessionState.extend(sessionFields),
+    ...otherSessionStates.map((schema) => schema.extend(sessionFields)),
+  ]),
+  "state",
+  SessionBaseSchema.extend({ ...sessionFields, state: unknownState.shape.state }),
+);
 
 export const StartedSessionViewSchema = StartedSessionSchema.extend({
   session: SessionViewSchema,
@@ -129,11 +148,10 @@ const refusal = TriggerStartRefusedEventSchema.shape.refusal;
 const usage = UsageNearLimitEventSchema.shape;
 const usageValues = { tier: enumView(usage.tier), measure: enumView(usage.measure), window: enumView(usage.window) };
 const eventVariants = [
-  HostHealthChangedEventSchema.extend({ health: enumView(HostHealthChangedEventSchema.shape.health) }),
   PrebuildFailedEventSchema.extend({ phase: enumView(PrebuildFailedEventSchema.shape.phase) }),
   SubscriptionEndedEventSchema.extend({ reason: enumView(SubscriptionEndedEventSchema.shape.reason) }),
   SubscriptionPausedEventSchema.extend({
-    reason: variantView(SubscriptionPausedEventSchema.shape.reason, () => ({ kind: unrecognised() })),
+    reason: variantView(SubscriptionPausedEventSchema.shape.reason, "kind", unknownKind),
   }),
   TriggerStartRefusedEventSchema.extend({ refusal: refusal.extend({ code: enumView(refusal.shape.code) }) }),
   TurnFailedEventSchema.extend({ reason: enumView(TurnFailedEventSchema.shape.reason) }),
@@ -146,11 +164,11 @@ export const EventViewSchema = variantView(
     ...eventVariants,
     ...TenantEventSchema.options.filter((schema) => !eventNames.has(schema.shape.event.value)),
   ]),
-  (data) => {
-    if (!TenantEventEnvelopeSchema.safeParse(data).success) return undefined;
+  "event",
+  TenantEventEnvelopeSchema.transform(() => {
     unrecognised();
     return null;
-  },
+  }),
 );
 
 export const EventPageViewSchema = EventPageSchema.extend({

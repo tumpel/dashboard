@@ -16,6 +16,7 @@ export const StartedBy = ({
   members: readonly Member[];
   triggers: readonly Trigger[];
 }) => {
+  if (startedBy.kind === "Unrecognised") return <>Unrecognised</>;
   if (startedBy.kind === "Person") {
     return <>{members.find((member) => member.principalId === startedBy.principalId)?.email ?? "A person"}</>;
   }

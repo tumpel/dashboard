@@ -1,10 +1,4 @@
 import type {
-  CircleCIAuthorizationChooseSchema,
-  CircleCIAuthorizationCompleteSchema,
-  CircleCIAuthorizationSchema,
-  CircleCIConnectionLinkSchema,
-  CircleCIConnectionStartSchema,
-  CircleCIProjectSchema,
   ClaudeSetupSchema,
   CompactTranscriptLineSchema,
   ConfigPlanSchema,
@@ -17,8 +11,6 @@ import type {
   EffectiveHarnessVersionSchema,
   EventProblemSchema,
   EventQuerySchema,
-  GitHubActionsConnectionLinkSchema,
-  GitHubActionsConnectionStartSchema,
   GitHubConnectionSchema,
   GitHubInstallationSchema,
   GitHubInstallStartSchema,
@@ -42,8 +34,6 @@ import type {
   MetricTurnQuerySchema,
   MetricWindowSchema,
   MintedEnrolmentTokenSchema,
-  NamespaceConnectionLinkSchema,
-  NamespaceConnectionStartSchema,
   OAuthGrantSchema,
   OpenRouterAuthorizationStartSchema,
   PersonaCreateSchema,
@@ -159,18 +149,6 @@ export type SecretMemberUpdate = SecretSetUpdate["secrets"][number];
 export type ModelProvider = HarnessCatalogEntry["credentials"][number]["provider"];
 export type GitHubInstallStart = z.infer<typeof GitHubInstallStartSchema>;
 export type ConnectionSummary = z.infer<typeof ConnectionSummarySchema>;
-export type GitHubActionsConnectionLink = z.infer<typeof GitHubActionsConnectionLinkSchema>;
-export type GitHubActionsConnectionStart = z.infer<typeof GitHubActionsConnectionStartSchema>;
-export type CircleCIConnectionLink = z.infer<typeof CircleCIConnectionLinkSchema>;
-export type CircleCIConnectionStart = z.infer<typeof CircleCIConnectionStartSchema>;
-export type CircleCIAuthorization = z.infer<typeof CircleCIAuthorizationSchema>;
-export type CircleCIAuthorizationStatus = CircleCIAuthorization["status"];
-export type CircleCIAuthorizationFailureReason = Extract<CircleCIAuthorizationStatus, { state: "Failed" }>["reason"];
-export type CircleCIAuthorizationComplete = z.infer<typeof CircleCIAuthorizationCompleteSchema>;
-export type CircleCIAuthorizationChoose = z.infer<typeof CircleCIAuthorizationChooseSchema>;
-export type CircleCIProject = z.infer<typeof CircleCIProjectSchema>;
-export type NamespaceConnectionLink = z.infer<typeof NamespaceConnectionLinkSchema>;
-export type NamespaceConnectionStart = z.infer<typeof NamespaceConnectionStartSchema>;
 export type Prebuild = z.infer<typeof PrebuildSchema>;
 export type PrebuildStart = z.infer<typeof PrebuildStartSchema>;
 export type PrebuildFailure = z.infer<typeof PrebuildFailureSchema>;
@@ -303,19 +281,6 @@ export interface TumpelApi {
   startGitHubConnection(returnUrl: string | null, gitHubAccountId: number | null): Promise<GitHubInstallStart>;
   deleteGitHubConnection(installationId: number): Promise<void>;
   listConnections(): Promise<ConnectionSummary[]>;
-  getGitHubActionsConnection(): Promise<GitHubActionsConnectionLink>;
-  startGitHubActionsConnection(body: GitHubActionsConnectionStart): Promise<GitHubActionsConnectionLink>;
-  deleteGitHubActionsConnection(): Promise<void>;
-  getCircleCIConnection(): Promise<CircleCIConnectionLink>;
-  startCircleCIConnection(body: CircleCIConnectionStart): Promise<CircleCIConnectionLink>;
-  deleteCircleCIConnection(): Promise<void>;
-  authorizeCircleCIConnection(): Promise<CircleCIAuthorization>;
-  completeCircleCIConnection(body: CircleCIAuthorizationComplete): Promise<CircleCIAuthorization>;
-  chooseCircleCIOrganization(body: CircleCIAuthorizationChoose): Promise<CircleCIAuthorization>;
-  listCircleCIProjects(): Promise<CircleCIProject[]>;
-  getNamespaceConnection(): Promise<NamespaceConnectionLink>;
-  startNamespaceConnection(body: NamespaceConnectionStart): Promise<NamespaceConnectionLink>;
-  deleteNamespaceConnection(): Promise<void>;
   listPrebuilds(repository: string): Promise<Prebuild[]>;
   listLatestPrebuilds(): Promise<Prebuild[]>;
   startPrebuild(body: PrebuildStart): Promise<Prebuild>;

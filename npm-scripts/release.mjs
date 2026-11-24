@@ -12,30 +12,24 @@ const gh = (args, options) => execFileSync("gh", args, { cwd: root, encoding: "u
 const prepare = () => {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
   const run = event.workflow_run;
-  if (
-    run &&
-    (run.head_repository.full_name !== process.env.GITHUB_REPOSITORY ||
-      run.head_branch !== "main" ||
-      run.event !== "push")
-  )
-    throw new Error(
-      "The release event is not a main push from this repository. Use this repository's main checks event.",
-    );
   const source = releaseSource({
     root,
     sha: run?.head_sha ?? process.env.GITHUB_SHA,
     ref: run ? "refs/heads/main" : process.env.GITHUB_REF,
     repository: process.env.GITHUB_REPOSITORY,
   });
-  const checks = run
-    ? [run]
+  const tagCheck = run
+    ? undefined
     : JSON.parse(
         gh([
           "api",
-          `/repos/${source.repository}/actions/workflows/checks.yml/runs?head_sha=${source.sha}&event=push&per_page=100`,
+          `/repos/${source.repository}/actions/workflows/checks.yml/runs?head_sha=${source.sha}&event=push&branch=main&per_page=1`,
         ]),
-      ).workflow_runs;
-  const plan = releaseDecision({ ...source, checks });
+      ).workflow_runs[0];
+  const plan = releaseDecision({
+    ...source,
+    conclusion: run ? run.conclusion : tagCheck?.status === "completed" ? tagCheck.conclusion : undefined,
+  });
   mkdirSync(state, { recursive: true });
   write("plan", plan);
   if (plan) stampRelease(root, plan);
@@ -71,8 +65,6 @@ else if (command === "publish") {
     `--latest=${!plan.prerelease}`,
     ...(plan.prerelease ? ["--prerelease"] : []),
   ]);
-  if (remoteTagSha(root, plan.tag) !== plan.sha)
-    throw new Error(`Published tag ${plan.tag} does not point to the checked SHA ${plan.sha}.`);
   const publishedAssets = JSON.parse(
     gh(["release", "view", plan.tag, "--repo", plan.repository, "--json", "assets", "--jq", "[.assets[].url]"]),
   );
@@ -85,18 +77,9 @@ else if (command === "publish") {
   });
 } else if (command === "dispatch") {
   const token = process.env.CONTROL_PLANE_DISPATCH_TOKEN;
-  if (!token) {
-    console.log(
-      "::notice::CONTROL_PLANE_DISPATCH_TOKEN is empty; skipping component-released dispatch to control-plane.",
-    );
-  } else {
-    const plan = read("plan");
-    const published = read("published");
-    if (published.sha !== plan.sha || published.tag !== plan.tag || published.repository !== plan.repository)
-      throw new Error("The published release does not match the checked release plan.");
-    gh(["api", "--method", "POST", "/repos/tumpel/control-plane/dispatches", "--input", "-"], {
-      env: { ...process.env, GH_TOKEN: token },
-      input: JSON.stringify({ event_type: "component-released", client_payload: published }),
-    });
-  }
+  if (!token) throw new Error("Release dispatch failed. Set CONTROL_PLANE_DISPATCH_TOKEN.");
+  gh(["api", "--method", "POST", "/repos/tumpel/control-plane/dispatches", "--input", "-"], {
+    env: { ...process.env, GH_TOKEN: token },
+    input: JSON.stringify({ event_type: "component-released", client_payload: read("published") }),
+  });
 } else throw new Error("Unknown release command. Run release:prepare, release:publish or release:dispatch.");

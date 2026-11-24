@@ -9,6 +9,7 @@ const host = (hostId: string, state: Host["state"]): Host => ({
   tenantId: "tnt_a",
   name: hostId,
   state,
+  ...(state === "Online" ? { presence: "Online", heardAt: "2026-11-15T13:00:00Z" } : { presence: "Offline" }),
   health: "Healthy",
   reportedHealth: "Healthy",
   architecture: "Amd64",
