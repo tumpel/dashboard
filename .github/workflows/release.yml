@@ -20,9 +20,11 @@ jobs:
     if: >-
       (github.event_name == 'push' && github.ref_type == 'tag') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)
+      github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,12 +37,31 @@ jobs:
           cache: npm
 
       - uses: taiki-e/install-action@v2
-        with:
-          tool: convco@0.7.2
-
+        with: { tool: convco@0.7.2 }
       - run: npm ci --no-audit --no-fund
-
       - run: node npm-scripts/release.mjs
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  dispatch:
+    needs: release
+    if: needs.release.outputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - id: dispatch-control-plane
         env:
           GH_TOKEN: ${{ github.token }}
           CONTROL_PLANE_DISPATCH_TOKEN: ${{ secrets.CONTROL_PLANE_DISPATCH_TOKEN }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          if [ -z "$CONTROL_PLANE_DISPATCH_TOKEN" ]; then
+            echo "::warning::Set CONTROL_PLANE_DISPATCH_TOKEN to dispatch this release to control-plane."
+            exit 0
+          fi
+          assets=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].url]')
+          payload=$(jq -n --arg tag "$RELEASE_TAG" --arg sha "$RELEASE_SHA" --argjson assets "$assets" \
+            '{event_type:"component-released",client_payload:{component:"dashboard",repository:env.GITHUB_REPOSITORY,$tag,$sha,$assets}}')
+          GH_TOKEN="$CONTROL_PLANE_DISPATCH_TOKEN" gh api --method POST /repos/tumpel/control-plane/dispatches --input - <<< "$payload"

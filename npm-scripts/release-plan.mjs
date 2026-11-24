@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
 
-const EXCLUDE = ["doc/**", "**/*.md", "rules/**", ".github/**", "packages/*/test/**"];
+const exclude = (patterns) => patterns.map((pattern) => `:(exclude,glob)${pattern}`);
+export const DOCS = exclude(["doc/**", "**/*.md", "LICENSE", ".github/ISSUE_TEMPLATE/**"]);
+export const NOT_SHIPPED = [...DOCS, ...exclude(["rules/**", ".github/**", "packages/*/test/**"])];
 
 export const releaseSource = (root) => {
   const run = (command, ...args) =>
@@ -8,8 +10,7 @@ export const releaseSource = (root) => {
   const stable = run("convco", "version", "--ignore-prereleases");
   const next = run("convco", "version", "--ignore-prereleases", "--bump");
   const nearest = run("git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "HEAD^");
-  const paths = EXCLUDE.map((pattern) => `:(exclude,glob)${pattern}`);
-  const changed = run("git", "diff", "--name-only", nearest, "HEAD", "--", ".", ...paths);
+  const changed = run("git", "diff", "--name-only", nearest, "HEAD", "--", ".", ...NOT_SHIPPED);
   return {
     stable,
     next,

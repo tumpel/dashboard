@@ -2,56 +2,62 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { after, before, test } from "node:test";
+import { join } from "node:path";
+import { test } from "node:test";
 import { candidatePlan, releaseSource } from "./release-plan.mjs";
 
-const root = mkdtempSync(join(tmpdir(), "dashboard-release-"));
-let shipped;
-let tagged;
-let docsOnly;
+const git = (cwd, ...args) =>
+  execFileSync("git", ["-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], { cwd, timeout: 30_000 });
 
-after(() => rmSync(root, { recursive: true, force: true }));
+const tempDir = (t) => {
+  const root = mkdtempSync(join(tmpdir(), "dashboard-release-"));
+  t.after(() => rmSync(root, { recursive: true }));
+  return root;
+};
 
-before(() => {
-  const git = (...args) => execFileSync("git", args, { cwd: root, timeout: 30_000 });
-  git("init", "-q");
-  git("config", "user.name", "Dashboard Release Test");
-  git("config", "user.email", "release-test@example.com");
-  git("commit", "--allow-empty", "-qm", "feat: start dashboard");
-  git("tag", "v0.10.0");
-
+test("a shipped commit plans a candidate", (t) => {
+  const root = tempDir(t);
+  git(root, "init", "-q");
+  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
+  git(root, "tag", "v0.10.0");
   writeFileSync(join(root, "build-input.txt"), "dashboard\n");
-  git("add", ".");
-  git("commit", "-qm", "fix: ship a dashboard change");
-  shipped = releaseSource(root);
-  git("tag", "v0.10.1-rc.1");
-  tagged = releaseSource(root);
-
-  for (const file of [
-    "README.md",
-    "doc/notes.txt",
-    "rules/notes.txt",
-    ".github/notes.txt",
-    "packages/dashboard/test/fixture.ts",
-  ]) {
-    const path = join(root, file);
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, "notes\n");
-  }
-  git("add", ".");
-  git("commit", "-qm", "docs: describe the dashboard");
-  docsOnly = releaseSource(root);
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "fix: ship a dashboard change");
+  assert.deepEqual(candidatePlan(releaseSource(root)), { tag: "v0.10.1-rc.1", version: "0.10.1-rc.1" });
 });
 
-test("a shipped commit plans a candidate", () => {
-  assert.deepEqual(candidatePlan(shipped), { tag: "v0.10.1-rc.1", version: "0.10.1-rc.1" });
+test("a docs-only commit plans no candidate", (t) => {
+  const root = tempDir(t);
+  git(root, "init", "-q");
+  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
+  git(root, "tag", "v0.10.0");
+  writeFileSync(join(root, "README.md"), "docs\n");
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "fix: correct the docs");
+  assert.equal(candidatePlan(releaseSource(root)), null);
 });
 
-test("a docs-only commit after a release plans no candidate", () => {
-  assert.equal(candidatePlan(docsOnly), null);
+test("a test-only commit plans no candidate", (t) => {
+  const root = tempDir(t);
+  git(root, "init", "-q");
+  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
+  git(root, "tag", "v0.10.0");
+  mkdirSync(join(root, "packages/dashboard/test"), { recursive: true });
+  writeFileSync(join(root, "packages/dashboard/test/fixture.ts"), "export {};\n");
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "fix: correct the test");
+  assert.equal(candidatePlan(releaseSource(root)), null);
 });
 
-test("a candidate tag on HEAD keeps the same plan", () => {
-  assert.deepEqual(candidatePlan(tagged), candidatePlan(shipped));
+test("a candidate tag on HEAD keeps the same plan", (t) => {
+  const root = tempDir(t);
+  git(root, "init", "-q");
+  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
+  git(root, "tag", "v0.10.0");
+  writeFileSync(join(root, "build-input.txt"), "dashboard\n");
+  git(root, "add", ".");
+  git(root, "commit", "-qm", "fix: ship a dashboard change");
+  const plan = candidatePlan(releaseSource(root));
+  git(root, "tag", plan.tag);
+  assert.deepEqual(candidatePlan(releaseSource(root)), plan);
 });

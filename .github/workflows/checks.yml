@@ -22,20 +22,21 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Detect a docs-only pull request
-        id: changes
-        run: |
-          code=true
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            changed=$(git diff --name-only HEAD^1 HEAD)
-            grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed" || code=false
-          fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
+
+      - name: Detect a docs-only pull request
+        id: changes
+        run: |
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import { execFileSync } from "node:child_process";
+          import { DOCS } from "./npm-scripts/release-plan.mjs";
+          const code = process.env.GITHUB_EVENT_NAME !== "pull_request" ||
+            execFileSync("git", ["diff", "--name-only", "HEAD^1", "HEAD", "--", ".", ...DOCS], { timeout: 30_000 }).length > 0;
+          console.log(`code=${code}`);
+          NODE
 
       - run: npm ci --no-audit --no-fund
 
@@ -48,9 +49,7 @@ jobs:
 
       - if: steps.changes.outputs.code == 'true'
         uses: taiki-e/install-action@v2
-        with:
-          tool: convco@0.7.2
-
+        with: { tool: convco@0.7.2 }
       - if: steps.changes.outputs.code == 'true'
         run: npm test
 
