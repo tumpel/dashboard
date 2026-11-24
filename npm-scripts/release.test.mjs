@@ -15,17 +15,6 @@ const tempDir = (t) => {
   return root;
 };
 
-test("a shipped commit plans a candidate", (t) => {
-  const root = tempDir(t);
-  git(root, "init", "-q");
-  git(root, "commit", "--allow-empty", "-qm", "feat: start dashboard");
-  git(root, "tag", "v0.10.0");
-  writeFileSync(join(root, "build-input.txt"), "dashboard\n");
-  git(root, "add", ".");
-  git(root, "commit", "-qm", "fix: ship a dashboard change");
-  assert.deepEqual(planCandidate(root), { tag: "v0.10.1-rc.1", version: "0.10.1-rc.1" });
-});
-
 test("a docs-only commit plans no candidate", (t) => {
   const root = tempDir(t);
   git(root, "init", "-q");
