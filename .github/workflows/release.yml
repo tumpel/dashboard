@@ -50,18 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
       - id: dispatch-control-plane
         env:
           GH_TOKEN: ${{ github.token }}
           CONTROL_PLANE_DISPATCH_TOKEN: ${{ secrets.CONTROL_PLANE_DISPATCH_TOKEN }}
           RELEASE_TAG: ${{ needs.release.outputs.tag }}
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: |
-          if [ -z "$CONTROL_PLANE_DISPATCH_TOKEN" ]; then
-            echo "::warning::Set CONTROL_PLANE_DISPATCH_TOKEN to dispatch this release to control-plane."
-            exit 0
-          fi
-          assets=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].url]')
-          payload=$(jq -n --arg tag "$RELEASE_TAG" --arg sha "$RELEASE_SHA" --argjson assets "$assets" \
-            '{event_type:"component-released",client_payload:{component:"dashboard",repository:env.GITHUB_REPOSITORY,$tag,$sha,$assets}}')
-          GH_TOKEN="$CONTROL_PLANE_DISPATCH_TOKEN" gh api --method POST /repos/tumpel/control-plane/dispatches --input - <<< "$payload"
+        run: node npm-scripts/dispatch.mjs "$RELEASE_TAG"
