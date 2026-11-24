@@ -211,7 +211,10 @@ test("a release rerun reaches dispatch with the same payload after a rejected po
       "--input-type=module",
       "--eval",
       `import { runRelease } from ${JSON.stringify(releaseScript.href)};
-       runRelease("dispatch", { gh: () => { throw new Error("GitHub rejected the dispatch"); } });`,
+       runRelease("dispatch", { gh: (_args, { input }) => {
+         process.stdout.write(input);
+         throw new Error("GitHub rejected the dispatch");
+       } });`,
     ],
     { cwd: root, env, encoding: "utf8", timeout: 30_000 },
   );
@@ -226,6 +229,7 @@ test("a release rerun reaches dispatch with the same payload after a rejected po
   runRelease("publish", context);
   runRelease("dispatch", context);
   assert.deepEqual(read("published"), published);
+  assert.deepEqual(dispatches, [JSON.parse(rejected.stdout)]);
   assert.deepEqual(dispatches, [{ event_type: "component-released", client_payload: published }]);
   assert.equal(created.length, 1);
   assert.throws(() => statSync(join(root, "release")), { code: "ENOENT" });
