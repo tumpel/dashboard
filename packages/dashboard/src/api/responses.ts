@@ -10,9 +10,19 @@ import {
   StartedSessionFromIssueSchema,
   StartedSessionSchema,
   StaticConnectorSchema,
+  TurnBaseSchema,
+  TurnStateSchema,
 } from "@tumpel/schemas";
 import { z } from "zod";
-import { serviceUpdate } from "../service-update";
+import { serviceUpdate } from "../service-update.ts";
+
+const unrecognised = (): "Unrecognised" => {
+  serviceUpdate.report();
+  return "Unrecognised";
+};
+
+const enumView = <T extends string>(schema: z.ZodType<T>): z.ZodType<T | "Unrecognised"> =>
+  z.union([schema, z.string().transform(unrecognised)]);
 
 export const unknownValues = (issues: readonly z.core.$ZodIssue[], data: unknown): boolean =>
   issues.length > 0 &&
@@ -32,10 +42,7 @@ const statusView = <T>(schema: z.ZodType<T>): z.ZodType<T | { state: "Unrecognis
   z.unknown().transform((data, context): T | { state: "Unrecognised" } => {
     const result = schema.safeParse(data);
     if (result.success) return result.data;
-    if (unknownValues(result.error.issues, data)) {
-      serviceUpdate.report();
-      return { state: "Unrecognised" };
-    }
+    if (unknownValues(result.error.issues, data)) return { state: unrecognised() };
     for (const issue of result.error.issues) context.addIssue({ ...issue });
     return z.NEVER;
   });
@@ -49,21 +56,28 @@ export const OpenRouterAuthorizationViewSchema = OpenRouterAuthorizationSchema.e
   status: statusView(OpenRouterAuthorizationSchema.shape.status),
 });
 
-export const TurnViewSchema = z.discriminatedUnion("state", [
-  OfferedTurnSchema,
-  RunningTurnSchema,
-  CompletedTurnSchema,
-  FailedTurnSchema.extend({
-    reason: z.union([
-      FailedTurnSchema.shape.reason,
-      z.string().transform(() => {
-        serviceUpdate.report();
-        return "Unrecognised" as const;
-      }),
-    ]),
-  }),
-]);
-export const SessionViewSchema = SessionSchema.extend({ lastTurn: TurnViewSchema });
+export const TurnViewSchema = z.preprocess(
+  (data) =>
+    typeof data === "object" &&
+    data !== null &&
+    "state" in data &&
+    typeof data.state === "string" &&
+    !TurnStateSchema.safeParse(data.state).success
+      ? { ...data, state: unrecognised() }
+      : data,
+  z.discriminatedUnion("state", [
+    OfferedTurnSchema,
+    RunningTurnSchema,
+    CompletedTurnSchema,
+    FailedTurnSchema.extend({ reason: enumView(FailedTurnSchema.shape.reason) }),
+    TurnBaseSchema.extend({ state: z.literal("Unrecognised") }),
+  ]),
+);
+export const SessionViewSchema = SessionSchema.extend({
+  state: enumView(SessionSchema.shape.state),
+  lastTurnState: enumView(TurnStateSchema),
+  lastTurn: TurnViewSchema,
+});
 
 export const StartedSessionViewSchema = StartedSessionSchema.extend({
   session: SessionViewSchema,

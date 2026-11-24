@@ -1,13 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { githubApi } from "./release-github.mjs";
 import { planRelease, releaseSource, stampRelease } from "./release-plan.mjs";
 
 const root = process.cwd();
 const state = join(root, ".tmp", "release");
 const read = (name) => JSON.parse(readFileSync(join(state, `${name}.json`), "utf8"));
 const write = (name, value) => writeFileSync(join(state, `${name}.json`), `${JSON.stringify(value, null, 2)}\n`);
+const gh = (args, options) => execFileSync("gh", args, { cwd: root, encoding: "utf8", timeout: 120_000, ...options });
 
 const prepare = async () => {
   const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
@@ -29,7 +29,7 @@ const prepare = async () => {
       repository: process.env.GITHUB_REPOSITORY,
     }),
     run,
-    github: githubApi(process.env.GH_TOKEN),
+    github: (path) => JSON.parse(gh(["api", path])),
   });
   mkdirSync(state, { recursive: true });
   write("plan", plan);
@@ -42,41 +42,36 @@ const command = process.argv[2];
 if (command === "prepare") await prepare();
 else if (command === "publish") {
   const plan = read("plan");
-  const github = githubApi(process.env.GH_TOKEN);
   execFileSync("npm", ["run", "pack"], { cwd: root, stdio: "inherit", timeout: 600_000 });
   execFileSync("npm", ["run", "pack:check"], { cwd: root, stdio: "inherit", timeout: 120_000 });
-  const release = await github(`/repos/${plan.repository}/releases`, {
-    method: "POST",
-    body: JSON.stringify({
-      tag_name: plan.tag,
-      target_commitish: plan.sha,
-      name: plan.tag,
-      draft: true,
-      prerelease: plan.prerelease,
-      generate_release_notes: true,
-    }),
-  });
-  for (const name of readdirSync(join(root, "release")).sort()) {
-    await github(`${release.upload_url.split("{")[0]}?name=${encodeURIComponent(name)}`, {
-      method: "POST",
-      headers: { "content-type": "application/octet-stream" },
-      body: readFileSync(join(root, "release", name)),
-    });
-  }
-  const published = await github(`/repos/${plan.repository}/releases/${release.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      draft: false,
-      prerelease: plan.prerelease,
-      make_latest: plan.prerelease ? "false" : "true",
-    }),
-  });
+  const assets = readdirSync(join(root, "release"))
+    .sort()
+    .map((name) => join(root, "release", name));
+  gh([
+    "release",
+    "create",
+    plan.tag,
+    ...assets,
+    "--repo",
+    plan.repository,
+    "--target",
+    plan.sha,
+    "--title",
+    plan.tag,
+    "--draft",
+    "--generate-notes",
+    ...(plan.prerelease ? ["--prerelease"] : []),
+  ]);
+  gh(["release", "edit", plan.tag, "--repo", plan.repository, "--draft=false", `--latest=${!plan.prerelease}`]);
+  const publishedAssets = JSON.parse(
+    gh(["release", "view", plan.tag, "--repo", plan.repository, "--json", "assets", "--jq", "[.assets[].url]"]),
+  );
   write("published", {
     component: "dashboard",
     repository: plan.repository,
     sha: plan.sha,
     tag: plan.tag,
-    assets: published.assets.map((asset) => asset.browser_download_url),
+    assets: publishedAssets,
   });
 } else if (command === "dispatch") {
   const token = process.env.CONTROL_PLANE_DISPATCH_TOKEN;
@@ -85,9 +80,9 @@ else if (command === "publish") {
       "::notice::CONTROL_PLANE_DISPATCH_TOKEN is empty; skipping component-released dispatch to control-plane.",
     );
   } else {
-    await githubApi(token)("/repos/tumpel/control-plane/dispatches", {
-      method: "POST",
-      body: JSON.stringify({ event_type: "component-released", client_payload: read("published") }),
+    gh(["api", "--method", "POST", "/repos/tumpel/control-plane/dispatches", "--input", "-"], {
+      env: { ...process.env, GH_TOKEN: token },
+      input: JSON.stringify({ event_type: "component-released", client_payload: read("published") }),
     });
   }
 } else throw new Error("Unknown release command. Run release:prepare, release:publish or release:dispatch.");

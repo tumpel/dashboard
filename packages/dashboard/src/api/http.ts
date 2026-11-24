@@ -48,6 +48,7 @@ import {
   SnapshotSchema,
   SteerSchema,
   StopFailureSchema,
+  TenantEventEnvelopeSchema,
   TenantEventSchema,
   TranscriptPageSchema,
   TriggerSchema,
@@ -66,7 +67,8 @@ import {
   StartedSessionFromIssueViewSchema,
   StartedSessionViewSchema,
   TurnViewSchema,
-} from "./responses";
+  unknownValues,
+} from "./responses.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
@@ -78,15 +80,19 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
 const eventPageSchema = EventPageSchema.extend({
-  events: z.preprocess((data) => {
-    if (!Array.isArray(data)) return data;
-    return data.filter((event) => {
-      if (typeof event !== "object" || event === null || typeof event.event !== "string") return true;
-      if (TenantEventSchema.options.some((schema) => schema.shape.event.safeParse(event.event).success)) return true;
-      serviceUpdate.report();
-      return false;
-    });
-  }, TenantEventSchema.array()),
+  events: z.array(z.unknown()).transform((events, context) =>
+    events.flatMap((event, index) => {
+      const parsed = TenantEventSchema.safeParse(event);
+      if (parsed.success) return [parsed.data];
+      const { issues } = parsed.error;
+      if (unknownValues(issues, event) && TenantEventEnvelopeSchema.safeParse(event).success) {
+        serviceUpdate.report();
+        return [];
+      }
+      for (const issue of issues) context.addIssue({ ...issue, path: [index, ...issue.path] });
+      return [];
+    }),
+  ),
 });
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {

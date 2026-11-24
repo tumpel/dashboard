@@ -5,10 +5,9 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Session, TranscriptText, Turn } from "../api/port";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ProblemBlock } from "../components/problem-block";
+import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { TriggerOriginNote } from "../components/started-by";
 import { SessionStateBadge } from "../components/status-badge";
-import { TurnFailureBlock } from "../components/turn-failure";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/input";
@@ -302,7 +301,18 @@ const TranscriptPanel = ({
       {transcript.isError && !signedOut && (
         <ProblemBlock error={transcript.error} retryLabel="Resume" onRetry={resume} />
       )}
-      {finished && turn.state === "Failed" && <TurnFailureBlock label={label} turn={turn} />}
+      {(turn.state === "Unrecognised" || (finished && turn.state === "Failed" && turn.reason === "Unrecognised")) && (
+        <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>
+      )}
+      {finished && turn.state === "Failed" && turn.reason !== "Unrecognised" && (
+        <ProblemCard
+          wording={{
+            title: `${label} failed: ${turn.reason}`,
+            detail: turn.detail,
+            fix: "Fix what the detail names, then send the next prompt to start a new turn.",
+          }}
+        />
+      )}
     </div>
   );
 };

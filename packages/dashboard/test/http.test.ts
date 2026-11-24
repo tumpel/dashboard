@@ -2,12 +2,9 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { createHttpApi } from "../src/api/http.ts";
 import { failureOf } from "../src/api/port.ts";
 import { wordingOf } from "../src/api/wording.ts";
-import { TurnFailureBlock } from "../src/components/turn-failure.tsx";
 import { serviceUpdate } from "../src/service-update.ts";
 
 let server: Server;
@@ -16,6 +13,36 @@ let origin: string;
 before(async () => {
   server = createServer((request, response) => {
     if (request.url?.startsWith("/v1/events")) {
+      const afterEventId = new URL(request.url, "http://localhost").searchParams.get("afterEventId");
+      if (afterEventId === "1" || afterEventId === "2") {
+        const known = {
+          event: "TurnCompleted",
+          eventId: 2,
+          tenantId: "tenant-a",
+          createdAt: 1,
+          turnId: "trn_1",
+          sessionId: "ses_1",
+        };
+        const paused = {
+          ...known,
+          event: "SubscriptionPaused",
+          eventId: 3,
+          subscriptionId: "sub_1",
+          reason: { kind: "NewPauseReason" },
+        };
+        const future = { event: "NewEvent", eventId: 4, tenantId: "tenant-a", createdAt: 1 };
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            events:
+              afterEventId === "1"
+                ? [known, paused, future, { ...known, eventId: 5 }]
+                : [known, { ...paused, sessionId: null }],
+            lastEventId: afterEventId === "1" ? 5 : 3,
+          }),
+        );
+        return;
+      }
       response.writeHead(410, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -75,6 +102,7 @@ before(async () => {
                   detail: "The control plane knows a reason this dashboard does not.",
                   failedAt: "2026-11-21T12:00:00Z",
                 }),
+                { ...session("ses_future_state", { state: "Suspended" }), state: "Recovering" },
               ],
         ),
       );
@@ -121,6 +149,29 @@ test("an expired event cursor keeps its oldest event id", async () => {
   );
 });
 
+test("an event page keeps known events around unknown event names and pause reasons", async () => {
+  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const page = await api.listEvents({ afterEventId: 1 });
+  assert.deepEqual(
+    page.events.map(({ event, eventId }) => [event, eventId]),
+    [
+      ["TurnCompleted", 2],
+      ["TurnCompleted", 5],
+    ],
+  );
+  assert.equal(page.lastEventId, 5);
+});
+
+test("an unknown response value does not hide another malformed field on the event", async () => {
+  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  await assert.rejects(api.listEvents({ afterEventId: 2 }), (error: unknown) => {
+    const failure = failureOf(error);
+    assert.equal(failure.kind, "OutOfStep");
+    assert.match(failure.detail, /events\.1\.sessionId/);
+    return true;
+  });
+});
+
 test("extra response fields remain usable without reporting an update", async () => {
   let reports = 0;
   const unsubscribe = serviceUpdate.subscribe(() => {
@@ -133,7 +184,7 @@ test("extra response fields remain usable without reporting an update", async ()
   assert.equal(reports, 0);
 });
 
-test("a session list with a failure reason this dashboard does not know keeps supported rows usable", async () => {
+test("a session list keeps known fields alongside unknown response states and reasons", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
   const sessions = await api.listSessions({});
   assert.deepEqual(
@@ -144,20 +195,14 @@ test("a session list with a failure reason this dashboard does not know keeps su
     [
       ["ses_known", "Completed"],
       ["ses_newer", "Unrecognised"],
+      ["ses_future_state", "Unrecognised"],
     ],
   );
-});
-
-test("an unknown last-turn reason renders its owning notice and preserves session data", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
-  const sessions = await api.listSessions({});
-  const session = sessions[1];
-  assert.ok(session);
-  assert.equal(session.sessionId, "ses_newer");
-  assert.equal(session.repository, "tumpel/dashboard");
-  assert.equal(session.lastTurn.prompt, "Fix the bug.");
-  assert.equal(session.lastTurn.state, "Failed");
-  const html = renderToStaticMarkup(createElement(TurnFailureBlock, { label: "Last turn", turn: session.lastTurn }));
-  assert.match(html, /This dashboard doesn&#x27;t recognise what the service sent/);
-  assert.match(html, /Reload to update/);
+  const [, failed, future] = sessions;
+  assert.equal(failed?.lastTurn.state, "Failed");
+  assert.equal(future?.state, "Unrecognised");
+  assert.equal(future.lastTurnState, "Unrecognised");
+  assert.equal(future.repository, "tumpel/dashboard");
+  assert.equal(future.lastTurn.prompt, "Fix the bug.");
+  assert.equal(future.lastTurn.turnId, "trn_1");
 });

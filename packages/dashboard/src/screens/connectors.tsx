@@ -513,7 +513,7 @@ const RowActions = ({
   );
 };
 
-export const ConnectorRows = ({
+const ConnectorRows = ({
   connectors,
   personas,
   owner,
