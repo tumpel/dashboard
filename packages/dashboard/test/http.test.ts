@@ -11,6 +11,28 @@ let origin: string;
 
 before(async () => {
   server = createServer((request, response) => {
+    if (request.url === "/v1/prebuilds/latest") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify([
+          {
+            prebuildId: "pbd_control_plane",
+            tenantId: "tenant-a",
+            personaId: "per_1",
+            repository: "https://github.com/owner/control-plane-prebuild",
+            inputDigest: "3f".repeat(32),
+            guestImageDigest: "7c".repeat(32),
+            configSource: "RepositoryFile",
+            status: { state: "Building" },
+            startedAt: "2026-11-15T13:02:00Z",
+            logUrl: "https://api.example.com/v1/sessions/ses_prebuild/transcript",
+            createdAt: Date.parse("2026-11-15T13:02:00Z"),
+            updatedAt: Date.parse("2026-11-15T13:02:00Z"),
+          },
+        ]),
+      );
+      return;
+    }
     if (request.url?.startsWith("/v1/events")) {
       response.writeHead(410, { "content-type": "application/json" });
       response.end(
@@ -90,6 +112,15 @@ before(async () => {
 });
 
 after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+test("a prebuild without a provider parses", async () => {
+  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const prebuilds = await api.listLatestPrebuilds();
+  assert.deepEqual(
+    prebuilds.map(({ prebuildId, repository, status }) => [prebuildId, repository, status.state]),
+    [["pbd_control_plane", "https://github.com/owner/control-plane-prebuild", "Building"]],
+  );
+});
 
 test("an answer missing a field becomes a named out-of-step problem", async () => {
   const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));

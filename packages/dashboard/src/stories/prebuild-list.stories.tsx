@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { createHttpApi } from "../api/http";
 import { ApiFailure } from "../api/port";
 import { REPO } from "./connection-fixtures";
-import { fakeApi, memberWhoami, never, StoryApp, signedOutFailure, TENANT_ID, tenantPath } from "./harness";
+import { fakeApi, memberWhoami, never, StoryApp, signedOutFailure, tenantPath } from "./harness";
 
 const meta: Meta<typeof StoryApp> = { title: "Dashboard/Prebuilds/PrebuildList", component: StoryApp };
 export default meta;
@@ -12,14 +11,6 @@ type Story = StoryObj<typeof StoryApp>;
 const path = tenantPath("/prebuilds");
 
 export const Default: Story = { args: { path: tenantPath(`/prebuilds?repo=${encodeURIComponent(REPO)}`) } };
-
-export const ControlPlaneShaped: Story = {
-  args: { path },
-  render: (args) => {
-    const api = createHttpApi(window.location.origin, TENANT_ID, async () => ({ kind: "Token", token: "storybook" }));
-    return <StoryApp {...args} api={fakeApi({ listLatestPrebuilds: api.listLatestPrebuilds })} />;
-  },
-};
 
 export const Loading: Story = {
   args: { path, api: fakeApi({ listLatestPrebuilds: never }) },
