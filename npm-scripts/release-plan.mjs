@@ -21,10 +21,28 @@ const PACKAGES = ["packages/dashboard", "packages/pages"];
 const read = (root, path) => JSON.parse(readFileSync(join(root, path), "utf8"));
 const write = (root, path, value) => writeFileSync(join(root, path), `${JSON.stringify(value, null, 2)}\n`);
 
-export const releaseSource = ({ root, sha, ref, repository }) => {
-  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 30_000 }).trim();
-  if (git("rev-parse", "HEAD") !== sha)
+const git = (root, ...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", timeout: 30_000 }).trim();
+
+export const requireReleaseSha = (root, sha) => {
+  if (git(root, "rev-parse", "HEAD") !== sha)
     throw new Error("The checkout does not match the release source SHA. Check out the triggering SHA.");
+};
+
+export const remoteTagSha = (root, tag) => {
+  const ref = `refs/tags/${tag}`;
+  const peeled = `${ref}^{}`;
+  const refs = git(root, "ls-remote", "--tags", "origin", ref, peeled).split("\n");
+  const commits = new Map(
+    refs.map((line) => {
+      const [sha, name] = line.split("\t");
+      return [name, sha];
+    }),
+  );
+  return commits.get(peeled) ?? commits.get(ref);
+};
+
+export const releaseSource = ({ root, sha, ref, repository }) => {
+  requireReleaseSha(root, sha);
   const source = { sha, ref, repository };
   if (ref.startsWith("refs/tags/"))
     return { ...source, versions: PACKAGES.map((path) => read(root, `${path}/package.json`).version) };
@@ -32,7 +50,7 @@ export const releaseSource = ({ root, sha, ref, repository }) => {
     execFileSync("convco", ["version", ...args], { cwd: root, encoding: "utf8", timeout: 30_000 }).trim();
   const stable = convco("--ignore-prereleases");
   const next = convco("--bump", "--ignore-prereleases", ...SHIPPED.flatMap((path) => ["-P", path]));
-  const nearest = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "v*-main.*");
+  const nearest = git(root, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "v*-main.*");
   const diff = spawnSync("git", ["diff", "--quiet", nearest, "HEAD", "--", ...SHIPPED], { cwd: root, timeout: 30_000 });
   if (diff.error) throw diff.error;
   if (![0, 1].includes(diff.status))
@@ -41,7 +59,7 @@ export const releaseSource = ({ root, sha, ref, repository }) => {
     ...source,
     tags: { stable: `v${stable}`, nearest },
     next,
-    commits: git("rev-list", `v${stable}..HEAD`).split("\n").filter(Boolean),
+    commits: git(root, "rev-list", `v${stable}..HEAD`).split("\n").filter(Boolean),
     shippedChanged: diff.status === 1,
   };
 };
@@ -65,14 +83,6 @@ export const releaseDecision = ({ sha, ref, repository, checks, versions, tags, 
   if (`v${next}` === tags.stable || !shippedChanged) return null;
   const version = `${next}-rc.${commits.length}`;
   return { sha, tag: `v${version}`, version, prerelease: true, repository };
-};
-
-export const planRelease = async ({ github, run, ...source }) => {
-  if (run) return releaseDecision({ ...source, checks: [run] });
-  const result = await github(
-    `/repos/${source.repository}/actions/workflows/checks.yml/runs?head_sha=${source.sha}&event=push&per_page=100`,
-  );
-  return releaseDecision({ ...source, checks: result.workflow_runs });
 };
 
 export const stampRelease = (root, plan) => {

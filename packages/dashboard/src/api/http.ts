@@ -10,7 +10,6 @@ import {
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
-  EventPageSchema,
   EventProblemSchema,
   GitHubActionsConnectionLinkSchema,
   GitHubConnectionSchema,
@@ -48,9 +47,6 @@ import {
   SnapshotSchema,
   SteerSchema,
   StopFailureSchema,
-  TenantEventEnvelopeSchema,
-  TenantEventSchema,
-  TranscriptPageSchema,
   TriggerSchema,
   TriggerTestResultSchema,
   WhoamiSchema,
@@ -62,12 +58,14 @@ import { serviceUpdate } from "../service-update.ts";
 import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
 import {
   ConnectorViewSchema,
+  EventPageViewSchema,
+  EventViewSchema,
   OpenRouterAuthorizationViewSchema,
   SessionViewSchema,
   StartedSessionFromIssueViewSchema,
   StartedSessionViewSchema,
+  TranscriptPageViewSchema,
   TurnViewSchema,
-  unknownValues,
 } from "./responses.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
@@ -78,22 +76,6 @@ const RECONNECT_CAP_MS = 30_000;
 const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
-
-const eventPageSchema = EventPageSchema.extend({
-  events: z.array(z.unknown()).transform((events, context) =>
-    events.flatMap((event, index) => {
-      const parsed = TenantEventSchema.safeParse(event);
-      if (parsed.success) return [parsed.data];
-      const { issues } = parsed.error;
-      if (unknownValues(issues, event) && TenantEventEnvelopeSchema.safeParse(event).success) {
-        serviceUpdate.report();
-        return [];
-      }
-      for (const issue of issues) context.addIssue({ ...issue, path: [index, ...issue.path] });
-      return [];
-    }),
-  ),
-});
 
 const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
@@ -194,12 +176,10 @@ const followEvents = (
       opened = true;
     };
     socket.onmessage = (message) => {
-      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
-      if (event.success) listener.onEvent(event.data);
-      else {
-        serviceUpdate.report();
-        listener.onGap();
-      }
+      const event = EventViewSchema.safeParse(JSON.parse(String(message.data)));
+      if (!event.success) serviceUpdate.report();
+      if (event.success && event.data !== null) listener.onEvent(event.data);
+      else listener.onGap();
     };
     socket.onclose = reconnect;
   };
@@ -293,7 +273,7 @@ export const createHttpApi = (
     readTranscript: (sessionId, query) =>
       settle(
         "Transcripts_read",
-        TranscriptPageSchema,
+        TranscriptPageViewSchema,
         client.GET("/v1/sessions/{sessionId}/transcript", { params: { path: { sessionId }, query } }),
       ),
     listSnapshots: (sessionId) =>
@@ -625,7 +605,7 @@ export const createHttpApi = (
         }),
       ),
     listEvents: (query) =>
-      settle("Events_list", eventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
+      settle("Events_list", EventPageViewSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
     followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
     listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
     getTrigger: (triggerId) =>

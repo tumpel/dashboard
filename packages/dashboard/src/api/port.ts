@@ -15,7 +15,6 @@ import type {
   CredentialHandoverSchema,
   DeviceSchema,
   EffectiveHarnessVersionSchema,
-  EventPageSchema,
   EventProblemSchema,
   EventQuerySchema,
   GitHubActionsConnectionLinkSchema,
@@ -79,13 +78,10 @@ import type {
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
   TenantConfigSchema,
-  TenantEventSchema,
-  TranscriptPageSchema,
   TranscriptQuerySchema,
   TriggerCreateSchema,
   TriggerPatchSchema,
   TriggerSchema,
-  TriggerStartRefusedEventSchema,
   TriggerTestResultSchema,
   TriggerTestSchema,
   WhoamiSchema,
@@ -93,17 +89,19 @@ import type {
 import type { z } from "zod";
 import type {
   ConnectorViewSchema,
+  EventPageViewSchema,
   OpenRouterAuthorizationViewSchema,
   SessionViewSchema,
   StartedSessionFromIssueViewSchema,
   StartedSessionViewSchema,
+  TranscriptPageViewSchema,
   TurnViewSchema,
 } from "./responses";
 
 export type Host = z.infer<typeof HostSchema>;
-export type TenantEvent = z.infer<typeof TenantEventSchema>;
+export type TenantEvent = EventPage["events"][number];
 export type EventQuery = z.infer<typeof EventQuerySchema>;
-export type EventPage = z.infer<typeof EventPageSchema>;
+export type EventPage = z.infer<typeof EventPageViewSchema>;
 export type Trigger = z.infer<typeof TriggerSchema>;
 export type TriggerCreate = z.infer<typeof TriggerCreateSchema>;
 export type TriggerPatch = z.infer<typeof TriggerPatchSchema>;
@@ -112,7 +110,7 @@ export type TriggerEvent = TriggerSource["event"];
 export type TriggerCondition = TriggerSource["conditions"][number];
 export type TriggerTest = z.infer<typeof TriggerTestSchema>;
 export type TriggerTestResult = z.infer<typeof TriggerTestResultSchema>;
-export type TriggerStartRefused = z.infer<typeof TriggerStartRefusedEventSchema>;
+export type TriggerStartRefused = Extract<TenantEvent, { event: "TriggerStartRefused" }>;
 
 export interface EventListener {
   onEvent(event: TenantEvent): void;
@@ -135,7 +133,7 @@ export type GitHubIssue = z.infer<typeof GitHubIssueSchema>;
 export type Turn = z.infer<typeof TurnViewSchema>;
 export type Steer = z.infer<typeof SteerSchema>;
 export type TranscriptQuery = z.infer<typeof TranscriptQuerySchema>;
-export type TranscriptPage = z.infer<typeof TranscriptPageSchema>;
+export type TranscriptPage = z.infer<typeof TranscriptPageViewSchema>;
 export type TranscriptText = z.infer<typeof CompactTranscriptLineSchema>;
 export type Snapshot = z.infer<typeof SnapshotSchema>;
 export type CredentialHandover = z.infer<typeof CredentialHandoverSchema>;

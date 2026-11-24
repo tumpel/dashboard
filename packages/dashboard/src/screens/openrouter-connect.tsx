@@ -7,7 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { useTenantApi } from "../context";
 
-const FAILURES: Record<OpenRouterAuthorizationFailureReason, Omit<Wording, "detail">> = {
+const FAILURES: Record<Exclude<OpenRouterAuthorizationFailureReason, "Unrecognised">, Omit<Wording, "detail">> = {
   AuthorizationTimedOut: {
     title: "OpenRouter did not send you back in time (AuthorizationTimedOut)",
     fix: "Connect OpenRouter again and approve on OpenRouter within 10 minutes.",
@@ -86,10 +86,9 @@ export const OpenRouterSection = ({
   );
 
   const body = () => {
-    if (status?.state === "Unrecognised") {
-      return <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>;
-    }
+    if (status?.state === "Unrecognised") return null;
     if (status?.state === "Failed" && !authorizing) {
+      if (status.reason === "Unrecognised") return <p className="text-sm">{status.detail}</p>;
       const wording = FAILURES[status.reason];
       return (
         <ProblemCard

@@ -1,4 +1,3 @@
-import { SessionStateSchema } from "@tumpel/schemas";
 import {
   ApiFailure,
   type GitHubIssue,
@@ -137,7 +136,7 @@ export const transcriptPage = (
   const after = query.after ?? 0;
   const fresh = lines.filter((line) => line.lineSeq > after);
   const cursor = fresh.at(-1)?.lineSeq ?? after;
-  const sessionState = SessionStateSchema.parse(session.state);
+  const sessionState = session.state;
   if (!compact) return { form: "Raw", sessionState, lines: fresh, cursor, finished };
   const kept = fresh.map(({ lineSeq, text }) => ({ lineSeq, text }));
   const turns = kept.length === 0 ? [] : [{ turnId, lines: kept }];

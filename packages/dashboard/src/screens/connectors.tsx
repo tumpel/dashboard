@@ -38,7 +38,7 @@ const OWNER_ONLY = "Only an Owner adds, connects or removes connectors. Owners a
 
 const AUTH_LABELS: Record<Auth, string> = { Static: "Static token", OAuth: "OAuth" };
 
-const FAILURES: Record<Failed["reason"], { title: string; fix: string }> = {
+const FAILURES: Record<Exclude<Failed["reason"], "Unrecognised">, { title: string; fix: string }> = {
   AuthorizationDenied: {
     title: "Authorization denied",
     fix: "Authorize again and approve on the provider's page.",
@@ -545,6 +545,8 @@ const ConnectorRows = ({
         {connectors.map((connector) => {
           const waiting = pending?.connectorId === connector.connectorId;
           const { status } = connector;
+          const failure =
+            status.state === "AuthorizationFailed" && status.reason !== "Unrecognised" ? FAILURES[status.reason] : null;
           const usedBy = personas?.filter((persona) => persona.connectorIds.includes(connector.connectorId));
           return (
             <Fragment key={connector.connectorId}>
@@ -592,24 +594,19 @@ const ConnectorRows = ({
                   </TableCell>
                 </TableRow>
               )}
-              {status.state === "Unrecognised" && (
-                <TableRow>
-                  <TableCell mobile="full" colSpan={columns}>
-                    <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>
-                  </TableCell>
-                </TableRow>
-              )}
               {!waiting && status.state === "AuthorizationFailed" && (
                 <TableRow>
                   <TableCell mobile="full" colSpan={columns}>
                     <div role="alert" className="grid gap-0.5 text-sm">
                       <span className="font-semibold text-destructive">
-                        {FAILURES[status.reason].title} {day(status.failedAt)}
+                        {failure?.title ?? "Unrecognised failure reason"} {day(status.failedAt)}
                       </span>
                       <span>{status.detail}</span>
-                      <span className="text-muted-foreground">
-                        {owner ? FAILURES[status.reason].fix : "Ask an Owner to authorize it again."}
-                      </span>
+                      {failure && (
+                        <span className="text-muted-foreground">
+                          {owner ? failure.fix : "Ask an Owner to authorize it again."}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

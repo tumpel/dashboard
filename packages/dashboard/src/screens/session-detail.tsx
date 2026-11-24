@@ -301,9 +301,6 @@ const TranscriptPanel = ({
       {transcript.isError && !signedOut && (
         <ProblemBlock error={transcript.error} retryLabel="Resume" onRetry={resume} />
       )}
-      {(turn.state === "Unrecognised" || (finished && turn.state === "Failed" && turn.reason === "Unrecognised")) && (
-        <p role="status">This dashboard doesn't recognise what the service sent. Reload to update.</p>
-      )}
       {finished && turn.state === "Failed" && turn.reason !== "Unrecognised" && (
         <ProblemCard
           wording={{

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
+import { createHttpApi } from "../api/http";
 import type { Session } from "../api/port";
-import { fakeApi, never, problem, SESSIONS, StoryApp, signedOutFailure, tenantPath } from "./harness";
+import { fakeApi, never, problem, SESSIONS, StoryApp, signedOutFailure, TENANT_ID, tenantPath } from "./harness";
 import { CATALOG_WITHOUT_SPEND } from "./metric-fixtures";
 import { transcriptPage, turnId, turnsFor } from "./session-fixtures";
 
@@ -156,5 +157,18 @@ export const StartupNotReported: Story = {
         metrics: CATALOG_WITHOUT_SPEND.metrics.filter((item) => item.metric !== "turn.phase"),
       }),
     }),
+  },
+};
+
+export const ResponseCompatibility: Story = {
+  args: { path: turnPath("ses_4") },
+  render: (args) => {
+    if (!new URLSearchParams(window.location.search).has("compatibility")) return <StoryApp {...args} />;
+    const { getSession, listTurns, readTranscript, followEvents } = createHttpApi(
+      window.location.origin,
+      TENANT_ID,
+      async () => ({ kind: "Token", token: "story-token" }),
+    );
+    return <StoryApp {...args} api={fakeApi({ getSession, listTurns, readTranscript, followEvents })} />;
   },
 };
