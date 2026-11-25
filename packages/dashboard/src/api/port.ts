@@ -244,7 +244,7 @@ export interface TumpelApi {
   getHost(hostId: string): Promise<Host>;
   revokeHost(hostId: string): Promise<Host>;
   mintEnrolmentToken(expiresInSeconds: number): Promise<MintedEnrolmentToken>;
-  listSessions(query: SessionListQuery): Promise<Session[]>;
+  listSessions(query: Omit<SessionListQuery, "limit" | "after">): Promise<Session[]>;
   getSession(sessionId: string): Promise<Session>;
   startSession(body: SessionStart): Promise<StartedSession>;
   startSessionFromIssue(body: SessionStartFromIssue): Promise<StartedSessionFromIssue>;
