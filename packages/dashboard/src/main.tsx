@@ -3,9 +3,10 @@ import "@fontsource-variable/jetbrains-mono";
 import { SHARED_LINKS } from "@tumpel/pages";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { toast } from "sonner";
 import { createHttpApi } from "./api/http";
 import type { TumpelApi } from "./api/port";
-import type { Wording } from "./api/wording";
+import { updateNotice, type Wording } from "./api/wording";
 import { API_ORIGIN_META, readApiOrigin } from "./api-origin";
 import { App } from "./app";
 import { createAuth } from "./auth/oauth";
@@ -40,8 +41,12 @@ if (!read.ok) {
 const apiOrigin = read.origin;
 const auth = createAuth(apiOrigin, window.location.origin);
 const apis = new Map<string, TumpelApi>();
+const notifyUpdate = (unrecognised: unknown[]): void => {
+  const wording = updateNotice(unrecognised);
+  toast.warning(wording.title, { id: "update-notice", description: `${wording.detail} ${wording.fix}` });
+};
 const apiFor = (tenantId: string): TumpelApi => {
-  const api = apis.get(tenantId) ?? createHttpApi(apiOrigin, tenantId, auth.accessToken);
+  const api = apis.get(tenantId) ?? createHttpApi(apiOrigin, tenantId, auth.accessToken, notifyUpdate);
   apis.set(tenantId, api);
   return api;
 };

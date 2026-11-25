@@ -1,13 +1,29 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import { createHttpApi } from "../src/api/http.ts";
 import { failureOf } from "../src/api/port.ts";
-import { wordingOf } from "../src/api/wording.ts";
+import { updateNotice, wordingOf } from "../src/api/wording.ts";
 
 let server: Server;
 let origin: string;
+let notices: string[] = [];
+
+const apiWithNotices = () => {
+  notices = [];
+  return createHttpApi(
+    origin,
+    "tenant-a",
+    async () => ({ kind: "Token", token: "token" }),
+    (unrecognised) => notices.push(updateNotice(unrecognised).detail),
+  );
+};
+
+const NOTICE = "The service sent something this version does not recognise:";
+
+const event = (fields: Record<string, unknown>) => ({ tenantId: "tenant-a", createdAt: 1, ...fields });
 
 before(async () => {
   server = createServer((request, response) => {
@@ -28,8 +44,28 @@ before(async () => {
             logUrl: "https://api.example.com/v1/sessions/ses_prebuild/transcript",
             createdAt: Date.parse("2026-11-15T13:02:00Z"),
             updatedAt: Date.parse("2026-11-15T13:02:00Z"),
+            fieldFromANewerControlPlane: "ignored",
           },
         ]),
+      );
+      return;
+    }
+    if (request.url === "/v1/events?afterEventId=1") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          events: [
+            event({
+              event: "SubscriptionPaused",
+              eventId: 2,
+              subscriptionId: "sub_1",
+              sessionId: "ses_1",
+              reason: { kind: "PauseReasonFromANewerControlPlane" },
+            }),
+            event({ event: "EventFromANewerControlPlane", eventId: 3 }),
+          ],
+          lastEventId: 3,
+        }),
       );
       return;
     }
@@ -83,7 +119,7 @@ before(async () => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
         JSON.stringify([
-          session("ses_known", { state: "Completed" }),
+          { ...session("ses_known", { state: "Completed" }), state: "StateFromANewerControlPlane" },
           session("ses_host_dropped", {
             state: "Failed",
             reason: "HostDropped",
@@ -107,23 +143,41 @@ before(async () => {
       }),
     );
   });
+  server.on("upgrade", (request, socket) => {
+    socket.on("data", () => socket.destroy());
+    const accept = createHash("sha1")
+      .update(`${request.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest("base64");
+    socket.write(
+      "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+        `Sec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: tumpel.bearer\r\n\r\n`,
+    );
+    for (const sent of [
+      event({ event: "EventFromANewerControlPlane", eventId: 4 }),
+      event({ event: "TurnStarted", eventId: 5, turnId: "trn_1", sessionId: "ses_1" }),
+    ]) {
+      const text = Buffer.from(JSON.stringify(sent));
+      socket.write(Buffer.concat([Buffer.from([0x81, text.length]), text]));
+    }
+  });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
 after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-test("a prebuild without a provider parses", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+test("a prebuild without a provider parses, and its extra field raises no notice", async () => {
+  const api = apiWithNotices();
   const prebuilds = await api.listLatestPrebuilds();
   assert.deepEqual(
     prebuilds.map(({ prebuildId, repository, status }) => [prebuildId, repository, status.state]),
     [["pbd_control_plane", "https://github.com/owner/control-plane-prebuild", "Building"]],
   );
+  assert.deepEqual(notices, []);
 });
 
 test("an answer missing a field becomes a named out-of-step problem", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const api = apiWithNotices();
   const error = await api.getGitHubConnection().then(
     () => assert.fail("the answer without tenantId parsed"),
     (rejection: unknown) => rejection,
@@ -136,7 +190,7 @@ test("an answer missing a field becomes a named out-of-step problem", async () =
 });
 
 test("an expired event cursor keeps its oldest event id", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const api = apiWithNotices();
   const error = await api.listEvents({ afterEventId: 0 }).then(
     () => assert.fail("the expired cursor succeeded"),
     (rejection: unknown) => rejection,
@@ -148,18 +202,52 @@ test("an expired event cursor keeps its oldest event id", async () => {
   );
 });
 
-test("a session list keeps HostDropped and reads an unrecognized failure reason as unknown", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+test("a session list keeps its IDs and names an unknown state and failure reason in one notice", async () => {
+  const api = apiWithNotices();
   const sessions = await api.listSessions({});
   assert.deepEqual(
     sessions.map((session) => [
       session.sessionId,
+      session.state,
       session.lastTurn.state === "Failed" ? session.lastTurn.reason : session.lastTurn.state,
     ]),
     [
-      ["ses_known", "Completed"],
-      ["ses_host_dropped", "HostDropped"],
-      ["ses_newer", "unknown"],
+      ["ses_known", "Unrecognised", "Completed"],
+      ["ses_host_dropped", "Idle", "HostDropped"],
+      ["ses_newer", "Idle", "Unrecognised"],
     ],
   );
+  assert.deepEqual(notices, [`${NOTICE} "StateFromANewerControlPlane", "ReasonFromANewerControlPlane".`]);
+});
+
+test("an event page keeps its IDs and names an unknown pause reason and event type", async () => {
+  const api = apiWithNotices();
+  const page = await api.listEvents({ afterEventId: 1 });
+  assert.deepEqual(
+    page.events.map((listed) => [listed.eventId, listed.event]),
+    [
+      [2, "SubscriptionPaused"],
+      [3, "Unrecognised"],
+    ],
+  );
+  assert.deepEqual(notices, [`${NOTICE} "PauseReasonFromANewerControlPlane", "EventFromANewerControlPlane".`]);
+});
+
+test("the events socket drops an unknown event type with a notice and no gap", async () => {
+  const api = apiWithNotices();
+  let gaps = 0;
+  const received = await new Promise<number[]>((resolve) => {
+    const stop = api.followEvents({
+      onEvent: (followed) => {
+        stop();
+        resolve([followed.eventId]);
+      },
+      onGap: () => {
+        gaps += 1;
+      },
+    });
+  });
+  assert.deepEqual(received, [5]);
+  assert.equal(gaps, 0);
+  assert.deepEqual(notices, [`${NOTICE} "EventFromANewerControlPlane".`]);
 });

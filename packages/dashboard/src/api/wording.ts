@@ -28,3 +28,9 @@ export const wordingOf = (failure: Failure): Wording => {
     fix: "Retry. If it keeps failing, report it with the time shown.",
   };
 };
+
+export const updateNotice = (unrecognised: readonly unknown[]): Wording => ({
+  title: "This dashboard may need an update",
+  detail: `The service sent something this version does not recognise: ${unrecognised.map((value) => JSON.stringify(value)).join(", ")}.`,
+  fix: "Reload the page; an update likely fixes it.",
+});
