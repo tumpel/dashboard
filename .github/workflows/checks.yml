@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -17,20 +17,26 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      shipped: ${{ steps.changes.outputs.shipped }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
-      - name: Detect a docs-only pull request
+      - name: Detect shipped changes
         id: changes
         run: |
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          shipped=false
+          if [ -n "$changed" ] && grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed"; then
+            shipped=true
+          fi
           code=true
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            changed=$(git diff --name-only HEAD^1 HEAD)
-            grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed" || code=false
+            code=$shipped
           fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
+          printf 'code=%s\nshipped=%s\n' "$code" "$shipped" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v7
         with:
@@ -60,3 +66,99 @@ jobs:
 
       - if: steps.changes.outputs.code == 'true'
         run: npm run screenshots:mobile:check
+
+      - if: github.event_name == 'push' && steps.changes.outputs.shipped == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-candidate
+          path: |
+            release/dashboard-*.tgz
+            release/dashboard-*.tgz.sha256
+          if-no-files-found: error
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && needs.check.outputs.shipped == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dashboard-candidate
+          path: release
+
+      - name: Publish the dashboard candidate
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(git rev-list --count "$GITHUB_SHA")
+          tag="rc.$count"
+          archives=(release/dashboard-*.tgz)
+          archive=${archives[0]}
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+            jq -cs --arg tag "$tag" '[.[][] | select(.tag_name == $tag)] | if length > 1 then error("multiple releases name " + $tag) else .[0] end')
+          if [ "$(jq -r '.draft' <<<"$existing")" = true ]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$(jq -r '.id' <<<"$existing")"
+            existing=null
+          fi
+          if [ "$existing" = null ]; then
+            if [ -n "$(git tag --list "$tag")" ]; then
+              echo "Tag $tag already exists without a release. Resolve the tag before rerunning." >&2
+              exit 1
+            fi
+            gh release create "$tag" "$archive" "$archive.sha256" --target "$GITHUB_SHA" --title "$tag" --draft
+            assets=$(gh release view "$tag" --json assets --jq '.assets')
+          else
+            commit=$(git rev-parse --verify "refs/tags/$tag^{commit}")
+            if [ "$commit" != "$GITHUB_SHA" ]; then
+              echo "Release $tag tags $commit instead of $GITHUB_SHA. Resolve the release before rerunning." >&2
+              exit 1
+            fi
+            assets=$(jq -c '.assets' <<<"$existing")
+          fi
+          if ! jq -e --arg name "${archive##*/}" '
+            map(select(.state == "uploaded") | .name) | index($name) != null and index($name + ".sha256") != null
+          ' <<<"$assets"; then
+            echo "Release $tag is missing the dashboard tarball or checksum. Resolve the release before rerunning." >&2
+            exit 1
+          fi
+          if [ "$existing" = null ]; then
+            gh release edit "$tag" --draft=false --prerelease
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  bump:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: tumpel
+          repositories: deploy
+          permission-contents: write
+
+      - uses: actions/checkout@v7
+        with:
+          repository: tumpel/deploy
+          ref: main
+          persist-credentials: false
+
+      - name: Bump the dashboard pin on deploy main
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: node npm-scripts/bump-pin.mjs dashboard "$TAG"
