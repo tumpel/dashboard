@@ -87,6 +87,7 @@ export const SecretSetDetailScreen = () => {
   }
   const set = secretSet.data;
   const now = Date.now();
+  const shown = set.keys.flatMap((key) => (key.kind === "Unrecognised" ? [] : [key]));
   const users = (personas.data ?? []).filter((persona) => persona.secretSetId === set.secretSetId);
   const expired = set.keys.flatMap((key) => (key.kind === "SubscriptionToken" && isExpired(key, now) ? [key] : []));
   return (
@@ -161,29 +162,27 @@ export const SecretSetDetailScreen = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {set.keys.map((key) =>
-              key.kind === "Unrecognised" ? null : (
-                <TableRow key={key.name}>
-                  <TableCell mobile="primary" className="font-mono text-[13px]">
-                    {key.name}
-                  </TableCell>
-                  <TableCell label="Kind">{SECRET_KIND_NAMES[key.kind]}</TableCell>
-                  <TableCell label="Provider">{key.kind === "Variable" ? "" : key.provider}</TableCell>
-                  <TableCell mobile="summary">
-                    {key.kind !== "SubscriptionToken" ? null : isExpired(key, now) ? (
-                      <Badge variant="destructive">Expired {expiryDate(key.expiresAt)}</Badge>
-                    ) : (
-                      expiryDate(key.expiresAt)
-                    )}
-                  </TableCell>
-                  <TableCell label="Updated">{formatTime(key.updatedAt)}</TableCell>
-                </TableRow>
-              ),
-            )}
+            {shown.map((key) => (
+              <TableRow key={key.name}>
+                <TableCell mobile="primary" className="font-mono text-[13px]">
+                  {key.name}
+                </TableCell>
+                <TableCell label="Kind">{SECRET_KIND_NAMES[key.kind]}</TableCell>
+                <TableCell label="Provider">{key.kind === "Variable" ? "" : key.provider}</TableCell>
+                <TableCell mobile="summary">
+                  {key.kind !== "SubscriptionToken" ? null : isExpired(key, now) ? (
+                    <Badge variant="destructive">Expired {expiryDate(key.expiresAt)}</Badge>
+                  ) : (
+                    expiryDate(key.expiresAt)
+                  )}
+                </TableCell>
+                <TableCell label="Updated">{formatTime(key.updatedAt)}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
         {set.keys.length === 0 && <p className="text-sm text-muted-foreground">This set holds no secrets yet.</p>}
-        {set.keys.some((key) => key.kind === "Unrecognised") && (
+        {shown.length < set.keys.length && (
           <p className="text-sm">
             {UNRECOGNISED_LABEL}: this set also holds a secret this dashboard does not recognise.
           </p>
