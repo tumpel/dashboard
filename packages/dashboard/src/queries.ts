@@ -29,6 +29,7 @@ import { AUTHORIZATION_READ_MS, type PendingAuthorization, stillAwaiting } from 
 import { useTenantApi } from "./context";
 import { turnsQuery } from "./metrics";
 import { pushSupported, thisDevice } from "./push";
+import { appendPage, EMPTY_TRANSCRIPT, nextReadIn, type TranscriptView } from "./transcript";
 import { isRefusal, readRefusedStarts } from "./triggers";
 
 export const keys = {
@@ -562,4 +563,25 @@ export const useLiveEvents = (tenantId: string): void => {
       }),
     [api, queryClient, tenantId],
   );
+};
+
+export const useTranscript = (tenantId: string, sessionId: string, turnId: string, compact: boolean) => {
+  const api = useTenantApi(tenantId);
+  const queryClient = useQueryClient();
+  const queryKey = keys.transcript(tenantId, sessionId, turnId, compact);
+  return useQuery({
+    queryKey,
+    queryFn: async () => {
+      const view = queryClient.getQueryData<TranscriptView>(queryKey) ?? EMPTY_TRANSCRIPT;
+      const page = await api.readTranscript(sessionId, {
+        turnId,
+        compact: compact ? true : undefined,
+        after: view.cursor === 0 ? undefined : view.cursor,
+      });
+      return appendPage(view, page);
+    },
+    refetchInterval: (query) => nextReadIn(query.state),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+  });
 };

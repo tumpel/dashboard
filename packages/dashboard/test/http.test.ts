@@ -7,6 +7,7 @@ import { createHttpApi } from "../src/api/http.ts";
 import { failureOf } from "../src/api/port.ts";
 import { updateNotice, wordingOf } from "../src/api/wording.ts";
 import { knownPersona, knownSecretSet } from "../src/fleet.ts";
+import { appendPage, EMPTY_TRANSCRIPT, nextReadIn } from "../src/transcript.ts";
 import { knownTrigger } from "../src/triggers.ts";
 
 let server: Server;
@@ -347,4 +348,12 @@ test("a secret set, persona or trigger holding an unknown member offers no save"
   ]);
   const known = { ...secretSet, keys: secretSet.keys.filter((key) => key.kind !== "Unrecognised") };
   assert.deepEqual(knownSecretSet(known)?.keys, [{ kind: "Variable", name: "NPM_TOKEN", updatedAt: 1 }]);
+});
+
+test("a transcript page of an unrecognised form stops reads but leaves the turn unfinished", () => {
+  const view = appendPage(EMPTY_TRANSCRIPT, { form: "Unrecognised" });
+  assert.deepEqual(
+    [view.finished, view.unrecognised, nextReadIn({ status: "success", data: view })],
+    [false, true, false],
+  );
 });

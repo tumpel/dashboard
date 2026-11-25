@@ -28,10 +28,11 @@ import {
   useSession,
   useSnapshots,
   useStopFailures,
+  useTranscript,
   useTriggers,
   useTurns,
 } from "../queries";
-import { type TranscriptView, useTranscript } from "../transcript";
+import type { TranscriptView } from "../transcript";
 import { ARCHIVABLE, SessionActionDialogs, STOPPABLE } from "./session-actions";
 import { SessionCostTab } from "./session-cost";
 import { SessionStartupCard } from "./session-startup";
