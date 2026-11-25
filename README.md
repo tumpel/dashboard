@@ -37,11 +37,7 @@ For `npm run dev -w @tumpel/dashboard`, set `TUMPEL_API_ORIGIN` and the dev serv
 
 ## Releases
 
-Successful checks on a push to main release shipped changes as one candidate. Conventional commits determine the next candidate version. The `N` in `-rc.N` counts commits since the last stable tag. The plan compares shipped files with the nearest version tag reachable from the checked commit. It excludes Markdown, docs, the license, repository rules, GitHub configuration and package tests.
-
-A pushed version tag releases the commit named by the tag. The release sets both package versions from the tag. A release publishes the dashboard and pages tarballs with their SHA-256 checksums. To build and verify the tarballs locally, run `npm run pack` and `npm run pack:check`.
-
-The published packages contain:
+Successful checks on a push to main publish a candidate when shipped files differ from the nearest version tag below the checked commit. After stable tag `vX.Y.Z`, the candidate is `vX.(Y+1).0-rc.N`, where `N` counts commits since that stable tag. A pushed stable tag releases the commit it names. Both release paths stamp the two package versions from their tag and publish both tarballs with SHA-256 checksums.
 
 - `dashboard-X.Y.Z.tgz`: `@tumpel/dashboard`, which holds only the built static assets in `dist/` and no dependencies.
 - `pages-X.Y.Z.tgz`: `@tumpel/pages`, compiled to `.js` and `.d.ts`, with `tokens.css` and `shell.css`.
@@ -54,6 +50,8 @@ Pin each exactly by URL:
 ```
 
 Serve `node_modules/@tumpel/dashboard/dist` as static assets with a single-page fallback to `index.html`, and insert the API origin tag described above.
+
+`npm run pack` builds both tarballs into `release/`, and `npm run pack:check` installs them in a scratch directory and imports them.
 
 ## Development
 
