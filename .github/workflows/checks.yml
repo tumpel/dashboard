@@ -99,6 +99,7 @@ jobs:
 
       - name: Publish the dashboard candidate
         id: release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -113,7 +114,8 @@ jobs:
             existing=null
           fi
           if [ "$existing" = null ]; then
-            if [ -n "$(git tag --list "$tag")" ]; then
+            existing_tag=$(git tag --list "$tag")
+            if [ -n "$existing_tag" ]; then
               echo "Tag $tag already exists without a release. Resolve the tag before rerunning." >&2
               exit 1
             fi
