@@ -21,7 +21,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { ApiFailure, type Failure, failureOf } from "../api/port";
-import { wordingOf } from "../api/wording";
+import { updateNotice, wordingOf } from "../api/wording";
 import { Logo } from "../components/logo";
 import { ProblemBlock } from "../components/problem-block";
 import { Button } from "../components/ui/button";
@@ -39,6 +39,11 @@ import { useDashboard, useSignedOut } from "../context";
 import { useHashDialog } from "../hash-dialog";
 import { useLiveEvents, useTenants, useWhoami } from "../queries";
 import { SwitchingNotice, type SwitchTarget, useSwitchTenant } from "./switch-tenant";
+
+export const notifyUpdate = (unrecognised: unknown[]): void => {
+  const wording = updateNotice(unrecognised);
+  toast.warning(wording.title, { id: "update-notice", description: `${wording.detail} ${wording.fix}` });
+};
 
 const OVERVIEW = { to: "/t/$tenantId/overview", label: "Overview", icon: LayoutDashboardIcon } as const;
 const METRICS = { to: "/t/$tenantId/metrics", label: "Metrics", icon: ChartLineIcon } as const;

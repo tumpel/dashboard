@@ -7,6 +7,10 @@ Always follow `rules/errors.md` and `rules/coding-standards.md`.
 - When committing or opening a pull request, follow `rules/commits-and-prs.md`.
 - When writing text a user reads, docs, an issue or a PR body, follow `rules/writing.md`.
 
+## Unknown values
+
+The dashboard reads API responses with the protocol's `decode`, keeps the known fields, and tells users to update when the result lists unrecognised wire values, naming those values. An extra field alone gives no update signal. An unknown value never makes the dashboard crash or throw.
+
 ## Commands
 
 - `npm install` installs dependencies.

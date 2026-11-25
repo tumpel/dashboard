@@ -28,10 +28,11 @@ import {
   useSession,
   useSnapshots,
   useStopFailures,
+  useTranscript,
   useTriggers,
   useTurns,
 } from "../queries";
-import { type TranscriptView, useTranscript } from "../transcript";
+import type { TranscriptView } from "../transcript";
 import { ARCHIVABLE, SessionActionDialogs, STOPPABLE } from "./session-actions";
 import { SessionCostTab } from "./session-cost";
 import { SessionStartupCard } from "./session-startup";
@@ -258,6 +259,9 @@ const TranscriptPanel = ({
       );
     }
     if (finished) return <span className="text-muted-foreground">Finished.</span>;
+    if (view?.unrecognised) {
+      return <span className="font-semibold">Reads stopped: reload the page to update the dashboard.</span>;
+    }
     return (
       <span className="flex items-center gap-2 font-semibold">
         <span className="size-2 rounded-full bg-primary" aria-hidden />

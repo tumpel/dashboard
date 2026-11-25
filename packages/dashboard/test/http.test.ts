@@ -7,6 +7,8 @@ import { createHttpApi } from "../src/api/http.ts";
 import { failureOf } from "../src/api/port.ts";
 import { updateNotice, wordingOf } from "../src/api/wording.ts";
 import { knownPersona, knownSecretSet } from "../src/fleet.ts";
+import { appendPage, EMPTY_TRANSCRIPT, nextReadIn } from "../src/transcript.ts";
+import { knownTrigger } from "../src/triggers.ts";
 
 let server: Server;
 let origin: string;
@@ -69,6 +71,28 @@ before(async () => {
             },
             { source: "SourceFromANewerControlPlane", path: "NEWER.md", createdAt: 1, updatedAt: 1 },
           ],
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+      );
+      return;
+    }
+    const newerTrigger = {
+      "/v1/triggers/trg_newer_kind": { kind: "KindFromANewerControlPlane", event: "push", conditions: [] },
+      "/v1/triggers/trg_newer_event": { kind: "GitHub", event: "EventFromANewerControlPlane", conditions: [] },
+    }[request.url ?? ""];
+    if (newerTrigger !== undefined) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          triggerId: request.url?.slice("/v1/triggers/".length),
+          tenantId: "tenant-a",
+          name: "newer",
+          source: newerTrigger,
+          personaId: "per_1",
+          model: "claude-opus-5-5",
+          prompt: "Review {{sha}}.",
+          principalId: "prn_1",
           createdAt: 1,
           updatedAt: 1,
         }),
@@ -300,15 +324,36 @@ test("the events socket drops an unknown event type with a notice and no gap", a
   assert.deepEqual(notices, [`${NOTICE} "EventFromANewerControlPlane".`]);
 });
 
-test("a secret set or persona holding an unknown member offers no save", async () => {
+test("a secret set, persona or trigger holding an unknown member offers no save", async () => {
   const api = apiWithNotices();
   const secretSet = await api.getSecretSet("sst_newer");
   const persona = await api.getPersona("per_newer");
+  const triggers = [await api.getTrigger("trg_newer_kind"), await api.getTrigger("trg_newer_event")];
   assert.deepEqual(
     [secretSet.secretSetId, persona.personaId, knownSecretSet(secretSet), knownPersona(persona)],
     ["sst_newer", "per_newer", null, null],
   );
-  assert.deepEqual(notices, [`${NOTICE} "KindFromANewerControlPlane".`, `${NOTICE} "SourceFromANewerControlPlane".`]);
+  assert.deepEqual(
+    triggers.map((trigger) => [trigger.triggerId, knownTrigger(trigger)]),
+    [
+      ["trg_newer_kind", null],
+      ["trg_newer_event", null],
+    ],
+  );
+  assert.deepEqual(notices, [
+    `${NOTICE} "KindFromANewerControlPlane".`,
+    `${NOTICE} "SourceFromANewerControlPlane".`,
+    `${NOTICE} "KindFromANewerControlPlane".`,
+    `${NOTICE} "EventFromANewerControlPlane".`,
+  ]);
   const known = { ...secretSet, keys: secretSet.keys.filter((key) => key.kind !== "Unrecognised") };
   assert.deepEqual(knownSecretSet(known)?.keys, [{ kind: "Variable", name: "NPM_TOKEN", updatedAt: 1 }]);
+});
+
+test("a transcript page of an unrecognised form stops reads but leaves the turn unfinished", () => {
+  const view = appendPage(EMPTY_TRANSCRIPT, { form: "Unrecognised" });
+  assert.deepEqual(
+    [view.finished, view.unrecognised, nextReadIn({ status: "success", data: view })],
+    [false, true, false],
+  );
 });
