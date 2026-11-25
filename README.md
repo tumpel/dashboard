@@ -37,7 +37,7 @@ For `npm run dev -w @tumpel/dashboard`, set `TUMPEL_API_ORIGIN` and the dev serv
 
 ## Releases
 
-A `vX.Y.Z` tag releases. The version must match `version` in both `packages/dashboard/package.json` and `packages/pages/package.json`. The GitHub release carries two npm tarballs, each with a `.sha256` file:
+Successful checks on a push to main publish a candidate when shipped files differ from the nearest version tag below the checked commit. After stable tag `vX.Y.Z`, the candidate is `vX.(Y+1).0-rc.N`, where `N` counts commits since that stable tag. A pushed stable tag releases the commit it names. Both release paths stamp the two package versions from their tag and publish both tarballs with SHA-256 checksums.
 
 - `dashboard-X.Y.Z.tgz`: `@tumpel/dashboard`, which holds only the built static assets in `dist/` and no dependencies.
 - `pages-X.Y.Z.tgz`: `@tumpel/pages`, compiled to `.js` and `.d.ts`, with `tokens.css` and `shell.css`.

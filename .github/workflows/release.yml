@@ -2,17 +2,12 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
-
-concurrency:
-  group: release
-  cancel-in-progress: false
-
-permissions:
-  contents: write
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 
 jobs:
   release:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -23,17 +18,8 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Check that the tag matches the package versions
-        run: |
-          for package in packages/dashboard packages/pages; do
-            version=$(node -p "require('./$package/package.json').version")
-            if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-              echo "the tag is $GITHUB_REF_NAME but $package/package.json names version $version; set the version in every packages/*/package.json to match and tag again" >&2
-              exit 1
-            fi
-          done
-
       - run: npm ci --no-audit --no-fund
+      - run: node npm-scripts/release.mjs
 
       - name: Build and pack the dashboard and pages tarballs, then install and import them
         run: |
