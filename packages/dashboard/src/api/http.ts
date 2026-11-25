@@ -58,10 +58,18 @@ import {
 import createClient from "openapi-fetch";
 import { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
-import { ApiFailure, type EventListener, type PersonaFileUpload, type Problem, type TumpelApi } from "./port.ts";
+import {
+  ApiFailure,
+  type EventListener,
+  type PersonaFileUpload,
+  type Problem,
+  type Session,
+  type TumpelApi,
+} from "./port.ts";
 
 type Sent = { data?: unknown; error?: unknown; response: Response };
 
+const SESSION_PAGE = 50;
 const REQUEST_LIMIT_MS = 15_000;
 const RECONNECT_MS = 1000;
 const RECONNECT_CAP_MS = 30_000;
@@ -254,12 +262,20 @@ export const createHttpApi = (
         MintedEnrolmentTokenSchema,
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
-    listSessions: (query) =>
-      settle(
-        "Sessions_list",
-        toleratingUnknownEnums(SessionSchema.array()),
-        client.GET("/v1/sessions", { params: { query } }),
-      ),
+    listSessions: async (query) => {
+      const sessions: Session[] = [];
+      for (;;) {
+        const page = await settle(
+          "Sessions_list",
+          toleratingUnknownEnums(SessionSchema.array()),
+          client.GET("/v1/sessions", {
+            params: { query: { ...query, limit: SESSION_PAGE, after: sessions.at(-1)?.sessionId } },
+          }),
+        );
+        sessions.push(...page);
+        if (page.length < SESSION_PAGE) return sessions;
+      }
+    },
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
