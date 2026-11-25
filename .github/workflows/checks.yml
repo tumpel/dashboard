@@ -103,42 +103,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          count=$(git rev-list --count "$GITHUB_SHA")
-          tag="rc.$count"
-          archives=(release/dashboard-*.tgz)
-          archive=${archives[0]}
-          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
-            jq -cs --arg tag "$tag" '[.[][] | select(.tag_name == $tag)] | if length > 1 then error("multiple releases name " + $tag) else .[0] end')
-          if [ "$(jq -r '.draft' <<<"$existing")" = true ]; then
-            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$(jq -r '.id' <<<"$existing")"
-            existing=null
-          fi
-          if [ "$existing" = null ]; then
-            existing_tag=$(git tag --list "$tag")
-            if [ -n "$existing_tag" ]; then
-              echo "Tag $tag already exists without a release. Resolve the tag before rerunning." >&2
-              exit 1
-            fi
-            gh release create "$tag" "$archive" "$archive.sha256" --target "$GITHUB_SHA" --title "$tag" --draft
-            assets=$(gh release view "$tag" --json assets --jq '.assets')
-          else
-            commit=$(git rev-parse --verify "refs/tags/$tag^{commit}")
-            if [ "$commit" != "$GITHUB_SHA" ]; then
-              echo "Release $tag tags $commit instead of $GITHUB_SHA. Resolve the release before rerunning." >&2
-              exit 1
-            fi
-            assets=$(jq -c '.assets' <<<"$existing")
-          fi
-          if ! jq -e --arg name "${archive##*/}" '
-            map(select(.state == "uploaded") | .name) | index($name) != null and index($name + ".sha256") != null
-          ' <<<"$assets"; then
-            echo "Release $tag is missing the dashboard tarball or checksum. Resolve the release before rerunning." >&2
-            exit 1
-          fi
-          if [ "$existing" = null ]; then
-            gh release edit "$tag" --draft=false --prerelease
-          fi
+          tag="rc.$(git rev-list --count "$GITHUB_SHA")"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if draft=$(gh release view "$tag" --json isDraft --jq .isDraft); then
+            if [[ "$draft" == false ]]; then
+              exit 0
+            fi
+            gh release delete "$tag" --yes
+          fi
+          archives=(release/dashboard-*.tgz)
+          gh release create "$tag" "${archives[0]}" "${archives[0]}.sha256" --target "$GITHUB_SHA" --prerelease
 
   bump:
     needs: publish
