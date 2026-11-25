@@ -35,3 +35,8 @@ export const updateNotice = (unrecognised: readonly unknown[]): Wording => ({
   fix: "Reload the page; an update likely fixes it.",
 });
 export const UNRECOGNISED_LABEL = "Unknown";
+export const UNRECOGNISED_EDIT: Wording = {
+  title: "This dashboard cannot edit this",
+  detail: "It holds something this version does not recognise, and saving here would drop it.",
+  fix: "Update the dashboard: reload the page, then open it again.",
+};

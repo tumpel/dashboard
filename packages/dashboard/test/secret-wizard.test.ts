@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { HarnessCatalogEntry, SecretKey } from "../src/api/port.ts";
+import type { HarnessCatalogEntry, KnownSecretKey } from "../src/api/port.ts";
 import { catalogKinds, catalogVariable, withSecret } from "../src/secret-wizard.ts";
 
 const credentials = (list: HarnessCatalogEntry["credentials"]): HarnessCatalogEntry =>
@@ -57,7 +57,7 @@ test("the variable name comes from the catalog entry that needs no fixed variabl
 });
 
 test("adding a secret keeps every stored value and replaces the provider's credential", () => {
-  const stored: SecretKey[] = [
+  const stored: KnownSecretKey[] = [
     { kind: "ApiKey", name: "ANTHROPIC_API_KEY", provider: "Anthropic", updatedAt: 0 },
     {
       kind: "SubscriptionToken",

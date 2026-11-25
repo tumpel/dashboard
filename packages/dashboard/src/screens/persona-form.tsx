@@ -10,11 +10,13 @@ import {
   failureOf,
   type Harness,
   type HarnessCatalogEntry,
+  type KnownPersona,
   type Persona,
   type PersonaFileWrite,
   type SecretSet,
   type TumpelApi,
 } from "../api/port";
+import { UNRECOGNISED_EDIT } from "../api/wording";
 import { HARNESS_LABELS } from "../catalog";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { Field } from "../components/field";
@@ -26,7 +28,7 @@ import { NativeSelect } from "../components/ui/native-select";
 import { Skeleton } from "../components/ui/skeleton";
 import { useUnsavedGuard } from "../components/unsaved-guard";
 import { useTenantApi } from "../context";
-import { formatKib } from "../fleet";
+import { formatKib, knownPersona } from "../fleet";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
 import { keys, useConnectors, useHarnessCatalog, useHarnessPins, usePersona, useSecretSets } from "../queries";
@@ -55,13 +57,12 @@ const changed = (text: string): FileDraft => {
   return { kind: "Changed", bytes, text };
 };
 
-const storedDrafts = (persona: Persona | null): Drafts =>
+const storedDrafts = (persona: KnownPersona | null): Drafts =>
   Object.fromEntries(
-    (persona?.files ?? []).flatMap((file) =>
-      file.source === "Unrecognised"
-        ? []
-        : [[file.path, { kind: "Stored", digest: file.digest, sizeBytes: file.sizeBytes } satisfies FileDraft]],
-    ),
+    (persona?.files ?? []).map((file) => [
+      file.path,
+      { kind: "Stored", digest: file.digest, sizeBytes: file.sizeBytes } satisfies FileDraft,
+    ]),
   );
 
 const writeFile = async (
@@ -259,7 +260,7 @@ const PersonaEditor = ({
   openFile,
 }: {
   tenantId: string;
-  persona: Persona | null;
+  persona: KnownPersona | null;
   catalog: HarnessCatalogEntry[];
   versions: EffectiveHarnessVersion[];
   secretSets: SecretSet[];
@@ -561,7 +562,7 @@ const PersonaPage = ({
 }: {
   tenantId: string;
   title: string;
-  persona: Persona | null;
+  persona: KnownPersona | null;
   initialHarness: Harness | undefined;
   openFile: string | undefined;
 }) => {
@@ -647,13 +648,15 @@ export const PersonaScreen = () => {
       </PersonaFrame>
     );
   }
+  const known = knownPersona(persona.data);
+  if (known === null) {
+    return (
+      <PersonaFrame tenantId={tenantId} title={persona.data.name}>
+        <ProblemCard wording={UNRECOGNISED_EDIT} />
+      </PersonaFrame>
+    );
+  }
   return (
-    <PersonaPage
-      tenantId={tenantId}
-      title="Persona"
-      persona={persona.data}
-      initialHarness={undefined}
-      openFile={file[0]}
-    />
+    <PersonaPage tenantId={tenantId} title="Persona" persona={known} initialHarness={undefined} openFile={file[0]} />
   );
 };

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { Persona, SecretKey, SecretSet } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
@@ -160,26 +161,33 @@ export const SecretSetDetailScreen = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {set.keys.map((key) => (
-              <TableRow key={key.name}>
-                <TableCell mobile="primary" className="font-mono text-[13px]">
-                  {key.name}
-                </TableCell>
-                <TableCell label="Kind">{SECRET_KIND_NAMES[key.kind]}</TableCell>
-                <TableCell label="Provider">{key.kind === "Variable" ? "" : key.provider}</TableCell>
-                <TableCell mobile="summary">
-                  {key.kind !== "SubscriptionToken" ? null : isExpired(key, now) ? (
-                    <Badge variant="destructive">Expired {expiryDate(key.expiresAt)}</Badge>
-                  ) : (
-                    expiryDate(key.expiresAt)
-                  )}
-                </TableCell>
-                <TableCell label="Updated">{formatTime(key.updatedAt)}</TableCell>
-              </TableRow>
-            ))}
+            {set.keys.map((key) =>
+              key.kind === "Unrecognised" ? null : (
+                <TableRow key={key.name}>
+                  <TableCell mobile="primary" className="font-mono text-[13px]">
+                    {key.name}
+                  </TableCell>
+                  <TableCell label="Kind">{SECRET_KIND_NAMES[key.kind]}</TableCell>
+                  <TableCell label="Provider">{key.kind === "Variable" ? "" : key.provider}</TableCell>
+                  <TableCell mobile="summary">
+                    {key.kind !== "SubscriptionToken" ? null : isExpired(key, now) ? (
+                      <Badge variant="destructive">Expired {expiryDate(key.expiresAt)}</Badge>
+                    ) : (
+                      expiryDate(key.expiresAt)
+                    )}
+                  </TableCell>
+                  <TableCell label="Updated">{formatTime(key.updatedAt)}</TableCell>
+                </TableRow>
+              ),
+            )}
           </TableBody>
         </Table>
         {set.keys.length === 0 && <p className="text-sm text-muted-foreground">This set holds no secrets yet.</p>}
+        {set.keys.some((key) => key.kind === "Unrecognised") && (
+          <p className="text-sm">
+            {UNRECOGNISED_LABEL}: this set also holds a secret this dashboard does not recognise.
+          </p>
+        )}
         {personas.isError ? (
           <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />
         ) : (

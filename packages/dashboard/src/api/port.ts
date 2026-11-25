@@ -1,4 +1,3 @@
-import type { components, paths } from "@tumpel/openapi/paths";
 import type {
   ClaudeSetupHarnessSchema,
   ConnectorUpdateSchema,
@@ -16,13 +15,23 @@ import type {
   MetricWindowSchema,
   ModelProviderSchema,
   OpenRouterAuthorizationStartSchema,
+  PersonaCreateSchema,
+  PersonaFileSchema,
+  PersonaUpdateSchema,
   PrebuildPreviewRequestSchema,
   PrebuildStartSchema,
   PrebuildTemplatePullRequestOpenSchema,
   PushSubscriptionCreateSchema,
+  SecretKeySchema,
   SecretSetCreateSchema,
   SecretSetUpdateSchema,
+  SessionListQuerySchema,
+  SessionStartFromIssueSchema,
+  SessionStartSchema,
   StaticConnectorCreateSchema,
+  TenantConfigApplySchema,
+  TenantConfigPlanRequestSchema,
+  TenantConfigSchema,
   TranscriptQuerySchema,
   TriggerCreateSchema,
   TriggerPatchSchema,
@@ -53,14 +62,15 @@ export interface EventListener {
 }
 export type ReportedHostUsage = Decoded<"ReportedHostUsageSchema">;
 export type Session = Decoded<"SessionSchema">;
-export type SessionListQuery = NonNullable<paths["/v1/sessions"]["get"]["parameters"]["query"]>;
+export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
 export type Whoami = Decoded<"WhoamiSchema">;
 export type MintedEnrolmentToken = Decoded<"MintedEnrolmentTokenSchema">;
 export type Problem = z.infer<typeof EventProblemSchema>;
 export type Persona = Decoded<"PersonaSchema">;
-export type SessionStart = components["schemas"]["SessionStart"];
+export type KnownPersona = Omit<Persona, "files"> & { files: z.infer<typeof PersonaFileSchema>[] };
+export type SessionStart = z.infer<typeof SessionStartSchema>;
 export type StartedSession = Decoded<"StartedSessionSchema">;
-export type SessionStartFromIssue = components["schemas"]["SessionStartFromIssue"];
+export type SessionStartFromIssue = z.infer<typeof SessionStartFromIssueSchema>;
 export type StartedSessionFromIssue = Decoded<"StartedSessionFromIssueSchema">;
 export type GitHubRepository = Decoded<"GitHubRepositorySchema">;
 export type GitHubRepositoryPath = z.infer<typeof GitHubRepositoryPathSchema>;
@@ -81,12 +91,14 @@ export type EffectiveHarnessVersion = Decoded<"EffectiveHarnessVersionSchema">;
 export type HarnessPinCreate = z.infer<typeof HarnessPinCreateSchema>;
 export type Harness = HarnessPinCreate["harness"];
 export type ReleaseManifest = Decoded<"ReleaseManifestSchema">;
-export type PersonaCreate = components["schemas"]["PersonaCreate"];
-export type PersonaUpdate = components["schemas"]["PersonaUpdate"];
+export type PersonaCreate = z.infer<typeof PersonaCreateSchema>;
+export type PersonaUpdate = z.infer<typeof PersonaUpdateSchema>;
 export type PersonaFileWrite = NonNullable<PersonaCreate["files"]>[number];
 export type PersonaFileUpload = Decoded<"PersonaFileUploadSchema">;
 export type SecretSet = Decoded<"SecretSetSchema">;
 export type SecretKey = SecretSet["keys"][number];
+export type KnownSecretKey = z.infer<typeof SecretKeySchema>;
+export type KnownSecretSet = Omit<SecretSet, "keys"> & { keys: KnownSecretKey[] };
 export type SecretSetCreate = z.infer<typeof SecretSetCreateSchema>;
 export type SecretSetUpdate = z.infer<typeof SecretSetUpdateSchema>;
 export type SecretValue = SecretSetCreate["secrets"][number];
@@ -106,9 +118,9 @@ export type PrebuildTemplateVersion = Decoded<"PrebuildTemplateVersionSchema">;
 export type PrebuildTemplatePullRequestOpen = z.infer<typeof PrebuildTemplatePullRequestOpenSchema>;
 export type PrebuildTemplatePullRequest = Decoded<"PrebuildTemplatePullRequestSchema">;
 export type OAuthGrant = Decoded<"OAuthGrantSchema">;
-export type TenantConfig = components["schemas"]["TenantConfig"];
-export type TenantConfigPlanRequest = components["schemas"]["TenantConfigPlanRequest"];
-export type TenantConfigApply = components["schemas"]["TenantConfigApply"];
+export type TenantConfig = z.infer<typeof TenantConfigSchema>;
+export type TenantConfigPlanRequest = z.infer<typeof TenantConfigPlanRequestSchema>;
+export type TenantConfigApply = z.infer<typeof TenantConfigApplySchema>;
 export type ConfigPlan = Decoded<"ConfigPlanSchema">;
 export type ConfigChange = ConfigPlan["changes"][number];
 export type ClaudeSetup = Decoded<"ClaudeSetupSchema">;

@@ -1,5 +1,16 @@
 import { MCP_PATH } from "@tumpel/api/constants";
-import type { Host, Persona, ReportedHostUsage, SecretKey, Session } from "./api/port";
+import { PersonaFileSchema, SecretKeySchema } from "@tumpel/schemas";
+import { z } from "zod";
+import type {
+  Host,
+  KnownPersona,
+  KnownSecretSet,
+  Persona,
+  ReportedHostUsage,
+  SecretKey,
+  SecretSet,
+  Session,
+} from "./api/port";
 import { UNRECOGNISED_LABEL } from "./api/wording.ts";
 
 export const HOST_STATES = ["Online", "Offline", "Enrolled", "Revoked"] as const;
@@ -59,6 +70,16 @@ export const repositoryLabel = (repository: string): string =>
 
 export const personaName = (personas: readonly Persona[], personaId: string): string =>
   personas.find((persona) => persona.personaId === personaId)?.name ?? personaId;
+
+export const knownPersona = (persona: Persona): KnownPersona | null => {
+  const files = z.array(PersonaFileSchema).safeParse(persona.files);
+  return files.success ? { ...persona, files: files.data } : null;
+};
+
+export const knownSecretSet = (secretSet: SecretSet): KnownSecretSet | null => {
+  const keys = z.array(SecretKeySchema).safeParse(secretSet.keys);
+  return keys.success ? { ...secretSet, keys: keys.data } : null;
+};
 
 export const HARNESS_NAMES: Record<Session["harness"], string> = {
   ClaudeCode: "Claude Code",

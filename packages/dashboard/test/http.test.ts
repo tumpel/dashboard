@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import { createHttpApi } from "../src/api/http.ts";
 import { failureOf } from "../src/api/port.ts";
 import { updateNotice, wordingOf } from "../src/api/wording.ts";
+import { knownPersona, knownSecretSet } from "../src/fleet.ts";
 
 let server: Server;
 let origin: string;
@@ -27,6 +28,53 @@ const event = (fields: Record<string, unknown>) => ({ tenantId: "tenant-a", crea
 
 before(async () => {
   server = createServer((request, response) => {
+    if (request.url === "/v1/secret-sets/sst_newer") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          secretSetId: "sst_newer",
+          tenantId: "tenant-a",
+          name: "newer",
+          keys: [
+            { kind: "Variable", name: "NPM_TOKEN", updatedAt: 1 },
+            { kind: "KindFromANewerControlPlane", name: "NEWER", updatedAt: 1 },
+          ],
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+      );
+      return;
+    }
+    if (request.url === "/v1/personas/per_newer") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          personaId: "per_newer",
+          tenantId: "tenant-a",
+          name: "newer",
+          harness: "ClaudeCode",
+          secretSetId: "sst_newer",
+          connectorIds: [],
+          boxRetention: "Auto",
+          tumpelMcp: true,
+          files: [
+            {
+              source: "Inline",
+              path: "CLAUDE.md",
+              content: "",
+              digest: "0".repeat(64),
+              sizeBytes: 0,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            { source: "SourceFromANewerControlPlane", path: "NEWER.md", createdAt: 1, updatedAt: 1 },
+          ],
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+      );
+      return;
+    }
     if (request.url === "/v1/prebuilds/latest") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -250,4 +298,17 @@ test("the events socket drops an unknown event type with a notice and no gap", a
   assert.deepEqual(received, [5]);
   assert.equal(gaps, 0);
   assert.deepEqual(notices, [`${NOTICE} "EventFromANewerControlPlane".`]);
+});
+
+test("a secret set or persona holding an unknown member offers no save", async () => {
+  const api = apiWithNotices();
+  const secretSet = await api.getSecretSet("sst_newer");
+  const persona = await api.getPersona("per_newer");
+  assert.deepEqual(
+    [secretSet.secretSetId, persona.personaId, knownSecretSet(secretSet), knownPersona(persona)],
+    ["sst_newer", "per_newer", null, null],
+  );
+  assert.deepEqual(notices, [`${NOTICE} "KindFromANewerControlPlane".`, `${NOTICE} "SourceFromANewerControlPlane".`]);
+  const known = { ...secretSet, keys: secretSet.keys.filter((key) => key.kind !== "Unrecognised") };
+  assert.deepEqual(knownSecretSet(known)?.keys, [{ kind: "Variable", name: "NPM_TOKEN", updatedAt: 1 }]);
 });

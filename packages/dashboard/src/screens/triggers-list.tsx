@@ -9,7 +9,7 @@ import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { formatTime, personaName } from "../fleet";
 import { useOwner, usePersonas, useRefusedStarts, useSessions, useTriggers } from "../queries";
-import { filterSummary, runsOf } from "../triggers";
+import { eventLabel, filterSummary, runsOf } from "../triggers";
 
 const LastRun = ({
   triggerId,
@@ -89,7 +89,7 @@ export const TriggersListScreen = () => {
                   </Link>
                 </TableCell>
                 <TableCell label="Event" className="font-mono text-xs">
-                  {trigger.source.event}
+                  {eventLabel(trigger.source)}
                 </TableCell>
                 <TableCell label="Filter" className="max-w-80 whitespace-normal">
                   {filterSummary(trigger.source)}

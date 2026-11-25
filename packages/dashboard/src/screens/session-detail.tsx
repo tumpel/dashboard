@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearch } from "@tanstack/rea
 import { LoaderCircleIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Session, TranscriptText, Turn } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
@@ -414,10 +415,11 @@ const layerText = (layer: NonNullable<Session["prebuildLayer"]>): string =>
     ? `The session's files start from prebuild layer ${shortDigest(layer.layerDigest)}.`
     : `The session's files start without a prebuild: ${layer.detail}.`;
 
-const imageText = (image: NonNullable<Session["lastTurnImage"]>): string =>
-  image.kind === "Full"
-    ? `The latest turn boots guest image ${shortDigest(image.guestImageDigest)}.`
-    : `The latest turn boots base image ${shortDigest(image.baseImageDigest)} with harness layer ${shortDigest(image.harnessLayerDigest)}.`;
+const imageText = (image: NonNullable<Session["lastTurnImage"]>): string => {
+  if (image.kind === "Full") return `The latest turn boots guest image ${shortDigest(image.guestImageDigest)}.`;
+  if (image.kind === "Unrecognised") return `The latest turn boots an image of kind ${UNRECOGNISED_LABEL}.`;
+  return `The latest turn boots base image ${shortDigest(image.baseImageDigest)} with harness layer ${shortDigest(image.harnessLayerDigest)}.`;
+};
 
 const BootNote = ({ session }: { session: Session }) => {
   const lines = [
@@ -469,6 +471,8 @@ const SnapshotsTab = ({ tenantId, sessionId, turns }: { tenantId: string; sessio
                 <TableCell mobile="summary">
                   {snapshot.outcome.state === "Stored" ? (
                     <Badge variant="success">Stored</Badge>
+                  ) : snapshot.outcome.state === "Unrecognised" ? (
+                    <Badge variant="outline">{UNRECOGNISED_LABEL}</Badge>
                   ) : (
                     <span className="flex flex-wrap items-center gap-2">
                       <Badge variant="destructive">Failed</Badge>
