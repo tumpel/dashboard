@@ -353,7 +353,7 @@ export const PrebuildsScreen = () => {
   const selected = search.repo;
   const prebuilds = latest.data ?? [];
 
-  const toggleState = (state: Prebuild["status"]["state"]) =>
+  const toggleState = (state: (typeof search.state)[number]) =>
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -363,7 +363,7 @@ export const PrebuildsScreen = () => {
   const select = (repository: string) => void navigate({ search: (prev) => ({ ...prev, repo: repository }) });
 
   const visible = prebuilds.filter(
-    (prebuild) => search.state.length === 0 || search.state.includes(prebuild.status.state),
+    (prebuild) => search.state.length === 0 || search.state.some((state) => state === prebuild.status.state),
   );
 
   const body = () => {

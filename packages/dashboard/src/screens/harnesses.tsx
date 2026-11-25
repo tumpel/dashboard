@@ -20,7 +20,11 @@ type PinChange =
   | { action: "Pin"; harness: Harness; harnessVersion: string; replaces: string | null }
   | { action: "Unpin"; harness: Harness; harnessVersion: string };
 
-const releasedArchitectures = (release: ReleaseManifest, harness: Harness, harnessVersion: string): string[] =>
+const releasedArchitectures = (
+  release: ReleaseManifest,
+  harness: HarnessCatalogEntry["harness"],
+  harnessVersion: string,
+): string[] =>
   release.images
     .filter((image) => image.harness === harness && image.harnessVersion === harnessVersion)
     .map((image) => image.architecture);
@@ -105,6 +109,7 @@ const CatalogTable = ({
       </TableHeader>
       <TableBody>
         {entries.map((entry, index) => {
+          const { harness } = entry;
           const effective = runs.get(entry.harness);
           const runsThis = effective?.harnessVersion === entry.harnessVersion;
           const pinned = effective?.pinned === true ? effective.harnessVersion : null;
@@ -131,7 +136,7 @@ const CatalogTable = ({
                   <ReleaseCell release={release} entry={entry} />
                 </TableCell>
                 <TableCell mobile="action">
-                  {isPinned ? (
+                  {harness === "Unrecognised" ? null : isPinned ? (
                     <span className="flex items-center gap-2">
                       <Badge variant="primary">Pinned</Badge>
                       <Button
@@ -140,7 +145,7 @@ const CatalogTable = ({
                         onClick={() =>
                           onChange({
                             action: "Unpin",
-                            harness: entry.harness,
+                            harness,
                             harnessVersion: entry.harnessVersion,
                           })
                         }
@@ -156,7 +161,7 @@ const CatalogTable = ({
                         onClick={() =>
                           onChange({
                             action: "Pin",
-                            harness: entry.harness,
+                            harness,
                             harnessVersion: entry.harnessVersion,
                             replaces: pinned,
                           })
@@ -213,7 +218,9 @@ export const HarnessesScreen = () => {
     onSettled: () => setChange(null),
   });
   const refusal = save.isError && save.variables !== undefined ? { change: save.variables, error: save.error } : null;
-  const harnesses = [...new Set((catalog.data ?? []).map((entry) => entry.harness))];
+  const harnesses = [
+    ...new Set((catalog.data ?? []).map((entry) => entry.harness).filter((harness) => harness !== "Unrecognised")),
+  ];
   const toggle = (harness: Harness) =>
     void navigate({
       search: { harness: chosen.includes(harness) ? chosen.filter((item) => item !== harness) : [...chosen, harness] },
@@ -222,7 +229,9 @@ export const HarnessesScreen = () => {
     if (catalog.isPending || pins.isPending) return <TableSkeleton rows={5} />;
     if (catalog.isError) return <ProblemBlock error={catalog.error} onRetry={() => void catalog.refetch()} />;
     if (pins.isError) return <ProblemBlock error={pins.error} onRetry={() => void pins.refetch()} />;
-    const entries = catalog.data.filter((entry) => chosen.length === 0 || chosen.includes(entry.harness));
+    const entries = catalog.data.filter(
+      (entry) => chosen.length === 0 || chosen.some((harness) => harness === entry.harness),
+    );
     return (
       <div className="grid gap-3">
         {release.isError && (

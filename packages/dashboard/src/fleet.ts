@@ -1,5 +1,6 @@
 import { MCP_PATH } from "@tumpel/api/constants";
 import type { Host, Persona, ReportedHostUsage, SecretKey, Session } from "./api/port";
+import { UNRECOGNISED_LABEL } from "./api/wording.ts";
 
 export const HOST_STATES = ["Online", "Offline", "Enrolled", "Revoked"] as const;
 export const SESSION_STATES = ["Starting", "Idle", "Running", "Stopping", "Stopped", "Failed", "Archived"] as const;
@@ -65,6 +66,7 @@ export const HARNESS_NAMES: Record<Session["harness"], string> = {
   OpenCode: "OpenCode",
   PiDev: "Pi.dev",
   MistralAgent: "Mistral agent",
+  Unrecognised: UNRECOGNISED_LABEL,
 };
 
 export const SECRET_KIND_NAMES: Record<SecretKey["kind"], string> = {
@@ -72,6 +74,7 @@ export const SECRET_KIND_NAMES: Record<SecretKey["kind"], string> = {
   ApiKey: "API key",
   SubscriptionToken: "Subscription token",
   CredentialFile: "Login file",
+  Unrecognised: UNRECOGNISED_LABEL,
 };
 
 export const formatDate = (epochMs: number): string => formatTime(epochMs).slice(0, 10);

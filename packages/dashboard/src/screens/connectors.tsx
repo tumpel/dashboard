@@ -5,6 +5,7 @@ import { EllipsisIcon, ExternalLinkIcon } from "lucide-react";
 import { type FormEvent, Fragment, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import type { Connector, ConnectorStatus, Persona } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { EmptyState } from "../components/empty-state";
 import { Field } from "../components/field";
@@ -36,9 +37,10 @@ type Action = { kind: "Token" | "Rename" | "Clear" | "Delete"; connectorId: stri
 const ADD_HASH = "add";
 const OWNER_ONLY = "Only an Owner adds, connects or removes connectors. Owners are listed under Members.";
 
-const AUTH_LABELS: Record<Auth, string> = { Static: "Static token", OAuth: "OAuth" };
+const AUTH_LABELS: Record<Auth, string> = { Static: "Static token", OAuth: "OAuth", Unrecognised: UNRECOGNISED_LABEL };
 
 const FAILURES: Record<Failed["reason"], { title: string; fix: string }> = {
+  Unrecognised: { title: UNRECOGNISED_LABEL, fix: "Authorize again." },
   AuthorizationDenied: {
     title: "Authorization denied",
     fix: "Authorize again and approve on the provider's page.",

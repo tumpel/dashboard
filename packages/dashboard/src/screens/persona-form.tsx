@@ -57,10 +57,11 @@ const changed = (text: string): FileDraft => {
 
 const storedDrafts = (persona: Persona | null): Drafts =>
   Object.fromEntries(
-    (persona?.files ?? []).map((file) => [
-      file.path,
-      { kind: "Stored", digest: file.digest, sizeBytes: file.sizeBytes } satisfies FileDraft,
-    ]),
+    (persona?.files ?? []).flatMap((file) =>
+      file.source === "Unrecognised"
+        ? []
+        : [[file.path, { kind: "Stored", digest: file.digest, sizeBytes: file.sizeBytes } satisfies FileDraft]],
+    ),
   );
 
 const writeFile = async (
@@ -241,7 +242,7 @@ const HarnessChangeDialog = ({
 const catalogEntryOf = (
   catalog: readonly HarnessCatalogEntry[],
   versions: readonly EffectiveHarnessVersion[],
-  harness: Harness,
+  harness: Persona["harness"],
 ): HarnessCatalogEntry | undefined => {
   const runs = versions.find((version) => version.harness === harness)?.harnessVersion;
   return catalog.find((entry) => entry.harness === harness && entry.harnessVersion === runs);
@@ -271,7 +272,8 @@ const PersonaEditor = ({
   const navigate = useNavigate();
   const ids = { name: useId(), harness: useId(), secretSet: useId() };
   const [name, setName] = useState(persona?.name ?? "");
-  const [harness, setHarness] = useState<Harness>(persona?.harness ?? initialHarness);
+  const [chosenHarness, setHarness] = useState<Harness>(initialHarness);
+  const harness = persona?.harness ?? chosenHarness;
   const [secretSetId, setSecretSetId] = useState(persona?.secretSetId ?? secretSets[0]?.secretSetId ?? "");
   const [connectorIds, setConnectorIds] = useState<string[]>(persona?.connectorIds ?? []);
   const [drafts, setDrafts] = useState<Drafts>(() => storedDrafts(persona));
@@ -280,6 +282,7 @@ const PersonaEditor = ({
   const [harnessChange, setHarnessChange] = useState<{ harness: Harness; dropped: string[] } | null>(null);
   const guard = useUnsavedGuard(dirty);
 
+  const harnesses = [...new Set(catalog.map((item) => item.harness).filter((item) => item !== "Unrecognised"))];
   const entry = catalogEntryOf(catalog, versions, harness);
   const catalogPaths = entry?.personaFilePaths ?? [];
   const paths = [...catalogPaths, ...Object.keys(drafts).filter((path) => !catalogPaths.includes(path))];
@@ -327,7 +330,7 @@ const PersonaEditor = ({
       for (const [path, draft] of Object.entries(drafts)) files.push(await writeFile(api, path, draft, setUpload));
       setUpload(null);
       const fields = { name: name.trim(), secretSetId, connectorIds, files };
-      if (persona === null) return api.createPersona({ ...fields, harness });
+      if (persona === null) return api.createPersona({ ...fields, harness: chosenHarness });
       return api.updatePersona(persona.personaId, { ...fields, tumpelMcp: persona.tumpelMcp });
     },
     onSettled: () => setUpload(null),
@@ -365,11 +368,11 @@ const PersonaEditor = ({
               value={harness}
               disabled={persona !== null}
               onChange={(event) => {
-                const next = catalog.find((item) => item.harness === event.target.value)?.harness;
+                const next = harnesses.find((item) => item === event.target.value);
                 if (next !== undefined) askHarness(next);
               }}
             >
-              {[...new Set(catalog.map((item) => item.harness))].map((item) => (
+              {(harness === "Unrecognised" ? [harness] : harnesses).map((item) => (
                 <option key={item} value={item}>
                   {HARNESS_LABELS[item]}
                 </option>
@@ -578,7 +581,8 @@ const PersonaPage = ({
     if (catalog.isPending || versions.isPending || secretSets.isPending || connectors.isPending) {
       return <Skeleton className="h-96 w-full" />;
     }
-    const firstHarness = initialHarness ?? catalog.data[0]?.harness;
+    const firstHarness =
+      initialHarness ?? catalog.data.map((entry) => entry.harness).find((harness) => harness !== "Unrecognised");
     if (firstHarness === undefined) {
       return (
         <ProblemCard

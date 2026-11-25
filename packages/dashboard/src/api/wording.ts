@@ -34,3 +34,4 @@ export const updateNotice = (unrecognised: readonly unknown[]): Wording => ({
   detail: `The service sent something this version does not recognise: ${unrecognised.map((value) => JSON.stringify(value)).join(", ")}.`,
   fix: "Reload the page; an update likely fixes it.",
 });
+export const UNRECOGNISED_LABEL = "Unknown";

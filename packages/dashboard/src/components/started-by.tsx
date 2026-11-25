@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Member, Session, Trigger } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { shortDelivery } from "../triggers";
 
 const triggerName = (triggers: readonly Trigger[], triggerId: string): string =>
@@ -30,6 +31,7 @@ export const StartedBy = ({
       </Link>
     );
   }
+  if (startedBy.kind === "Unrecognised") return <>{UNRECOGNISED_LABEL}</>;
   return (
     <Link
       to="/t/$tenantId/triggers/$triggerId"

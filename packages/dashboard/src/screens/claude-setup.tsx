@@ -2,14 +2,8 @@ import { type UseQueryResult, useMutation, useQueryClient } from "@tanstack/reac
 import { Link } from "@tanstack/react-router";
 import { CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
-import {
-  type ClaudeSetup,
-  type ClaudeSetupFailureReason,
-  type ClaudeSetupHarness,
-  type ClaudeSetupStatus,
-  failureOf,
-} from "../api/port";
-import type { Wording } from "../api/wording";
+import { type ClaudeSetup, type ClaudeSetupFailureReason, type ClaudeSetupStatus, failureOf } from "../api/port";
+import { UNRECOGNISED_LABEL, type Wording } from "../api/wording";
 import { Field } from "../components/field";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { Button } from "../components/ui/button";
@@ -20,6 +14,7 @@ import { type ClaudeSetupFlow, keys } from "../queries";
 import { CopyBlock, Status } from "./setup/parts";
 
 const FAILURES: Record<ClaudeSetupFailureReason, Omit<Wording, "detail">> = {
+  Unrecognised: { title: UNRECOGNISED_LABEL, fix: "Start a new setup." },
   SetupUrlMissing: {
     title: "The setup box printed no sign-in URL (SetupUrlMissing)",
     fix: "Check that the host is Online and can fetch the Claude Code image, then start a new setup.",
@@ -69,10 +64,11 @@ const CODEX_FAILURES: Partial<Record<ClaudeSetupFailureReason, Omit<Wording, "de
   },
 };
 
-const failureWording = (harness: ClaudeSetupHarness, reason: ClaudeSetupFailureReason): Omit<Wording, "detail"> =>
+const failureWording = (harness: ClaudeSetup["harness"], reason: ClaudeSetupFailureReason): Omit<Wording, "detail"> =>
   (harness === "Codex" ? CODEX_FAILURES[reason] : undefined) ?? FAILURES[reason];
 
-const LABELS: Record<ClaudeSetupHarness, { section: string; saved: string; restart: string }> = {
+const LABELS: Record<ClaudeSetup["harness"], { section: string; saved: string; restart: string }> = {
+  Unrecognised: { section: UNRECOGNISED_LABEL, saved: UNRECOGNISED_LABEL, restart: "Start a new setup" },
   ClaudeCode: { section: "Set up Claude Code", saved: "Claude token saved", restart: "Start a new setup" },
   Codex: { section: "Sign in to Codex", saved: "Codex token saved", restart: "Start a new sign-in" },
 };
@@ -363,6 +359,7 @@ export const ClaudeSetupPanel = ({
         </>
       );
     }
+    if (status.state === "Unrecognised") return <Status kind="Waiting" title={UNRECOGNISED_LABEL} />;
     const wording = failureWording(setup.harness, status.reason);
     return (
       <ProblemCard

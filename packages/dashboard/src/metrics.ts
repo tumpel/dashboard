@@ -1,7 +1,7 @@
 import { CostBasisSchema } from "@tumpel/schemas";
 import type {
   MetricBucket,
-  MetricKind,
+  MetricEntry,
   MetricPoint,
   MetricSeries,
   MetricSeriesQuery,
@@ -156,7 +156,7 @@ export const bucketWindow = (bucketStart: string, bucket: MetricBucket): MetricW
   to: bucketEnd(bucketStart, bucket),
 });
 
-export const bucketLabel = (bucketStart: string, bucket: MetricBucket): string => {
+export const bucketLabel = (bucketStart: string, bucket: MetricSeriesSet["bucket"]): string => {
   const day = bucketStart.slice(0, 10);
   return bucket === "Day" ? day : `${day} ${bucketStart.slice(11, 16)}`;
 };
@@ -168,7 +168,7 @@ export const groupLabel = (group: Record<string, string>): string => {
   return values.length === 0 ? "All" : values.join(" · ");
 };
 
-export const defaultStat = (kind: MetricKind, unit: string): MetricStat => {
+export const defaultStat = (kind: MetricEntry["kind"], unit: string): MetricStat => {
   if (kind === "Sample") return "Mean";
   return unit === "uUSD" || unit.startsWith("{") ? "Sum" : "p50";
 };
