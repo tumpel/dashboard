@@ -1,65 +1,12 @@
 import type { paths } from "@tumpel/openapi/paths";
-import {
-  ClaudeSetupSchema,
-  ConfigPlanSchema,
-  ConnectionSummarySchema,
-  ConnectorAuthorizationSchema,
-  ConnectorSchema,
-  CredentialHandoverSchema,
-  DeviceSchema,
-  EffectiveHarnessVersionSchema,
-  EventPageSchema,
-  EventProblemSchema,
-  GitHubConnectionSchema,
-  GitHubInstallationSchema,
-  GitHubInstallStartSchema,
-  GitHubIssueSchema,
-  GitHubRepositorySchema,
-  HarnessCatalogEntrySchema,
-  HarnessPinSchema,
-  HostSchema,
-  InvitationCreatedSchema,
-  InvitationSchema,
-  MembershipSchema,
-  MetricCatalogSchema,
-  MetricSeriesSetSchema,
-  MetricTurnPageSchema,
-  MintedEnrolmentTokenSchema,
-  OAuthGrantSchema,
-  OpenRouterAuthorizationSchema,
-  PersonaFileUploadSchema,
-  PersonaSchema,
-  PrebuildFailureSchema,
-  PrebuildPreviewSchema,
-  PrebuildSchema,
-  PrebuildTemplatePullRequestSchema,
-  PrebuildTemplateSchema,
-  PrebuildTemplateVersionSchema,
-  PrincipalSchema,
-  ProblemSchema,
-  PushKeySchema,
-  PushSubscriptionSchema,
-  ReleaseManifestSchema,
-  ReportedHostUsageSchema,
-  SecretSetSchema,
-  SessionSchema,
-  SnapshotSchema,
-  StartedSessionFromIssueSchema,
-  StartedSessionSchema,
-  SteerSchema,
-  StopFailureSchema,
-  TenantEventSchema,
-  TranscriptPageSchema,
-  TriggerSchema,
-  TriggerTestResultSchema,
-  TurnSchema,
-  WhoamiSchema,
-} from "@tumpel/schemas";
+import { decode, EventProblemSchema, ProblemSchema } from "@tumpel/schemas";
 import createClient from "openapi-fetch";
-import { z } from "zod";
+import type { z } from "zod";
 import type { TokenLookup } from "../auth/oauth";
 import {
   ApiFailure,
+  type Decoded,
+  type DecodeKey,
   type EventListener,
   type PersonaFileUpload,
   type Problem,
@@ -77,63 +24,18 @@ const BEARER_SUBPROTOCOL = "tumpel.bearer";
 
 const timedOut = (error: unknown): boolean => error instanceof DOMException && error.name === "TimeoutError";
 
-const UNKNOWN_VALUE = "unknown";
-
-const isContainer = (value: unknown): value is Record<PropertyKey, unknown> =>
-  typeof value === "object" && value !== null;
-
-const valueAt = (root: unknown, path: readonly PropertyKey[]): unknown =>
-  path.reduce<unknown>((node, key) => (isContainer(node) ? node[key] : undefined), root);
-
-const put = (root: unknown, path: readonly PropertyKey[], value: unknown): void => {
-  const parent = valueAt(root, path.slice(0, -1));
-  const key = path.at(-1);
-  if (isContainer(parent) && key !== undefined) parent[key] = value;
-};
-
-type EnumMiss = { path: PropertyKey[]; known: string };
-
-const enumMisses = (issues: readonly z.core.$ZodIssue[], data: unknown): EnumMiss[] =>
-  issues.flatMap((issue) => {
-    if (issue.code !== "invalid_value" || issue.values.length < 2) return [];
-    const [known] = issue.values;
-    if (typeof known !== "string" || typeof valueAt(data, issue.path) !== "string") return [];
-    return [{ path: issue.path, known }];
-  });
-
-const toleratingUnknownEnums = <T>(schema: z.ZodType<T>): z.ZodType<T> =>
-  z.unknown().transform((data, context): T => {
-    const result = schema.safeParse(data);
-    if (result.success) return result.data;
-    const misses = enumMisses(result.error.issues, data);
-    const standIn = structuredClone(data);
-    for (const miss of misses) put(standIn, miss.path, miss.known);
-    const tolerated = misses.length > 0 ? schema.safeParse(standIn) : result;
-    if (!tolerated.success) {
-      for (const issue of result.error.issues) context.addIssue({ ...issue });
-      return z.NEVER;
-    }
-    for (const miss of misses) put(tolerated.data, miss.path, UNKNOWN_VALUE);
-    return tolerated.data;
-  });
-
-const parsed = <T>(operation: string, schema: z.ZodType<T>, data: unknown): T => {
-  const result = schema.safeParse(data);
-  if (result.success) return result.data;
-  const fields = [...new Set(result.error.issues.map((issue) => issue.path.join(".") || "the body"))].join(", ");
-  throw new ApiFailure({
+const outOfStep = (operation: string, paths: readonly string[]): ApiFailure =>
+  new ApiFailure({
     kind: "OutOfStep",
     operation,
-    detail: `The ${operation} answer does not match what this dashboard expects at ${fields}.`,
+    detail: `The ${operation} answer does not match what this dashboard expects at ${[...new Set(paths)].join(", ")}.`,
   });
-};
 
-const settle = async <T>(
+const answered = async (
   operation: string,
-  schema: z.ZodType<T>,
   sent: Promise<Sent>,
   problemSchema: z.ZodType<Problem> = ProblemSchema,
-): Promise<T> => {
+): Promise<unknown> => {
   const answer = await sent.catch((error: unknown) => {
     if (error instanceof ApiFailure) throw error;
     if (timedOut(error)) {
@@ -144,7 +46,7 @@ const settle = async <T>(
     }
     throw new ApiFailure({ kind: "Unreachable", detail: `${operation} got no response from the control plane.` });
   });
-  if (answer.response.ok) return parsed(operation, schema, answer.data);
+  if (answer.response.ok) return answer.data;
   const problem = problemSchema.safeParse(answer.error);
   if (problem.success) {
     throw new ApiFailure({ kind: "Problem", status: answer.response.status, problem: problem.data });
@@ -156,8 +58,40 @@ const settle = async <T>(
   });
 };
 
-const settleEmpty = (operation: string, sent: Promise<Sent>): Promise<void> =>
-  settle(operation, z.unknown(), sent).then(() => undefined);
+const settling = (notify: (unrecognised: unknown[]) => void) => {
+  return {
+    settle: async <K extends DecodeKey>(
+      operation: string,
+      key: K,
+      sent: Promise<Sent>,
+      problemSchema?: z.ZodType<Problem>,
+    ): Promise<Decoded<K>> => {
+      const data = await answered(operation, sent, problemSchema);
+      const result = decode(key, data);
+      if (!result.success)
+        throw outOfStep(
+          operation,
+          result.error.issues.map((issue) => issue.path.join(".") || "the body"),
+        );
+      if (result.unrecognised.length > 0) notify(result.unrecognised);
+      return result.data;
+    },
+    settleList: async <K extends DecodeKey>(operation: string, key: K, sent: Promise<Sent>): Promise<Decoded<K>[]> => {
+      const data = await answered(operation, sent);
+      if (!Array.isArray(data)) throw outOfStep(operation, ["the body"]);
+      const results = data.map((item) => decode(key, item));
+      const paths = results.flatMap((result, index) =>
+        result.success ? [] : result.error.issues.map((issue) => [index, ...issue.path].join(".")),
+      );
+      if (paths.length > 0) throw outOfStep(operation, paths);
+      const unrecognised = results.flatMap((result) => (result.success ? result.unrecognised : []));
+      if (unrecognised.length > 0) notify(unrecognised);
+      return results.flatMap((result) => (result.success ? [result.data] : []));
+    },
+    settleEmpty: (operation: string, sent: Promise<Sent>): Promise<void> =>
+      answered(operation, sent).then(() => undefined),
+  };
+};
 
 const putBytes = async (upload: PersonaFileUpload, path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> => {
   const answer = await fetch(upload.uploadUrl, { method: "PUT", body: bytes }).catch(() => null);
@@ -191,6 +125,7 @@ const followEvents = (
   apiOrigin: string,
   tenantId: string,
   accessToken: (tenantId: string) => Promise<TokenLookup>,
+  notify: (unrecognised: unknown[]) => void,
   listener: EventListener,
 ): (() => void) => {
   const url = new URL("/v1/events", apiOrigin);
@@ -216,9 +151,10 @@ const followEvents = (
       opened = true;
     };
     socket.onmessage = (message) => {
-      const event = TenantEventSchema.safeParse(JSON.parse(String(message.data)));
-      if (event.success) listener.onEvent(event.data);
-      else listener.onGap();
+      const event = decode("TenantEventSchema", JSON.parse(String(message.data)));
+      if (!event.success) return listener.onGap();
+      if (event.unrecognised.length > 0) notify(event.unrecognised);
+      if (event.data.event !== "Unrecognised") listener.onEvent(event.data);
     };
     socket.onclose = reconnect;
   };
@@ -234,7 +170,9 @@ export const createHttpApi = (
   apiOrigin: string,
   tenantId: string,
   accessToken: (tenantId: string) => Promise<TokenLookup>,
+  notify: (unrecognised: unknown[]) => void,
 ): TumpelApi => {
+  const { settle, settleList, settleEmpty } = settling(notify);
   const client = createClient<paths>({
     baseUrl: apiOrigin,
     fetch: (request) => fetch(request, { signal: AbortSignal.timeout(REQUEST_LIMIT_MS) }),
@@ -249,25 +187,25 @@ export const createHttpApi = (
     },
   });
   return {
-    whoami: () => settle("Identity_whoami", WhoamiSchema, client.GET("/v1/whoami")),
-    listHosts: () => settle("Hosts_list", HostSchema.array(), client.GET("/v1/hosts")),
-    listHostUsage: () => settle("Hosts_listUsage", ReportedHostUsageSchema.array(), client.GET("/v1/hosts/usage")),
+    whoami: () => settle("Identity_whoami", "WhoamiSchema", client.GET("/v1/whoami")),
+    listHosts: () => settleList("Hosts_list", "HostSchema", client.GET("/v1/hosts")),
+    listHostUsage: () => settleList("Hosts_listUsage", "ReportedHostUsageSchema", client.GET("/v1/hosts/usage")),
     getHost: (hostId) =>
-      settle("Hosts_get", HostSchema, client.GET("/v1/hosts/{hostId}", { params: { path: { hostId } } })),
+      settle("Hosts_get", "HostSchema", client.GET("/v1/hosts/{hostId}", { params: { path: { hostId } } })),
     revokeHost: (hostId) =>
-      settle("Hosts_revoke", HostSchema, client.POST("/v1/hosts/{hostId}/revoke", { params: { path: { hostId } } })),
+      settle("Hosts_revoke", "HostSchema", client.POST("/v1/hosts/{hostId}/revoke", { params: { path: { hostId } } })),
     mintEnrolmentToken: (expiresInSeconds) =>
       settle(
         "EnrolmentTokens_mint",
-        MintedEnrolmentTokenSchema,
+        "MintedEnrolmentTokenSchema",
         client.POST("/v1/enrolment-tokens", { body: { expiresInSeconds } }),
       ),
     listSessions: async (query) => {
       const sessions: Session[] = [];
       for (;;) {
-        const page = await settle(
+        const page = await settleList(
           "Sessions_list",
-          toleratingUnknownEnums(SessionSchema.array()),
+          "SessionSchema",
           client.GET("/v1/sessions", {
             params: { query: { ...query, limit: SESSION_PAGE, after: sessions.at(-1)?.sessionId } },
           }),
@@ -279,20 +217,20 @@ export const createHttpApi = (
     getSession: (sessionId) =>
       settle(
         "Sessions_get",
-        SessionSchema,
+        "SessionSchema",
         client.GET("/v1/sessions/{sessionId}", { params: { path: { sessionId } } }),
       ),
-    startSession: (body) => settle("Sessions_start", StartedSessionSchema, client.POST("/v1/sessions", { body })),
+    startSession: (body) => settle("Sessions_start", "StartedSessionSchema", client.POST("/v1/sessions", { body })),
     startSessionFromIssue: (body) =>
       settle(
         "Sessions_startFromIssue",
-        StartedSessionFromIssueSchema,
+        "StartedSessionFromIssueSchema",
         client.POST("/v1/sessions/from-issue", { body }),
       ),
     stopSession: (sessionId, cancelTurn) =>
       settle(
         "Sessions_stop",
-        SessionSchema,
+        "SessionSchema",
         client.POST("/v1/sessions/{sessionId}/stop", {
           params: { path: { sessionId }, query: cancelTurn ? { cancelTurn } : {} },
         }),
@@ -300,96 +238,96 @@ export const createHttpApi = (
     archiveSession: (sessionId) =>
       settle(
         "Sessions_archive",
-        SessionSchema,
+        "SessionSchema",
         client.POST("/v1/sessions/{sessionId}/archive", { params: { path: { sessionId } } }),
       ),
     listTurns: (sessionId) =>
-      settle(
+      settleList(
         "Turns_list",
-        TurnSchema.array(),
+        "TurnSchema",
         client.GET("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } } }),
       ),
     sendTurn: (sessionId, prompt) =>
       settle(
         "Turns_send",
-        TurnSchema,
+        "TurnSchema",
         client.POST("/v1/sessions/{sessionId}/turns", { params: { path: { sessionId } }, body: { prompt } }),
       ),
     steerTurn: (turnId, prompt) =>
       settle(
         "Turns_steer",
-        SteerSchema,
+        "SteerSchema",
         client.POST("/v1/turns/{turnId}/steers", { params: { path: { turnId } }, body: { prompt } }),
       ),
     readTranscript: (sessionId, query) =>
       settle(
         "Transcripts_read",
-        TranscriptPageSchema,
+        "TranscriptPageSchema",
         client.GET("/v1/sessions/{sessionId}/transcript", { params: { path: { sessionId }, query } }),
       ),
     listSnapshots: (sessionId) =>
-      settle(
+      settleList(
         "Snapshots_list",
-        SnapshotSchema.array(),
+        "SnapshotSchema",
         client.GET("/v1/sessions/{sessionId}/snapshots", { params: { path: { sessionId } } }),
       ),
     listCredentialHandovers: (sessionId) =>
-      settle(
+      settleList(
         "Sessions_listCredentialHandovers",
-        CredentialHandoverSchema.array(),
+        "CredentialHandoverSchema",
         client.GET("/v1/sessions/{sessionId}/credential-handovers", { params: { path: { sessionId } } }),
       ),
     listStopFailures: (sessionId) =>
-      settle(
+      settleList(
         "Sessions_listStopFailures",
-        StopFailureSchema.array(),
+        "StopFailureSchema",
         client.GET("/v1/sessions/{sessionId}/stop-failures", { params: { path: { sessionId } } }),
       ),
-    listPersonas: () => settle("Personas_list", PersonaSchema.array(), client.GET("/v1/personas")),
+    listPersonas: () => settleList("Personas_list", "PersonaSchema", client.GET("/v1/personas")),
     getGitHubConnection: () =>
-      settle("GitHubConnections_get", GitHubConnectionSchema, client.GET("/v1/github-connection")),
+      settle("GitHubConnections_get", "GitHubConnectionSchema", client.GET("/v1/github-connection")),
     listGitHubInstallations: () =>
-      settle(
+      settleList(
         "GitHubConnections_list",
-        GitHubInstallationSchema.array(),
+        "GitHubInstallationSchema",
         client.GET("/v1/github-connection/installations"),
       ),
     listRepositories: () =>
-      settle(
+      settleList(
         "GitHubConnections_listRepositories",
-        GitHubRepositorySchema.array(),
+        "GitHubRepositorySchema",
         client.GET("/v1/github-connection/repositories"),
       ),
     listIssues: (repository) =>
-      settle(
+      settleList(
         "GitHubConnections_listIssues",
-        GitHubIssueSchema.array(),
+        "GitHubIssueSchema",
         client.GET("/v1/github-connection/repositories/{owner}/{name}/issues", { params: { path: repository } }),
       ),
     listHarnessCatalog: () =>
-      settle("HarnessCatalog_list", HarnessCatalogEntrySchema.array(), client.GET("/v1/harnesses")),
+      settleList("HarnessCatalog_list", "HarnessCatalogEntrySchema", client.GET("/v1/harnesses")),
     listHarnessPins: () =>
-      settle("HarnessCatalog_listPins", EffectiveHarnessVersionSchema.array(), client.GET("/v1/harnesses/pins")),
+      settleList("HarnessCatalog_listPins", "EffectiveHarnessVersionSchema", client.GET("/v1/harnesses/pins")),
     pinHarness: (pin) =>
-      settle("HarnessCatalog_pin", HarnessPinSchema, client.PUT("/v1/harnesses/pins", { body: pin })),
+      settle("HarnessCatalog_pin", "HarnessPinSchema", client.PUT("/v1/harnesses/pins", { body: pin })),
     unpinHarness: (harness) =>
       settleEmpty(
         "HarnessCatalog_unpin",
         client.DELETE("/v1/harnesses/pins/{harness}", { params: { path: { harness } } }),
       ),
-    currentRelease: () => settle("Releases_current", ReleaseManifestSchema, client.GET("/v1/releases/current")),
+    currentRelease: () => settle("Releases_current", "ReleaseManifestSchema", client.GET("/v1/releases/current")),
     getPersona: (personaId) =>
       settle(
         "Personas_get",
-        PersonaSchema,
+        "PersonaSchema",
         client.GET("/v1/personas/{personaId}", { params: { path: { personaId } } }),
       ),
     createPersona: (persona) =>
-      settle("Personas_create", PersonaSchema, client.POST("/v1/personas", { body: persona })),
+      settle("Personas_create", "PersonaSchema", client.POST("/v1/personas", { body: persona })),
     updatePersona: (personaId, persona) =>
       settle(
         "Personas_update",
-        PersonaSchema,
+        "PersonaSchema",
         client.PUT("/v1/personas/{personaId}", { params: { path: { personaId } }, body: persona }),
       ),
     deletePersona: (personaId) =>
@@ -397,23 +335,23 @@ export const createHttpApi = (
     uploadPersonaFile: (digest, sizeBytes) =>
       settle(
         "Personas_uploadFile",
-        PersonaFileUploadSchema,
+        "PersonaFileUploadSchema",
         client.POST("/v1/personas/file-uploads", { body: { digest, sizeBytes } }),
       ),
     putPersonaFile: putBytes,
-    listSecretSets: () => settle("SecretSets_list", SecretSetSchema.array(), client.GET("/v1/secret-sets")),
+    listSecretSets: () => settleList("SecretSets_list", "SecretSetSchema", client.GET("/v1/secret-sets")),
     getSecretSet: (secretSetId) =>
       settle(
         "SecretSets_get",
-        SecretSetSchema,
+        "SecretSetSchema",
         client.GET("/v1/secret-sets/{secretSetId}", { params: { path: { secretSetId } } }),
       ),
     createSecretSet: (secretSet) =>
-      settle("SecretSets_create", SecretSetSchema, client.POST("/v1/secret-sets", { body: secretSet })),
+      settle("SecretSets_create", "SecretSetSchema", client.POST("/v1/secret-sets", { body: secretSet })),
     updateSecretSet: (secretSetId, secretSet) =>
       settle(
         "SecretSets_update",
-        SecretSetSchema,
+        "SecretSetSchema",
         client.PUT("/v1/secret-sets/{secretSetId}", { params: { path: { secretSetId } }, body: secretSet }),
       ),
     deleteSecretSet: (secretSetId) =>
@@ -424,7 +362,7 @@ export const createHttpApi = (
     startGitHubConnection: (returnUrl, gitHubAccountId) =>
       settle(
         "GitHubConnections_start",
-        GitHubInstallStartSchema,
+        "GitHubInstallStartSchema",
         client.POST("/v1/github-connection/start", {
           params: {
             query: {
@@ -434,35 +372,34 @@ export const createHttpApi = (
           },
         }),
       ),
-    listConnections: () => settle("Connections_list", ConnectionSummarySchema.array(), client.GET("/v1/connections")),
+    listConnections: () => settleList("Connections_list", "ConnectionSummarySchema", client.GET("/v1/connections")),
     deleteGitHubConnection: (installationId) =>
       settleEmpty(
         "GitHubConnections_delete",
         client.DELETE("/v1/github-connection/installations/{installationId}", { params: { path: { installationId } } }),
       ),
     listPrebuilds: (repository) =>
-      settle(
+      settleList(
         "Prebuilds_list",
-        PrebuildSchema.array(),
+        "PrebuildSchema",
         client.GET("/v1/prebuilds", { params: { query: { repository } } }),
       ),
-    listLatestPrebuilds: () =>
-      settle("Prebuilds_listLatest", PrebuildSchema.array(), client.GET("/v1/prebuilds/latest")),
-    startPrebuild: (body) => settle("Prebuilds_start", PrebuildSchema, client.POST("/v1/prebuilds", { body })),
+    listLatestPrebuilds: () => settleList("Prebuilds_listLatest", "PrebuildSchema", client.GET("/v1/prebuilds/latest")),
+    startPrebuild: (body) => settle("Prebuilds_start", "PrebuildSchema", client.POST("/v1/prebuilds", { body })),
     getPrebuildFailure: (prebuildId) =>
       settle(
         "Prebuilds_getFailure",
-        PrebuildFailureSchema,
+        "PrebuildFailureSchema",
         client.GET("/v1/prebuilds/{prebuildId}/failure", { params: { path: { prebuildId } } }),
       ),
     previewPrebuild: (body) =>
-      settle("Prebuilds_preview", PrebuildPreviewSchema, client.POST("/v1/prebuilds/preview", { body })),
+      settle("Prebuilds_preview", "PrebuildPreviewSchema", client.POST("/v1/prebuilds/preview", { body })),
     listPrebuildTemplates: () =>
-      settle("PrebuildTemplates_list", PrebuildTemplateSchema.array(), client.GET("/v1/prebuild-templates")),
+      settleList("PrebuildTemplates_list", "PrebuildTemplateSchema", client.GET("/v1/prebuild-templates")),
     getPrebuildTemplate: (prebuildTemplateId, prebuildTemplateVersion) =>
       settle(
         "PrebuildTemplates_get",
-        PrebuildTemplateVersionSchema,
+        "PrebuildTemplateVersionSchema",
         client.GET("/v1/prebuild-templates/{prebuildTemplateId}/versions/{prebuildTemplateVersion}", {
           params: { path: { prebuildTemplateId, prebuildTemplateVersion } },
         }),
@@ -470,106 +407,106 @@ export const createHttpApi = (
     openTemplatePullRequest: (body) =>
       settle(
         "PrebuildTemplates_openPullRequest",
-        PrebuildTemplatePullRequestSchema,
+        "PrebuildTemplatePullRequestSchema",
         client.POST("/v1/prebuild-templates/pull-request", { body }),
       ),
     getTemplatePullRequest: (repository) =>
       settle(
         "PrebuildTemplates_getPullRequest",
-        PrebuildTemplatePullRequestSchema,
+        "PrebuildTemplatePullRequestSchema",
         client.GET("/v1/prebuild-templates/pull-request", { params: { query: { repository } } }),
       ),
-    listTenants: () => settle("Identity_listTenants", MembershipSchema.array(), client.GET("/v1/whoami/tenants")),
-    listDevices: () => settle("Devices_list", DeviceSchema.array(), client.GET("/v1/devices")),
+    listTenants: () => settleList("Identity_listTenants", "MembershipSchema", client.GET("/v1/whoami/tenants")),
+    listDevices: () => settleList("Devices_list", "DeviceSchema", client.GET("/v1/devices")),
     revokeDevice: (deviceId) =>
       settleEmpty("Devices_revoke", client.DELETE("/v1/devices/{deviceId}", { params: { path: { deviceId } } })),
-    listMembers: () => settle("Members_list", PrincipalSchema.array(), client.GET("/v1/members")),
+    listMembers: () => settleList("Members_list", "PrincipalSchema", client.GET("/v1/members")),
     removeMember: (principalId) =>
       settleEmpty("Members_remove", client.DELETE("/v1/members/{principalId}", { params: { path: { principalId } } })),
-    listInvitations: () => settle("Invitations_list", InvitationSchema.array(), client.GET("/v1/invitations")),
+    listInvitations: () => settleList("Invitations_list", "InvitationSchema", client.GET("/v1/invitations")),
     createInvitation: (body) =>
-      settle("Invitations_create", InvitationCreatedSchema, client.POST("/v1/invitations", { body })),
+      settle("Invitations_create", "InvitationCreatedSchema", client.POST("/v1/invitations", { body })),
     revokeInvitation: (invitationId) =>
       settleEmpty(
         "Invitations_revoke",
         client.DELETE("/v1/invitations/{invitationId}", { params: { path: { invitationId } } }),
       ),
-    listOAuthGrants: () => settle("OAuthGrants_list", OAuthGrantSchema.array(), client.GET("/v1/oauth-grants")),
+    listOAuthGrants: () => settleList("OAuthGrants_list", "OAuthGrantSchema", client.GET("/v1/oauth-grants")),
     planTenantConfig: (body) =>
-      settle("TenantConfigs_plan", ConfigPlanSchema, client.POST("/v1/tenant-config/plan", { body })),
+      settle("TenantConfigs_plan", "ConfigPlanSchema", client.POST("/v1/tenant-config/plan", { body })),
     applyTenantConfig: (body) =>
-      settle("TenantConfigs_apply", ConfigPlanSchema, client.POST("/v1/tenant-config/apply", { body })),
+      settle("TenantConfigs_apply", "ConfigPlanSchema", client.POST("/v1/tenant-config/apply", { body })),
     startClaudeSetup: (secretSetId, harness) =>
       settle(
         "ClaudeSetups_start",
-        ClaudeSetupSchema,
+        "ClaudeSetupSchema",
         client.POST("/v1/claude-setups", { body: { secretSetId, harness } }),
       ),
     listClaudeSetups: (secretSetId) =>
-      settle(
+      settleList(
         "ClaudeSetups_list",
-        ClaudeSetupSchema.array(),
+        "ClaudeSetupSchema",
         client.GET("/v1/claude-setups", { params: { query: { secretSetId } } }),
       ),
     getClaudeSetup: (claudeSetupId) =>
       settle(
         "ClaudeSetups_get",
-        ClaudeSetupSchema,
+        "ClaudeSetupSchema",
         client.GET("/v1/claude-setups/{claudeSetupId}", { params: { path: { claudeSetupId } } }),
       ),
     submitClaudeSetupCode: (claudeSetupId, code) =>
       settle(
         "ClaudeSetups_submitCode",
-        ClaudeSetupSchema,
+        "ClaudeSetupSchema",
         client.POST("/v1/claude-setups/{claudeSetupId}/code", { params: { path: { claudeSetupId } }, body: { code } }),
       ),
     authorizeOpenRouter: (body) =>
       settle(
         "OpenRouterConnections_authorize",
-        OpenRouterAuthorizationSchema,
+        "OpenRouterAuthorizationSchema",
         client.POST("/v1/openrouter-connection/authorize", { body }),
       ),
     getOpenRouterAuthorization: (openRouterAuthorizationId) =>
       settle(
         "OpenRouterConnections_getAuthorization",
-        OpenRouterAuthorizationSchema,
+        "OpenRouterAuthorizationSchema",
         client.GET("/v1/openrouter-connection/authorizations/{openRouterAuthorizationId}", {
           params: { path: { openRouterAuthorizationId } },
         }),
       ),
     metricCatalog: (window) =>
-      settle("Metrics_catalog", MetricCatalogSchema, client.GET("/v1/metrics", { params: { query: window } })),
+      settle("Metrics_catalog", "MetricCatalogSchema", client.GET("/v1/metrics", { params: { query: window } })),
     queryMetric: (metric, query) =>
       settle(
         "Metrics_query",
-        MetricSeriesSetSchema,
+        "MetricSeriesSetSchema",
         client.GET("/v1/metrics/{metric}/series", { params: { path: { metric }, query } }),
       ),
     metricTurns: (metric, query) =>
       settle(
         "Metrics_turns",
-        MetricTurnPageSchema,
+        "MetricTurnPageSchema",
         client.GET("/v1/metrics/{metric}/turns", { params: { path: { metric }, query } }),
       ),
-    getPushKey: () => settle("PushKeys_get", PushKeySchema, client.GET("/v1/push-key")),
+    getPushKey: () => settle("PushKeys_get", "PushKeySchema", client.GET("/v1/push-key")),
     listPushSubscriptions: () =>
-      settle("PushSubscriptions_list", PushSubscriptionSchema.array(), client.GET("/v1/push-subscriptions")),
+      settleList("PushSubscriptions_list", "PushSubscriptionSchema", client.GET("/v1/push-subscriptions")),
     createPushSubscription: (body) =>
-      settle("PushSubscriptions_create", PushSubscriptionSchema, client.POST("/v1/push-subscriptions", { body })),
+      settle("PushSubscriptions_create", "PushSubscriptionSchema", client.POST("/v1/push-subscriptions", { body })),
     deletePushSubscription: (pushSubscriptionId) =>
       settleEmpty(
         "PushSubscriptions_delete",
         client.DELETE("/v1/push-subscriptions/{pushSubscriptionId}", { params: { path: { pushSubscriptionId } } }),
       ),
-    listConnectors: () => settle("Connectors_list", ConnectorSchema.array(), client.GET("/v1/connectors")),
+    listConnectors: () => settleList("Connectors_list", "ConnectorSchema", client.GET("/v1/connectors")),
     createConnector: (auth, body) =>
       auth === "Static"
-        ? settle("StaticConnectors_create", ConnectorSchema, client.POST("/v1/static-connectors", { body }))
-        : settle("OAuthConnectors_create", ConnectorSchema, client.POST("/v1/oauth-connectors", { body })),
+        ? settle("StaticConnectors_create", "ConnectorSchema", client.POST("/v1/static-connectors", { body }))
+        : settle("OAuthConnectors_create", "ConnectorSchema", client.POST("/v1/oauth-connectors", { body })),
     updateConnector: ({ connectorId, updatedAt }, body) =>
       settle(
         "Connectors_update",
-        ConnectorSchema,
+        "ConnectorSchema",
         client.PUT("/v1/connectors/{connectorId}", { params: { path: { connectorId }, query: { updatedAt } }, body }),
       ),
     deleteConnector: ({ connectorId, updatedAt }) =>
@@ -580,7 +517,7 @@ export const createHttpApi = (
     setConnectorToken: ({ connectorId, updatedAt }, value) =>
       settle(
         "StaticConnectors_setToken",
-        ConnectorSchema,
+        "ConnectorSchema",
         client.PUT("/v1/static-connectors/{connectorId}/token", {
           params: { path: { connectorId }, query: { updatedAt } },
           body: { value },
@@ -589,7 +526,7 @@ export const createHttpApi = (
     clearConnectorCredential: ({ connectorId, updatedAt }) =>
       settle(
         "Connectors_clearCredential",
-        ConnectorSchema,
+        "ConnectorSchema",
         client.DELETE("/v1/connectors/{connectorId}/credential", {
           params: { path: { connectorId }, query: { updatedAt } },
         }),
@@ -597,30 +534,31 @@ export const createHttpApi = (
     authorizeConnector: ({ connectorId, updatedAt }) =>
       settle(
         "OAuthConnectors_authorize",
-        ConnectorAuthorizationSchema,
+        "ConnectorAuthorizationSchema",
         client.POST("/v1/oauth-connectors/{connectorId}/authorize", {
           params: { path: { connectorId }, query: { updatedAt } },
         }),
       ),
     listEvents: (query) =>
-      settle("Events_list", EventPageSchema, client.GET("/v1/events", { params: { query } }), EventProblemSchema),
-    followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, listener),
-    listTriggers: () => settle("Triggers_list", TriggerSchema.array(), client.GET("/v1/triggers")),
+      settle("Events_list", "EventPageSchema", client.GET("/v1/events", { params: { query } }), EventProblemSchema),
+    followEvents: (listener) => followEvents(apiOrigin, tenantId, accessToken, notify, listener),
+    listTriggers: () => settleList("Triggers_list", "TriggerSchema", client.GET("/v1/triggers")),
     getTrigger: (triggerId) =>
       settle(
         "Triggers_get",
-        TriggerSchema,
+        "TriggerSchema",
         client.GET("/v1/triggers/{triggerId}", { params: { path: { triggerId } } }),
       ),
-    createTrigger: (body) => settle("Triggers_create", TriggerSchema, client.POST("/v1/triggers", { body })),
+    createTrigger: (body) => settle("Triggers_create", "TriggerSchema", client.POST("/v1/triggers", { body })),
     updateTrigger: (triggerId, body) =>
       settle(
         "Triggers_update",
-        TriggerSchema,
+        "TriggerSchema",
         client.PATCH("/v1/triggers/{triggerId}", { params: { path: { triggerId } }, body }),
       ),
     deleteTrigger: (triggerId) =>
       settleEmpty("Triggers_delete", client.DELETE("/v1/triggers/{triggerId}", { params: { path: { triggerId } } })),
-    testTrigger: (body) => settle("Triggers_test", TriggerTestResultSchema, client.POST("/v1/triggers/test", { body })),
+    testTrigger: (body) =>
+      settle("Triggers_test", "TriggerTestResultSchema", client.POST("/v1/triggers/test", { body })),
   };
 };

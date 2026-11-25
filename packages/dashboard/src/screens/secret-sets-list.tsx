@@ -1,5 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { Persona, SecretKey, SecretSet } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock } from "../components/problem-block";
@@ -19,6 +20,7 @@ const soonestExpiry = (secretSet: SecretSet): string | undefined =>
 const credentialLabel = (key: SecretKey): string => {
   if (key.kind === "ApiKey") return `${key.provider} key`;
   if (key.kind === "SubscriptionToken") return `${key.provider} token`;
+  if (key.kind === "Unrecognised") return UNRECOGNISED_LABEL;
   return key.name;
 };
 

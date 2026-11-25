@@ -1,14 +1,16 @@
-import { DraftTriggerTestSchema, GitHubTriggerEventSchema } from "@tumpel/schemas";
+import { DraftTriggerTestSchema, GitHubTriggerEventSchema, TriggerSourceSchema } from "@tumpel/schemas";
 import {
   ApiFailure,
+  type EventPage,
   type Session,
-  type TenantEvent,
+  type Trigger,
   type TriggerCondition,
   type TriggerEvent,
   type TriggerSource,
   type TriggerStartRefused,
   type TumpelApi,
 } from "./api/port.ts";
+import { UNRECOGNISED_LABEL } from "./api/wording.ts";
 
 export const TRIGGER_EVENTS = GitHubTriggerEventSchema.options;
 
@@ -86,12 +88,30 @@ const conditionText = (event: TriggerEvent, condition: TriggerCondition): string
   return `${conditionLabel(event, condition.field)} ${values}`;
 };
 
-export const filterSummary = (source: TriggerSource): string =>
-  source.conditions.length === 0
-    ? `Every ${source.event} event`
-    : source.conditions.map((condition) => conditionText(source.event, condition)).join(" · ");
+export type KnownTrigger = Omit<Trigger, "source"> & { source: TriggerSource };
 
-export const isRefusal = (event: TenantEvent): event is TriggerStartRefused => event.event === "TriggerStartRefused";
+const knownSource = (source: Trigger["source"]): TriggerSource | null => {
+  const known = TriggerSourceSchema.safeParse(source);
+  return known.success ? known.data : null;
+};
+
+export const knownTrigger = (trigger: Trigger): KnownTrigger | null => {
+  const source = knownSource(trigger.source);
+  return source === null ? null : { ...trigger, source };
+};
+
+export const eventLabel = (source: Trigger["source"]): string => knownSource(source)?.event ?? UNRECOGNISED_LABEL;
+
+export const filterSummary = (source: Trigger["source"]): string => {
+  const known = knownSource(source);
+  if (known === null) return UNRECOGNISED_LABEL;
+  return known.conditions.length === 0
+    ? `Every ${known.event} event`
+    : known.conditions.map((condition) => conditionText(known.event, condition)).join(" · ");
+};
+
+export const isRefusal = (event: EventPage["events"][number]): event is TriggerStartRefused =>
+  event.event === "TriggerStartRefused";
 
 const cursorKeptAfter = (error: unknown, afterEventId: number): number => {
   if (!(error instanceof ApiFailure) || error.failure.kind !== "Problem") throw error;

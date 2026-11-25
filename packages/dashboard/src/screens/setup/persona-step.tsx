@@ -2,14 +2,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { CredentialProblem } from "@tumpel/api/credentials";
 import { type FormEvent, useId, useState } from "react";
-import type { Persona, SecretMemberUpdate, SecretSet, SecretValue } from "../../api/port";
+import type { KnownSecretSet, Persona, SecretMemberUpdate, SecretSet, SecretValue } from "../../api/port";
+import { UNRECOGNISED_EDIT } from "../../api/wording";
 import { Field } from "../../components/field";
-import { ProblemBlock } from "../../components/problem-block";
+import { ProblemBlock, ProblemCard } from "../../components/problem-block";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { useUnsavedGuard } from "../../components/unsaved-guard";
 import { useTenantApi } from "../../context";
-import { expiryDate, HARNESS_NAMES } from "../../fleet";
+import { expiryDate, HARNESS_NAMES, knownSecretSet } from "../../fleet";
 import { keys, useClaudeSetup, useHarnessPins } from "../../queries";
 import {
   CLAUDE_TOKEN,
@@ -78,7 +79,7 @@ const TokenForm = ({
 }: {
   tenantId: string;
   persona: Persona;
-  secretSet: SecretSet;
+  secretSet: KnownSecretSet;
   askGitHub: boolean;
   refused: CredentialProblem | null;
 }) => {
@@ -289,17 +290,19 @@ export const PersonaStep = ({ tenantId, reads }: { tenantId: string; reads: Setu
         </p>
       );
     }
+    const known = knownSecretSet(secretSet);
+    if (known === null) return <ProblemCard wording={UNRECOGNISED_EDIT} />;
     const askGitHub = github.data !== undefined && !github.data.connected;
     const writes = new Set(askGitHub ? [CLAUDE_TOKEN, GITHUB_TOKEN] : [CLAUDE_TOKEN]);
-    const others = secretSet.keys.filter((key) => !writes.has(key.name)).map((key) => key.name);
+    const others = known.keys.filter((key) => !writes.has(key.name)).map((key) => key.name);
     if (others.length > 0) {
-      return <KeepOthers tenantId={tenantId} secretSet={secretSet} others={others} />;
+      return <KeepOthers tenantId={tenantId} secretSet={known} others={others} />;
     }
     return (
       <TokenForm
         tenantId={tenantId}
         persona={persona}
-        secretSet={secretSet}
+        secretSet={known}
         askGitHub={askGitHub}
         refused={
           ready.kind === "Refused" &&
@@ -326,7 +329,15 @@ export const PersonaStep = ({ tenantId, reads }: { tenantId: string; reads: Setu
   );
 };
 
-const KeepOthers = ({ tenantId, secretSet, others }: { tenantId: string; secretSet: SecretSet; others: string[] }) => {
+const KeepOthers = ({
+  tenantId,
+  secretSet,
+  others,
+}: {
+  tenantId: string;
+  secretSet: KnownSecretSet;
+  others: string[];
+}) => {
   const flow = useClaudeSetup(tenantId, secretSet.secretSetId);
   if (flow.active) {
     return <ClaudeSetupPanel flow={flow} next={<DoneNext tenantId={tenantId} />} closeLabel="Paste a token instead" />;

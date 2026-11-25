@@ -3,16 +3,18 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { DicesIcon } from "lucide-react";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
-import type { HarnessCatalogEntry, ModelProvider, SecretKey, SecretSet, SecretValue } from "../api/port";
+import type { HarnessCatalogEntry, KnownSecretKey, KnownSecretSet, ModelProvider, SecretValue } from "../api/port";
+import { UNRECOGNISED_EDIT } from "../api/wording";
 import { Field } from "../components/field";
 import { PageHeader } from "../components/page-header";
-import { ProblemBlock } from "../components/problem-block";
+import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { NativeSelect } from "../components/ui/native-select";
 import { Skeleton } from "../components/ui/skeleton";
 import { useTenantApi } from "../context";
+import { knownSecretSet } from "../fleet";
 import { keys, useClaudeSetup, useHarnessCatalog, useSecretSet } from "../queries";
 import {
   type CredentialKind,
@@ -132,7 +134,7 @@ export const NewSecretSetScreen = () => {
   );
 };
 
-const useAddSecret = (tenantId: string, secretSet: SecretSet) => {
+const useAddSecret = (tenantId: string, secretSet: KnownSecretSet) => {
   const api = useTenantApi(tenantId);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -148,7 +150,7 @@ const useAddSecret = (tenantId: string, secretSet: SecretSet) => {
   });
 };
 
-const ReplaceNote = ({ secretSet, added }: { secretSet: SecretSet; added: SecretValue | null }) => {
+const ReplaceNote = ({ secretSet, added }: { secretSet: KnownSecretSet; added: SecretValue | null }) => {
   if (added === null) return null;
   const replaced = replacedBy(secretSet.keys, added);
   if (replaced.length === 0) return null;
@@ -163,7 +165,7 @@ const PlainForm = ({
   catalog,
 }: {
   tenantId: string;
-  secretSet: SecretSet;
+  secretSet: KnownSecretSet;
   catalog: HarnessCatalogEntry[];
 }) => {
   const ids = { purpose: useId(), kind: useId(), name: useId(), value: useId(), expires: useId() };
@@ -312,7 +314,7 @@ const PlainForm = ({
   );
 };
 
-const PlainStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: SecretSet }) => {
+const PlainStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: KnownSecretSet }) => {
   const catalog = useHarnessCatalog(tenantId);
   if (catalog.isPending) return <Skeleton className="h-40 w-full max-w-md" />;
   if (catalog.isError) return <ProblemBlock error={catalog.error} onRetry={() => void catalog.refetch()} />;
@@ -339,9 +341,10 @@ const ConnectSection = ({
   </section>
 );
 
-const holds = (secretSet: SecretSet, match: (key: SecretKey) => boolean): boolean => secretSet.keys.some(match);
+const holds = (secretSet: KnownSecretSet, match: (key: KnownSecretKey) => boolean): boolean =>
+  secretSet.keys.some(match);
 
-const AnthropicStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: SecretSet }) => {
+const AnthropicStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: KnownSecretSet }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const flow = useClaudeSetup(tenantId, secretSet.secretSetId);
@@ -392,7 +395,7 @@ const AnthropicStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: S
   );
 };
 
-const CodexStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: SecretSet }) => {
+const CodexStep = ({ tenantId, secretSet }: { tenantId: string; secretSet: KnownSecretSet }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const flow = useClaudeSetup(tenantId, secretSet.secretSetId, "Codex");
@@ -455,7 +458,7 @@ const SecretStep = ({
   secret,
 }: {
   tenantId: string;
-  secretSet: SecretSet;
+  secretSet: KnownSecretSet;
   secret: SecretChoice;
 }) => {
   if (secret === "Plain") return <PlainStep tenantId={tenantId} secretSet={secretSet} />;
@@ -484,7 +487,15 @@ export const AddSecretScreen = () => {
       </>
     );
   }
-  const set = secretSet.data;
+  const set = knownSecretSet(secretSet.data);
+  if (set === null) {
+    return (
+      <>
+        <PageHeader title={`Add a secret to ${secretSet.data.name}`} crumb={<SecretSetsCrumb tenantId={tenantId} />} />
+        <ProblemCard wording={UNRECOGNISED_EDIT} />
+      </>
+    );
+  }
   return (
     <>
       <PageHeader

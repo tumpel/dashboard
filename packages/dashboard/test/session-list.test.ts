@@ -52,7 +52,12 @@ test("a tenant with 120 sessions lists every one across pages of 50, and every r
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const api = createHttpApi(
+    origin,
+    "tenant-a",
+    async () => ({ kind: "Token", token: "token" }),
+    (unrecognised) => assert.deepEqual(unrecognised, []),
+  );
 
   const sessions = await api.listSessions({ triggerId: "trg_1" });
   await new Promise<void>((resolve) => server.close(() => resolve()));

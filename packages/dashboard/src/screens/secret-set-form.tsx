@@ -6,22 +6,24 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 import {
   ApiFailure,
+  type KnownSecretKey,
+  type KnownSecretSet,
   type ModelProvider,
-  type SecretKey,
   type SecretMemberUpdate,
   type SecretSet,
   type SecretValue,
 } from "../api/port";
+import { UNRECOGNISED_EDIT } from "../api/wording";
 import { Field } from "../components/field";
 import { PageHeader } from "../components/page-header";
-import { ProblemBlock } from "../components/problem-block";
+import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { NativeSelect } from "../components/ui/native-select";
 import { Skeleton } from "../components/ui/skeleton";
 import { useUnsavedGuard } from "../components/unsaved-guard";
 import { useTenantApi } from "../context";
-import { SECRET_KIND_NAMES } from "../fleet";
+import { knownSecretSet, SECRET_KIND_NAMES } from "../fleet";
 import { cn } from "../lib";
 import { keys, useSecretSet } from "../queries";
 
@@ -49,7 +51,7 @@ export const toOffsetIso = (local: string): string => {
   return `${local}:00${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
 };
 
-const draftOf = (key: SecretKey, rowId: number): MemberDraft => {
+const draftOf = (key: KnownSecretKey, rowId: number): MemberDraft => {
   const storedName = key.name;
   if (key.kind === "Variable") return { rowId, storedName, kind: key.kind, name: key.name, value: "" };
   if (key.kind === "ApiKey") {
@@ -225,7 +227,7 @@ const SecretSetEditor = ({
   replace,
 }: {
   tenantId: string;
-  secretSet: SecretSet;
+  secretSet: KnownSecretSet;
   replace: string | undefined;
 }) => {
   const api = useTenantApi(tenantId);
@@ -357,15 +359,20 @@ export const EditSecretSetScreen = () => {
       </>
     );
   }
+  const known = knownSecretSet(secretSet.data);
   return (
     <>
       <PageHeader title={`Edit ${secretSet.data.name}`} crumb={crumb} />
-      <SecretSetEditor
-        key={`${secretSet.data.secretSetId}-${secretSet.data.updatedAt}`}
-        tenantId={tenantId}
-        secretSet={secretSet.data}
-        replace={replace[0]}
-      />
+      {known === null ? (
+        <ProblemCard wording={UNRECOGNISED_EDIT} />
+      ) : (
+        <SecretSetEditor
+          key={`${known.secretSetId}-${known.updatedAt}`}
+          tenantId={tenantId}
+          secretSet={known}
+          replace={replace[0]}
+        />
+      )}
     </>
   );
 };

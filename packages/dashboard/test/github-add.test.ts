@@ -24,7 +24,12 @@ before(async () => {
 after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
 test("adding an account starts without an account id and answers GitHub's install picker", async () => {
-  const api = createHttpApi(origin, "tenant-a", async () => ({ kind: "Token", token: "token" }));
+  const api = createHttpApi(
+    origin,
+    "tenant-a",
+    async () => ({ kind: "Token", token: "token" }),
+    (unrecognised) => assert.deepEqual(unrecognised, []),
+  );
   const returnUrl = "https://app.tumpel.test/t/tenant-a/connections";
   const started = await api.startGitHubConnection(returnUrl, null);
   assert.equal(started.installUrl, INSTALL_URL);

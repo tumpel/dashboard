@@ -1,4 +1,4 @@
-import type { HarnessCatalogEntry, ModelProvider, SecretKey, SecretMemberUpdate, SecretValue } from "./api/port";
+import type { HarnessCatalogEntry, KnownSecretKey, ModelProvider, SecretMemberUpdate, SecretValue } from "./api/port";
 
 export type CredentialKind = "ApiKey" | "SubscriptionToken";
 
@@ -46,11 +46,15 @@ const pick = (words: readonly string[], roll: number): string =>
 export const suggestName = (roll: () => number): string => `${pick(FIRST, roll())}-${pick(SECOND, roll())}`;
 
 export const catalogProviders = (catalog: readonly HarnessCatalogEntry[]): ModelProvider[] => [
-  ...new Set(catalog.flatMap((entry) => entry.credentials.map((credential) => credential.provider))),
+  ...new Set(
+    catalog.flatMap((entry) =>
+      entry.credentials.flatMap((credential) => (credential.provider === "Unrecognised" ? [] : [credential.provider])),
+    ),
+  ),
 ];
 
 const pasted = (kind: HarnessCatalogEntry["credentials"][number]["kind"]): kind is CredentialKind =>
-  kind !== "CredentialFile";
+  kind === "ApiKey" || kind === "SubscriptionToken";
 
 export const catalogKinds = (catalog: readonly HarnessCatalogEntry[], provider: ModelProvider): CredentialKind[] => [
   ...new Set(
@@ -74,20 +78,20 @@ export const catalogVariable = (
   return (matching.find((credential) => credential.fixed.length === 0) ?? matching[0])?.variable ?? "";
 };
 
-const keptOf = (key: SecretKey): SecretMemberUpdate => {
+const keptOf = (key: KnownSecretKey): SecretMemberUpdate => {
   if (key.kind === "Variable") return { kind: key.kind, name: key.name };
   if (key.kind === "ApiKey") return { kind: key.kind, name: key.name, provider: key.provider };
   return { kind: key.kind, name: key.name, provider: key.provider, expiresAt: key.expiresAt };
 };
 
-export const replacedBy = (keys: readonly SecretKey[], added: SecretValue): SecretKey[] =>
+export const replacedBy = (keys: readonly KnownSecretKey[], added: SecretValue): KnownSecretKey[] =>
   keys.filter(
     (key) =>
       key.name === added.name ||
       (added.kind !== "Variable" && key.kind !== "Variable" && key.provider === added.provider),
   );
 
-export const withSecret = (keys: readonly SecretKey[], added: SecretValue): SecretMemberUpdate[] => {
+export const withSecret = (keys: readonly KnownSecretKey[], added: SecretValue): SecretMemberUpdate[] => {
   const replaced = new Set(replacedBy(keys, added).map((key) => key.name));
   return [...keys.filter((key) => !replaced.has(key.name)).map(keptOf), added];
 };

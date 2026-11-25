@@ -123,7 +123,7 @@ export const HostsListScreen = () => {
   const navigate = useNavigate({ from: "/t/$tenantId/hosts" });
   const hosts = useHosts(tenantId);
   const usage = useHostUsage(tenantId);
-  const toggle = (state: Host["state"]) =>
+  const toggle = (state: (typeof chosen)[number]) =>
     void navigate({
       search: { state: chosen.includes(state) ? chosen.filter((item) => item !== state) : [...chosen, state] },
     });
@@ -148,7 +148,7 @@ export const HostsListScreen = () => {
     }
     const byHost = usageByHost(usage.data ?? []);
     const rows = hosts.data
-      .filter((host) => chosen.length === 0 || chosen.includes(host.state))
+      .filter((host) => chosen.length === 0 || chosen.some((state) => state === host.state))
       .map((host) => ({ host, usage: byHost.get(host.hostId) }));
     if (rows.length === 0) {
       return (

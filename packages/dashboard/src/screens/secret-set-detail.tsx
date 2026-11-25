@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { Persona, SecretKey, SecretSet } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
@@ -86,6 +87,7 @@ export const SecretSetDetailScreen = () => {
   }
   const set = secretSet.data;
   const now = Date.now();
+  const shown = set.keys.flatMap((key) => (key.kind === "Unrecognised" ? [] : [key]));
   const users = (personas.data ?? []).filter((persona) => persona.secretSetId === set.secretSetId);
   const expired = set.keys.flatMap((key) => (key.kind === "SubscriptionToken" && isExpired(key, now) ? [key] : []));
   return (
@@ -160,7 +162,7 @@ export const SecretSetDetailScreen = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {set.keys.map((key) => (
+            {shown.map((key) => (
               <TableRow key={key.name}>
                 <TableCell mobile="primary" className="font-mono text-[13px]">
                   {key.name}
@@ -180,6 +182,11 @@ export const SecretSetDetailScreen = () => {
           </TableBody>
         </Table>
         {set.keys.length === 0 && <p className="text-sm text-muted-foreground">This set holds no secrets yet.</p>}
+        {shown.length < set.keys.length && (
+          <p className="text-sm">
+            {UNRECOGNISED_LABEL}: this set also holds a secret this dashboard does not recognise.
+          </p>
+        )}
         {personas.isError ? (
           <ProblemBlock error={personas.error} onRetry={() => void personas.refetch()} />
         ) : (

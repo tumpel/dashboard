@@ -3,6 +3,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 import type { Host, ReportedHostUsage } from "../api/port";
+import { UNRECOGNISED_LABEL } from "../api/wording";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { PageHeader } from "../components/page-header";
 import { ProblemBlock } from "../components/problem-block";
@@ -75,6 +76,7 @@ type UpdateFailure = Extract<Host["supervisorUpdateFailure"], { state: "Reported
 const shortSha = (sha256: string): string => sha256.slice(0, 12);
 
 const STEP_WORDS: Record<UpdateStep["phase"], (step: UpdateStep) => string> = {
+  Unrecognised: () => UNRECOGNISED_LABEL,
   Fetching: (step) => `Downloading supervisor ${shortSha(step.toSha256)}.`,
   DryRunning: (step) =>
     `Test-running supervisor ${shortSha(step.toSha256)} beside the running one. Once it passes, it takes over when no box runs.`,
@@ -86,6 +88,7 @@ const STEP_WORDS: Record<UpdateStep["phase"], (step: UpdateStep) => string> = {
 };
 
 const FAILURE_WORDS: Record<UpdateFailure["reason"], string> = {
+  Unrecognised: UNRECOGNISED_LABEL,
   SupervisorUpdateFetchFailed: "The download failed. The running supervisor stays.",
   SupervisorUpdateChecksumMismatch: "The download did not match the release checksum. The running supervisor stays.",
   SupervisorUpdateDryRunFailed: "The new supervisor failed its test run. The running supervisor stays.",

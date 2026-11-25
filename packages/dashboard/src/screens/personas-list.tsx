@@ -72,7 +72,13 @@ export const PersonasListScreen = () => {
                   </Link>
                 </TableCell>
                 <TableCell label="Files">
-                  {persona.files.length}, {formatKib(persona.files.reduce((total, file) => total + file.sizeBytes, 0))}
+                  {persona.files.length},{" "}
+                  {formatKib(
+                    persona.files.reduce(
+                      (total, file) => total + (file.source === "Unrecognised" ? 0 : file.sizeBytes),
+                      0,
+                    ),
+                  )}
                 </TableCell>
               </TableRow>
             ))}

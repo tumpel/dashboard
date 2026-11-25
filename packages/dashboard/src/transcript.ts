@@ -18,6 +18,7 @@ export interface TranscriptView {
 export const EMPTY_TRANSCRIPT: TranscriptView = { lines: [], cursor: 0, finished: false, moved: false, idleReads: 0 };
 
 export const appendPage = (view: TranscriptView, page: TranscriptPage): TranscriptView => {
+  if (page.form === "Unrecognised") return { ...view, finished: true, moved: false };
   const moved = page.cursor > view.cursor;
   return {
     lines: [...view.lines, ...(page.form === "Raw" ? page.lines : page.turns.flatMap((turn) => turn.lines))],

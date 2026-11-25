@@ -1,13 +1,14 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type { OpenRouterAuthorizationFailureReason, SecretSet } from "../api/port";
-import type { Wording } from "../api/wording";
+import { UNRECOGNISED_LABEL, type Wording } from "../api/wording";
 import { ProblemBlock, ProblemCard } from "../components/problem-block";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { useTenantApi } from "../context";
 
 const FAILURES: Record<OpenRouterAuthorizationFailureReason, Omit<Wording, "detail">> = {
+  Unrecognised: { title: UNRECOGNISED_LABEL, fix: "Connect OpenRouter again." },
   AuthorizationTimedOut: {
     title: "OpenRouter did not send you back in time (AuthorizationTimedOut)",
     fix: "Connect OpenRouter again and approve on OpenRouter within 10 minutes.",

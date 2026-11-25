@@ -79,9 +79,9 @@ export const SessionsListScreen = () => {
       }
       return next;
     });
-  const setSearch = (state: Session["state"][], host: string, trigger: string) =>
+  const setSearch = (state: typeof chosen, host: string, trigger: string) =>
     void navigate({ search: { state, hostId: host === "" ? [] : [host], trigger: trigger === "" ? [] : [trigger] } });
-  const toggle = (state: Session["state"]) =>
+  const toggle = (state: (typeof chosen)[number]) =>
     setSearch(chosen.includes(state) ? chosen.filter((item) => item !== state) : [...chosen, state], hostId, triggerId);
   const triggerNameOf = (id: string): string => triggers.data?.find((trigger) => trigger.triggerId === id)?.name ?? id;
   const pick = (next: string) => void navigate({ search: (search) => search, hash: next });
@@ -109,7 +109,7 @@ export const SessionsListScreen = () => {
       );
     }
     const rows = sessions.data
-      .filter((session) => chosen.length === 0 || chosen.includes(session.state))
+      .filter((session) => chosen.length === 0 || chosen.some((state) => state === session.state))
       .filter((session) => hostId === "" || session.hostId === hostId)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if (rows.length === 0) {

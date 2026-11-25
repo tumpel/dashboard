@@ -1,176 +1,133 @@
 import type {
-  ClaudeSetupSchema,
-  CompactTranscriptLineSchema,
-  ConfigPlanSchema,
-  ConnectionSummarySchema,
-  ConnectorAuthorizationSchema,
-  ConnectorSchema,
+  ClaudeSetupHarnessSchema,
   ConnectorUpdateSchema,
   CostBasisSchema,
-  CredentialHandoverSchema,
-  DeviceSchema,
-  EffectiveHarnessVersionSchema,
-  EventPageSchema,
+  decode,
   EventProblemSchema,
   EventQuerySchema,
-  GitHubConnectionSchema,
-  GitHubInstallationSchema,
-  GitHubInstallStartSchema,
-  GitHubIssueSchema,
   GitHubRepositoryPathSchema,
-  GitHubRepositorySchema,
-  HarnessCatalogEntrySchema,
   HarnessPinCreateSchema,
-  HarnessPinSchema,
-  HostSchema,
-  InvitationCreatedSchema,
   InvitationCreateSchema,
-  InvitationSchema,
-  MembershipSchema,
   MetricBucketSchema,
-  MetricCatalogSchema,
   MetricKindSchema,
   MetricSeriesQuerySchema,
-  MetricSeriesSetSchema,
-  MetricTurnPageSchema,
   MetricTurnQuerySchema,
   MetricWindowSchema,
-  MintedEnrolmentTokenSchema,
-  OAuthGrantSchema,
-  OpenRouterAuthorizationSchema,
+  ModelProviderSchema,
   OpenRouterAuthorizationStartSchema,
   PersonaCreateSchema,
-  PersonaFileUploadSchema,
-  PersonaSchema,
+  PersonaFileSchema,
   PersonaUpdateSchema,
-  PrebuildFailureSchema,
   PrebuildPreviewRequestSchema,
-  PrebuildPreviewSchema,
-  PrebuildSchema,
   PrebuildStartSchema,
   PrebuildTemplatePullRequestOpenSchema,
-  PrebuildTemplatePullRequestSchema,
-  PrebuildTemplateSchema,
-  PrebuildTemplateVersionSchema,
-  PrincipalSchema,
-  PushKeySchema,
   PushSubscriptionCreateSchema,
-  PushSubscriptionSchema,
-  ReleaseManifestSchema,
-  ReportedHostUsageSchema,
+  SecretKeySchema,
   SecretSetCreateSchema,
-  SecretSetSchema,
   SecretSetUpdateSchema,
   SessionListQuerySchema,
-  SessionSchema,
   SessionStartFromIssueSchema,
   SessionStartSchema,
-  SnapshotSchema,
-  StartedSessionFromIssueSchema,
-  StartedSessionSchema,
   StaticConnectorCreateSchema,
-  SteerSchema,
-  StopFailureSchema,
   TenantConfigApplySchema,
   TenantConfigPlanRequestSchema,
   TenantConfigSchema,
-  TenantEventSchema,
-  TranscriptPageSchema,
   TranscriptQuerySchema,
   TriggerCreateSchema,
   TriggerPatchSchema,
-  TriggerSchema,
-  TriggerStartRefusedEventSchema,
-  TriggerTestResultSchema,
   TriggerTestSchema,
-  TurnSchema,
-  WhoamiSchema,
 } from "@tumpel/schemas";
 import type { z } from "zod";
 
-export type Host = z.infer<typeof HostSchema>;
-export type TenantEvent = z.infer<typeof TenantEventSchema>;
+export type DecodeKey = Parameters<typeof decode>[0];
+export type Decoded<K extends DecodeKey> = Extract<ReturnType<typeof decode<K>>, { success: true }>["data"];
+
+export type Host = Decoded<"HostSchema">;
+export type TenantEvent = Exclude<Decoded<"TenantEventSchema">, { event: "Unrecognised" }>;
 export type EventQuery = z.infer<typeof EventQuerySchema>;
-export type EventPage = z.infer<typeof EventPageSchema>;
-export type Trigger = z.infer<typeof TriggerSchema>;
+export type EventPage = Decoded<"EventPageSchema">;
+export type Trigger = Decoded<"TriggerSchema">;
 export type TriggerCreate = z.infer<typeof TriggerCreateSchema>;
 export type TriggerPatch = z.infer<typeof TriggerPatchSchema>;
-export type TriggerSource = Trigger["source"];
+export type TriggerSource = TriggerCreate["source"];
 export type TriggerEvent = TriggerSource["event"];
 export type TriggerCondition = TriggerSource["conditions"][number];
 export type TriggerTest = z.infer<typeof TriggerTestSchema>;
-export type TriggerTestResult = z.infer<typeof TriggerTestResultSchema>;
-export type TriggerStartRefused = z.infer<typeof TriggerStartRefusedEventSchema>;
+export type TriggerTestResult = Decoded<"TriggerTestResultSchema">;
+export type TriggerStartRefused = Decoded<"TriggerStartRefusedEventSchema">;
 
 export interface EventListener {
   onEvent(event: TenantEvent): void;
   onGap(): void;
 }
-export type ReportedHostUsage = z.infer<typeof ReportedHostUsageSchema>;
-export type Session = z.infer<typeof SessionSchema>;
+export type ReportedHostUsage = Decoded<"ReportedHostUsageSchema">;
+export type Session = Decoded<"SessionSchema">;
 export type SessionListQuery = z.infer<typeof SessionListQuerySchema>;
-export type Whoami = z.infer<typeof WhoamiSchema>;
-export type MintedEnrolmentToken = z.infer<typeof MintedEnrolmentTokenSchema>;
+export type Whoami = Decoded<"WhoamiSchema">;
+export type MintedEnrolmentToken = Decoded<"MintedEnrolmentTokenSchema">;
 export type Problem = z.infer<typeof EventProblemSchema>;
-export type Persona = z.infer<typeof PersonaSchema>;
+export type Persona = Decoded<"PersonaSchema">;
+export type KnownPersona = Omit<Persona, "files"> & { files: z.infer<typeof PersonaFileSchema>[] };
 export type SessionStart = z.infer<typeof SessionStartSchema>;
-export type StartedSession = z.infer<typeof StartedSessionSchema>;
+export type StartedSession = Decoded<"StartedSessionSchema">;
 export type SessionStartFromIssue = z.infer<typeof SessionStartFromIssueSchema>;
-export type StartedSessionFromIssue = z.infer<typeof StartedSessionFromIssueSchema>;
-export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>;
+export type StartedSessionFromIssue = Decoded<"StartedSessionFromIssueSchema">;
+export type GitHubRepository = Decoded<"GitHubRepositorySchema">;
 export type GitHubRepositoryPath = z.infer<typeof GitHubRepositoryPathSchema>;
-export type GitHubIssue = z.infer<typeof GitHubIssueSchema>;
-export type Turn = z.infer<typeof TurnSchema>;
-export type Steer = z.infer<typeof SteerSchema>;
+export type GitHubIssue = Decoded<"GitHubIssueSchema">;
+export type Turn = Decoded<"TurnSchema">;
+export type Steer = Decoded<"SteerSchema">;
 export type TranscriptQuery = z.infer<typeof TranscriptQuerySchema>;
-export type TranscriptPage = z.infer<typeof TranscriptPageSchema>;
-export type TranscriptText = z.infer<typeof CompactTranscriptLineSchema>;
-export type Snapshot = z.infer<typeof SnapshotSchema>;
-export type CredentialHandover = z.infer<typeof CredentialHandoverSchema>;
-export type StopFailure = z.infer<typeof StopFailureSchema>;
-export type GitHubInstallation = z.infer<typeof GitHubInstallationSchema>;
-export type GitHubConnection = z.infer<typeof GitHubConnectionSchema>;
-export type HarnessCatalogEntry = z.infer<typeof HarnessCatalogEntrySchema>;
-export type HarnessPin = z.infer<typeof HarnessPinSchema>;
-export type EffectiveHarnessVersion = z.infer<typeof EffectiveHarnessVersionSchema>;
+export type TranscriptPage = Decoded<"TranscriptPageSchema">;
+export type TranscriptText = Decoded<"CompactTranscriptLineSchema">;
+export type Snapshot = Decoded<"SnapshotSchema">;
+export type CredentialHandover = Decoded<"CredentialHandoverSchema">;
+export type StopFailure = Decoded<"StopFailureSchema">;
+export type GitHubInstallation = Decoded<"GitHubInstallationSchema">;
+export type GitHubConnection = Decoded<"GitHubConnectionSchema">;
+export type HarnessCatalogEntry = Decoded<"HarnessCatalogEntrySchema">;
+export type HarnessPin = Decoded<"HarnessPinSchema">;
+export type EffectiveHarnessVersion = Decoded<"EffectiveHarnessVersionSchema">;
 export type HarnessPinCreate = z.infer<typeof HarnessPinCreateSchema>;
-export type Harness = HarnessPin["harness"];
-export type ReleaseManifest = z.infer<typeof ReleaseManifestSchema>;
+export type Harness = HarnessPinCreate["harness"];
+export type ReleaseManifest = Decoded<"ReleaseManifestSchema">;
 export type PersonaCreate = z.infer<typeof PersonaCreateSchema>;
 export type PersonaUpdate = z.infer<typeof PersonaUpdateSchema>;
 export type PersonaFileWrite = NonNullable<PersonaCreate["files"]>[number];
-export type PersonaFileUpload = z.infer<typeof PersonaFileUploadSchema>;
-export type SecretSet = z.infer<typeof SecretSetSchema>;
+export type PersonaFileUpload = Decoded<"PersonaFileUploadSchema">;
+export type SecretSet = Decoded<"SecretSetSchema">;
 export type SecretKey = SecretSet["keys"][number];
+export type KnownSecretKey = z.infer<typeof SecretKeySchema>;
+export type KnownSecretSet = Omit<SecretSet, "keys"> & { keys: KnownSecretKey[] };
 export type SecretSetCreate = z.infer<typeof SecretSetCreateSchema>;
 export type SecretSetUpdate = z.infer<typeof SecretSetUpdateSchema>;
 export type SecretValue = SecretSetCreate["secrets"][number];
 export type SecretMemberUpdate = SecretSetUpdate["secrets"][number];
-export type ModelProvider = HarnessCatalogEntry["credentials"][number]["provider"];
-export type GitHubInstallStart = z.infer<typeof GitHubInstallStartSchema>;
-export type ConnectionSummary = z.infer<typeof ConnectionSummarySchema>;
-export type Prebuild = z.infer<typeof PrebuildSchema>;
+export type ModelProvider = z.infer<typeof ModelProviderSchema>;
+export type GitHubInstallStart = Decoded<"GitHubInstallStartSchema">;
+export type ConnectionSummary = Decoded<"ConnectionSummarySchema">;
+export type Prebuild = Decoded<"PrebuildSchema">;
 export type PrebuildStart = z.infer<typeof PrebuildStartSchema>;
-export type PrebuildFailure = z.infer<typeof PrebuildFailureSchema>;
+export type PrebuildFailure = Decoded<"PrebuildFailureSchema">;
 export type PrebuildPreviewRequest = z.infer<typeof PrebuildPreviewRequestSchema>;
-export type PrebuildPreview = z.infer<typeof PrebuildPreviewSchema>;
+export type PrebuildPreview = Decoded<"PrebuildPreviewSchema">;
 export type PrebuildPreviewCommand = PrebuildPreview["commands"][number];
-export type PrebuildTemplate = z.infer<typeof PrebuildTemplateSchema>;
+export type PrebuildTemplate = Decoded<"PrebuildTemplateSchema">;
 export type PrebuildTemplateVersionSummary = PrebuildTemplate["versions"][number];
-export type PrebuildTemplateVersion = z.infer<typeof PrebuildTemplateVersionSchema>;
+export type PrebuildTemplateVersion = Decoded<"PrebuildTemplateVersionSchema">;
 export type PrebuildTemplatePullRequestOpen = z.infer<typeof PrebuildTemplatePullRequestOpenSchema>;
-export type PrebuildTemplatePullRequest = z.infer<typeof PrebuildTemplatePullRequestSchema>;
-export type OAuthGrant = z.infer<typeof OAuthGrantSchema>;
+export type PrebuildTemplatePullRequest = Decoded<"PrebuildTemplatePullRequestSchema">;
+export type OAuthGrant = Decoded<"OAuthGrantSchema">;
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
 export type TenantConfigPlanRequest = z.infer<typeof TenantConfigPlanRequestSchema>;
 export type TenantConfigApply = z.infer<typeof TenantConfigApplySchema>;
-export type ConfigPlan = z.infer<typeof ConfigPlanSchema>;
+export type ConfigPlan = Decoded<"ConfigPlanSchema">;
 export type ConfigChange = ConfigPlan["changes"][number];
-export type ClaudeSetup = z.infer<typeof ClaudeSetupSchema>;
+export type ClaudeSetup = Decoded<"ClaudeSetupSchema">;
 export type ClaudeSetupStatus = ClaudeSetup["status"];
-export type ClaudeSetupHarness = ClaudeSetup["harness"];
+export type ClaudeSetupHarness = z.infer<typeof ClaudeSetupHarnessSchema>;
 export type ClaudeSetupFailureReason = Extract<ClaudeSetupStatus, { state: "Failed" }>["reason"];
-export type OpenRouterAuthorization = z.infer<typeof OpenRouterAuthorizationSchema>;
+export type OpenRouterAuthorization = Decoded<"OpenRouterAuthorizationSchema">;
 export type OpenRouterAuthorizationStart = z.infer<typeof OpenRouterAuthorizationStartSchema>;
 export type OpenRouterAuthorizationStatus = OpenRouterAuthorization["status"];
 export type OpenRouterAuthorizationFailureReason = Extract<
@@ -182,30 +139,30 @@ export type CostBasis = z.infer<typeof CostBasisSchema>;
 export type MetricBucket = z.infer<typeof MetricBucketSchema>;
 export type MetricKind = z.infer<typeof MetricKindSchema>;
 export type MetricWindow = z.infer<typeof MetricWindowSchema>;
-export type MetricCatalog = z.infer<typeof MetricCatalogSchema>;
+export type MetricCatalog = Decoded<"MetricCatalogSchema">;
 export type MetricEntry = MetricCatalog["metrics"][number];
 export type MetricSeriesQuery = z.infer<typeof MetricSeriesQuerySchema>;
-export type MetricSeriesSet = z.infer<typeof MetricSeriesSetSchema>;
+export type MetricSeriesSet = Decoded<"MetricSeriesSetSchema">;
 export type MetricSeries = MetricSeriesSet["series"][number];
 export type MetricPoint = MetricSeries["points"][number];
 export type MetricTurnQuery = z.infer<typeof MetricTurnQuerySchema>;
-export type MetricTurnPage = z.infer<typeof MetricTurnPageSchema>;
+export type MetricTurnPage = Decoded<"MetricTurnPageSchema">;
 export type MetricTurnPoint = MetricTurnPage["points"][number];
 
-export type Device = z.infer<typeof DeviceSchema>;
-export type Membership = z.infer<typeof MembershipSchema>;
-export type Member = z.infer<typeof PrincipalSchema>;
-export type Invitation = z.infer<typeof InvitationSchema>;
+export type Device = Decoded<"DeviceSchema">;
+export type Membership = Decoded<"MembershipSchema">;
+export type Member = Decoded<"PrincipalSchema">;
+export type Invitation = Decoded<"InvitationSchema">;
 export type InvitationCreate = z.infer<typeof InvitationCreateSchema>;
-export type InvitationCreated = z.infer<typeof InvitationCreatedSchema>;
-export type Role = Member["role"];
-export type Connector = z.infer<typeof ConnectorSchema>;
+export type InvitationCreated = Decoded<"InvitationCreatedSchema">;
+export type Role = InvitationCreate["role"];
+export type Connector = Decoded<"ConnectorSchema">;
 export type ConnectorStatus = Connector["status"];
 export type ConnectorCreate = z.infer<typeof StaticConnectorCreateSchema>;
 export type ConnectorUpdate = z.infer<typeof ConnectorUpdateSchema>;
-export type ConnectorAuthorization = z.infer<typeof ConnectorAuthorizationSchema>;
-export type PushKey = z.infer<typeof PushKeySchema>;
-export type PushSubscription = z.infer<typeof PushSubscriptionSchema>;
+export type ConnectorAuthorization = Decoded<"ConnectorAuthorizationSchema">;
+export type PushKey = Decoded<"PushKeySchema">;
+export type PushSubscription = Decoded<"PushSubscriptionSchema">;
 export type PushSubscriptionCreate = z.infer<typeof PushSubscriptionCreateSchema>;
 
 export type Failure =

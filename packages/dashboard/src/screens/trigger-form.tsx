@@ -3,14 +3,8 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { CheckIcon, PlusIcon, XIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  failureOf,
-  type Persona,
-  type Trigger,
-  type TriggerCreate,
-  type TriggerEvent,
-  type TriggerTestResult,
-} from "../api/port";
+import { failureOf, type Persona, type TriggerCreate, type TriggerEvent, type TriggerTestResult } from "../api/port";
+import { UNRECOGNISED_EDIT } from "../api/wording";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { Field } from "../components/field";
 import { PageHeader } from "../components/page-header";
@@ -31,7 +25,16 @@ import { useTenantApi } from "../context";
 import { useHashDialog } from "../hash-dialog";
 import { cn } from "../lib";
 import { triggerKeys, useOwner, usePersonas, useRepositories, useTrigger } from "../queries";
-import { conditionLabel, PRESETS, parsePayload, presetOf, promptFields, TRIGGER_EVENTS } from "../triggers";
+import {
+  conditionLabel,
+  type KnownTrigger,
+  knownTrigger,
+  PRESETS,
+  parsePayload,
+  presetOf,
+  promptFields,
+  TRIGGER_EVENTS,
+} from "../triggers";
 
 export const OWNER_ONLY =
   "Only an Owner creates, changes or deletes a trigger. Anyone can test it on a sample payload.";
@@ -56,7 +59,7 @@ const freshKey = (): number => {
 
 const freshValue = (text: string): Value => ({ key: freshKey(), text });
 
-const rowsOf = (trigger: Trigger | null): Row[] =>
+const rowsOf = (trigger: KnownTrigger | null): Row[] =>
   (trigger?.source.conditions ?? []).map((condition) => ({
     key: freshKey(),
     custom: presetOf(trigger?.source.event ?? "pull_request", condition.field) === undefined,
@@ -247,7 +250,7 @@ const TestPanel = ({ tenantId, draft }: { tenantId: string; draft: TriggerCreate
   );
 };
 
-const DeleteTriggerDialog = ({ tenantId, trigger }: { tenantId: string; trigger: Trigger }) => {
+const DeleteTriggerDialog = ({ tenantId, trigger }: { tenantId: string; trigger: KnownTrigger }) => {
   const api = useTenantApi(tenantId);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -287,7 +290,7 @@ const TriggerEditor = ({
   readOnly,
 }: {
   tenantId: string;
-  trigger: Trigger | null;
+  trigger: KnownTrigger | null;
   personas: Persona[];
   repositories: string[];
   readOnly: boolean;
@@ -575,7 +578,15 @@ const TriggerFrame = ({ tenantId, title, children }: { tenantId: string; title: 
   </>
 );
 
-const TriggerPage = ({ tenantId, title, trigger }: { tenantId: string; title: string; trigger: Trigger | null }) => {
+const TriggerPage = ({
+  tenantId,
+  title,
+  trigger,
+}: {
+  tenantId: string;
+  title: string;
+  trigger: KnownTrigger | null;
+}) => {
   const owner = useOwner(tenantId);
   const personas = usePersonas(tenantId);
   const repositories = useRepositories(tenantId);
@@ -635,5 +646,13 @@ export const EditTriggerScreen = () => {
       </TriggerFrame>
     );
   }
-  return <TriggerPage tenantId={tenantId} title="Trigger" trigger={trigger.data} />;
+  const known = knownTrigger(trigger.data);
+  if (known === null) {
+    return (
+      <TriggerFrame tenantId={tenantId} title={trigger.data.name}>
+        <ProblemCard wording={UNRECOGNISED_EDIT} />
+      </TriggerFrame>
+    );
+  }
+  return <TriggerPage tenantId={tenantId} title="Trigger" trigger={known} />;
 };
