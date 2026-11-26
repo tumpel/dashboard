@@ -97,7 +97,7 @@ export const TriggerScreen = () => {
         crumb={crumb}
         actions={
           <>
-            {owner && (
+            {owner && data.sessionId === undefined && (
               <Button variant="outline" asChild>
                 <Link to="/t/$tenantId/triggers/$triggerId/edit" params={{ tenantId, triggerId }}>
                   Edit
@@ -115,6 +115,19 @@ export const TriggerScreen = () => {
       <p className="mb-4 text-sm text-muted-foreground">
         <span className="font-mono">{eventLabel(data.source)}</span> · {filterSummary(data.source)} ·{" "}
         {personaName(personas.data ?? [], data.personaId)} · {data.model}
+        {data.sessionId !== undefined && (
+          <>
+            {" "}
+            · sends one turn to{" "}
+            <Link
+              to="/t/$tenantId/sessions/$sessionId"
+              params={{ tenantId, sessionId: data.sessionId }}
+              className="font-mono hover:underline"
+            >
+              {data.sessionId}
+            </Link>
+          </>
+        )}
       </p>
       {personas.isError && (
         <ProblemBlock className="mb-4" error={personas.error} onRetry={() => void personas.refetch()} />

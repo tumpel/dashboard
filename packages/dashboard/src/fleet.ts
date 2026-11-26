@@ -87,6 +87,7 @@ export const HARNESS_NAMES: Record<Session["harness"], string> = {
   OpenCode: "OpenCode",
   PiDev: "Pi.dev",
   MistralAgent: "Mistral agent",
+  Gemini: "Gemini CLI",
   Unrecognised: UNRECOGNISED_LABEL,
 };
 

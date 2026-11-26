@@ -58,6 +58,22 @@ export const PRESETS: Record<TriggerEvent, readonly Preset[]> = {
     preset("Author", "issue.user.login"),
     SENDER,
   ],
+  check_suite: [
+    REPOSITORY,
+    preset("Action", "action", ["completed", "requested", "rerequested"]),
+    preset("App", "check_suite.app.slug", ["github-actions"]),
+    preset("Conclusion", "check_suite.conclusion", ["success", "failure", "cancelled", "timed_out"]),
+    preset("Head SHA", "check_suite.head_sha"),
+    SENDER,
+  ],
+  pull_request_review: [
+    REPOSITORY,
+    preset("Action", "action", ["submitted", "edited", "dismissed"]),
+    preset("Review state", "review.state", ["approved", "changes_requested", "commented"]),
+    preset("Pull request", "pull_request.number"),
+    preset("Reviewer", "review.user.login"),
+    SENDER,
+  ],
 };
 
 const PROMPT_FIELDS: Record<TriggerEvent, readonly string[]> = {
@@ -70,6 +86,8 @@ const PROMPT_FIELDS: Record<TriggerEvent, readonly string[]> = {
   push: ["after", "compare"],
   status: ["sha", "target_url"],
   issues: ["issue.html_url", "issue.number", "issue.title"],
+  check_suite: ["check_suite.head_branch"],
+  pull_request_review: ["review.html_url", "pull_request.html_url", "pull_request.head.sha"],
 };
 
 export const promptFields = (event: TriggerEvent): string[] => [

@@ -71,6 +71,7 @@ const LABELS: Record<ClaudeSetup["harness"], { section: string; saved: string; r
   Unrecognised: { section: UNRECOGNISED_LABEL, saved: UNRECOGNISED_LABEL, restart: "Start a new setup" },
   ClaudeCode: { section: "Set up Claude Code", saved: "Claude token saved", restart: "Start a new setup" },
   Codex: { section: "Sign in to Codex", saved: "Codex token saved", restart: "Start a new sign-in" },
+  Gemini: { section: "Sign in to Gemini CLI", saved: "Gemini CLI sign-in saved", restart: "Start a new sign-in" },
 };
 
 const button = "justify-self-start max-sm:h-12 max-sm:w-full";

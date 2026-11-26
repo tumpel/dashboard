@@ -70,6 +70,21 @@ export const TRIGGERS: Trigger[] = [
     "prs_placeholder02",
     "Work on {{issue.html_url}}. Open a pull request that closes it.",
   ),
+  {
+    ...trigger(
+      "trg_placeholder04",
+      "wake-foreman-pr-12-check_suite",
+      "check_suite",
+      [
+        { field: "repository.full_name", values: ["owner/repo-name"] },
+        { field: "action", values: ["completed"] },
+        { field: "check_suite.app.slug", values: ["github-actions"] },
+      ],
+      "prs_placeholder01",
+      "Checks finished on {{check_suite.head_sha}}. Read the pull request and carry on.",
+    ),
+    sessionId: "ses_placeholder01",
+  },
 ];
 
 export const REFUSALS: TriggerStartRefused[] = [
