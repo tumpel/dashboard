@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -17,20 +17,26 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      candidate-artifact: ${{ steps.candidate.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
-      - name: Detect a docs-only pull request
+      - name: Detect shipped changes
         id: changes
         run: |
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          shipped=false
+          if [ -n "$changed" ] && grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed"; then
+            shipped=true
+          fi
           code=true
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            changed=$(git diff --name-only HEAD^1 HEAD)
-            grep -qvE '^(docs?/.*|.*\.md|LICENSE|\.github/ISSUE_TEMPLATE/.*)$' <<<"$changed" || code=false
+            code=$shipped
           fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
+          printf 'code=%s\nshipped=%s\n' "$code" "$shipped" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v7
         with:
@@ -60,3 +66,81 @@ jobs:
 
       - if: steps.changes.outputs.code == 'true'
         run: npm run screenshots:mobile:check
+
+      - if: github.event_name == 'push' && steps.changes.outputs.shipped == 'true'
+        uses: actions/upload-artifact@v7
+        id: candidate
+        with:
+          name: dashboard-candidate-${{ github.run_attempt }}
+          path: |
+            release/dashboard-*.tgz
+            release/dashboard-*.tgz.sha256
+          if-no-files-found: error
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && needs.check.outputs.candidate-artifact != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.check.outputs.candidate-artifact }}
+          path: release
+
+      - name: Publish the dashboard candidate
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="rc.$(git rev-list --count "$GITHUB_SHA")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if draft=$(gh release view "$tag" --json isDraft --jq .isDraft); then
+            if [[ "$draft" == false ]]; then
+              exit 0
+            fi
+            gh release delete "$tag" --yes
+          fi
+          archives=(release/dashboard-*.tgz)
+          gh release create "$tag" "${archives[0]}" "${archives[0]}.sha256" --target "$GITHUB_SHA" --prerelease
+
+  bump:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: tumpel
+          repositories: deploy
+          permission-contents: write
+
+      - uses: actions/checkout@v7
+        with:
+          repository: tumpel/deploy
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Bump the dashboard pin on deploy main
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: node npm-scripts/bump-pin.mjs dashboard "$TAG"

@@ -20,3 +20,5 @@ The dashboard reads API responses with the protocol's `decode`, keeps the known 
 - `npm run build-storybook` builds the Storybook.
 - `npm run pack` builds the release tarballs into `release/`. A `vX.Y.Z` tag releases: the version must match both `packages/*/package.json`.
 - The types, schemas and clients come from the `tumpel/protocol` release tarballs. To change one, change the TypeSpec in `tumpel/protocol`, release it, and bump the tarball URLs here.
+
+On `main`, checks publish a candidate from the tarball they packed for that commit when its diff from its parent includes a shipped change. Publication and the dashboard pin bump run in separate jobs. Re-run failed jobs to retry a failed pin bump against the same published candidate.

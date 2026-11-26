@@ -17,7 +17,7 @@ One build serves every stage. The dashboard reads the control plane origin at ru
 <meta name="tumpel-api-origin" content="https://api.example.com">
 ```
 
-The built `index.html` carries no such tag. The server that hosts the dashboard must insert it into the `<head>` of every HTML response, including the single-page fallback for deep links. The content must be a bare `http` or `https` origin: scheme, host and optional port, with no path and no trailing slash. A Cloudflare Worker does it with `HTMLRewriter`:
+The built `index.html` carries no such tag. The dev deployment inserts it into the `<head>` before serving the static assets. The content must be a bare `http` or `https` origin: scheme, host and optional port, with no path and no trailing slash. A Cloudflare Worker can also insert it at request time with `HTMLRewriter`:
 
 ```ts
 new HTMLRewriter()
@@ -36,6 +36,8 @@ For `npm run dev -w @tumpel/dashboard`, set `TUMPEL_API_ORIGIN` and the dev serv
 `npm run build -w @tumpel/pages` compiles `@tumpel/pages` to `.js` and `.d.ts` in `packages/pages/dist`. The package also exports `@tumpel/pages/tokens.css` and `@tumpel/pages/shell.css`. Inside this repo the dashboard reads the TypeScript source through the `tumpel-source` export condition.
 
 ## Releases
+
+Each push to `main` with changes outside the docs paths publishes the checked dashboard tarball and its checksum as a prerelease. The tag is `rc.<N>`, where `N` counts commits reachable from the checked commit. After publication, the release App advances only the dashboard pin in `tumpel/deploy`, which deploys the candidate to dev.
 
 A `vX.Y.Z` tag releases. The version must match `version` in both `packages/dashboard/package.json` and `packages/pages/package.json`. The GitHub release carries two npm tarballs, each with a `.sha256` file:
 
