@@ -7,5 +7,6 @@ export const HARNESS_LABELS: Record<HarnessCatalogEntry["harness"], string> = {
   OpenCode: "OpenCode",
   PiDev: "Pi.dev",
   MistralAgent: "Mistral agent",
+  Gemini: "Gemini CLI",
   Unrecognised: UNRECOGNISED_LABEL,
 };

@@ -73,6 +73,7 @@ export const TriggersListScreen = () => {
               <TableHead>Event</TableHead>
               <TableHead>Filter</TableHead>
               <TableHead>Persona</TableHead>
+              <TableHead>Target</TableHead>
               <TableHead>Last run</TableHead>
             </TableRow>
           </TableHeader>
@@ -95,6 +96,19 @@ export const TriggersListScreen = () => {
                   {filterSummary(trigger.source)}
                 </TableCell>
                 <TableCell label="Persona">{personaName(personas.data ?? [], trigger.personaId)}</TableCell>
+                <TableCell label="Target">
+                  {trigger.sessionId === undefined ? (
+                    "New session"
+                  ) : (
+                    <Link
+                      to="/t/$tenantId/sessions/$sessionId"
+                      params={{ tenantId, sessionId: trigger.sessionId }}
+                      className="font-mono text-xs hover:underline"
+                    >
+                      {trigger.sessionId}
+                    </Link>
+                  )}
+                </TableCell>
                 <TableCell mobile="summary">
                   <LastRun
                     triggerId={trigger.triggerId}

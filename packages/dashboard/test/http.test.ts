@@ -8,7 +8,7 @@ import { failureOf } from "../src/api/port.ts";
 import { updateNotice, wordingOf } from "../src/api/wording.ts";
 import { knownPersona, knownSecretSet } from "../src/fleet.ts";
 import { appendPage, EMPTY_TRANSCRIPT, nextReadIn } from "../src/transcript.ts";
-import { knownTrigger } from "../src/triggers.ts";
+import { eventLabel, filterSummary, knownTrigger } from "../src/triggers.ts";
 
 let server: Server;
 let origin: string;
@@ -96,6 +96,30 @@ before(async () => {
           createdAt: 1,
           updatedAt: 1,
         }),
+      );
+      return;
+    }
+    if (request.url === "/v1/triggers") {
+      const trigger = (triggerId: string, event: string, fields: Record<string, unknown>) => ({
+        triggerId,
+        tenantId: "tenant-a",
+        name: triggerId,
+        source: { kind: "GitHub", event, conditions: [{ field: "action", values: ["completed"] }] },
+        personaId: "per_1",
+        model: "claude-opus-5-5",
+        prompt: "Wake up.",
+        principalId: "prn_1",
+        createdAt: 1,
+        updatedAt: 1,
+        ...fields,
+      });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify([
+          trigger("trg_suite", "check_suite", { sessionId: "ses_foreman" }),
+          trigger("trg_newer", "EventFromANewerControlPlane", { sessionId: "ses_foreman" }),
+          trigger("trg_review", "pull_request_review", {}),
+        ]),
       );
       return;
     }
@@ -348,6 +372,26 @@ test("a secret set, persona or trigger holding an unknown member offers no save"
   ]);
   const known = { ...secretSet, keys: secretSet.keys.filter((key) => key.kind !== "Unrecognised") };
   assert.deepEqual(knownSecretSet(known)?.keys, [{ kind: "Variable", name: "NPM_TOKEN", updatedAt: 1 }]);
+});
+
+test("a trigger list holding an unknown event shows the update notice and keeps the known triggers", async () => {
+  const api = apiWithNotices();
+  const triggers = await api.listTriggers();
+  assert.deepEqual(
+    triggers.map((trigger) => [
+      trigger.triggerId,
+      eventLabel(trigger.source),
+      filterSummary(trigger.source),
+      trigger.sessionId,
+      knownTrigger(trigger) === null,
+    ]),
+    [
+      ["trg_suite", "check_suite", "Action completed", "ses_foreman", false],
+      ["trg_newer", "Unknown", "Unknown", "ses_foreman", true],
+      ["trg_review", "pull_request_review", "Action completed", undefined, false],
+    ],
+  );
+  assert.deepEqual(notices, [`${NOTICE} "EventFromANewerControlPlane".`]);
 });
 
 test("a transcript page of an unrecognised form stops reads but leaves the turn unfinished", () => {
